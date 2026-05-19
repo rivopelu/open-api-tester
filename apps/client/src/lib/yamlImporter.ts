@@ -212,7 +212,7 @@ function parseTags(rawTags: any[] = []): ApiTag[] {
   }));
 }
 
-function parseParameters(params: any[] = [], doc?: any): EndpointParameter[] {
+function parseParameters(params: any[] = []): EndpointParameter[] {
   return params
     .filter((p) => p && typeof p === 'object' && !p.$ref)
     .map((p) => ({
@@ -331,7 +331,7 @@ function parseEndpoints(
   for (const [path, pathItem] of Object.entries(paths)) {
     if (!pathItem || typeof pathItem !== 'object') continue;
 
-    const pathParams = parseParameters(pathItem.parameters ?? [], doc);
+    const pathParams = parseParameters(pathItem.parameters ?? []);
 
     for (const rawMethod of ALL_METHODS) {
       const op = pathItem[rawMethod.toLowerCase()];
@@ -340,7 +340,7 @@ function parseEndpoints(
       const method = rawMethod.toUpperCase() as HttpMethod;
       if (!HTTP_METHODS.includes(method)) continue;
 
-      const opParams = parseParameters(op.parameters ?? [], doc);
+      const opParams = parseParameters(op.parameters ?? []);
       const merged: EndpointParameter[] = [
         ...pathParams.filter(
           (pp) => !opParams.find((op2) => op2.name === pp.name && op2.in === pp.in),
