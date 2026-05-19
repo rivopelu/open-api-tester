@@ -82,12 +82,12 @@ We provide an automated script to set up all tables, Row Level Security (RLS) po
    ```env
    DATABASE_URL="postgresql://postgres.[your-project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres"
    ```
-3. Run the migration script:
+3. Run the migration scripts:
    ```bash
    npm run migrate
    ```
 
-This creates the `projects`, `project_members`, and `project_invites` tables with RLS enabled.
+This creates the `projects`, `project_members`, `project_invites`, and `workspace_invites` tables with RLS enabled, along with necessary RPC functions for collaboration.
 
 ### 4. Start the development server
 
@@ -114,6 +114,23 @@ App runs at **http://localhost:5173**
 
 Row Level Security is enabled — all queries are automatically scoped to the authenticated user.
 
+### `workspace_invites` table
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | `uuid` | Primary key |
+| `owner_id` | `uuid` | References `auth.users(id)` |
+| `token` | `text` | Unique invite token |
+| `role` | `text` | 'editor' or 'viewer' |
+| `expires_at` | `timestamptz` | Expiration date (optional) |
+| `use_count` | `int` | Number of times used |
+| `created_at` | `timestamptz` | Creation timestamp |
+
+RPC functions included:
+- `create_workspace_invite`
+- `get_my_workspace_invites`
+- `revoke_workspace_invite`
+- `accept_workspace_invite`
 ## 🏗 Building for Production
 
 ```bash

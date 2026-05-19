@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useApiSpecStore } from '../store/useApiSpecStore';
 import { useCollabStore } from '../store/useCollabStore';
 import { MembersPanel } from './collab/MembersPanel';
+import { ShareAllModal } from './collab/ShareAllModal';
 import { ImportYamlModal } from './ImportYamlModal';
 import toast from 'react-hot-toast';
 
@@ -19,6 +20,7 @@ export function Dashboard({ onProjectSelect }: { onProjectSelect: () => void }) 
   const [loading, setLoading] = useState(true);
   const [membersProjectId, setMembersProjectId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [showShareAll, setShowShareAll] = useState(false);
   const { loadProjectFromSupabase, createNewProject, deleteProject, renameProject } = useApiSpecStore();
   const { fetchMembers } = useCollabStore();
 
@@ -157,6 +159,16 @@ export function Dashboard({ onProjectSelect }: { onProjectSelect: () => void }) 
           >
             📥 Import YAML
           </button>
+          {ownProjects.length > 0 && (
+            <button
+              className="btn btn-ghost"
+              onClick={() => setShowShareAll(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              title="Share your projects with collaborators"
+            >
+              🔗 Share My Projects
+            </button>
+          )}
           <button className="btn btn-primary" onClick={handleCreate}>+ New Project</button>
         </div>
       </div>
@@ -216,6 +228,14 @@ export function Dashboard({ onProjectSelect }: { onProjectSelect: () => void }) 
           projectId={membersProjectId}
           isOwner={projects.find((p) => p.id === membersProjectId)?.myRole === 'owner'}
           onClose={() => setMembersProjectId(null)}
+        />
+      )}
+
+      {/* Share My Projects modal */}
+      {showShareAll && (
+        <ShareAllModal
+          projectCount={ownProjects.length}
+          onClose={() => setShowShareAll(false)}
         />
       )}
 

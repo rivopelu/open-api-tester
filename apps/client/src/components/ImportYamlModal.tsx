@@ -236,19 +236,21 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
         )}
 
         {/* Summary cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
           {[
             { label: 'Endpoints', value: endpoints.length, icon: '⚡' },
             { label: 'Tags', value: tags.length, icon: '🏷' },
             { label: 'Schemas', value: components.schemas.length, icon: '📦' },
-            { label: 'Auth', value: components.securitySchemes.length, icon: '🔐' },
+            { label: 'With Body', value: endpoints.filter((e) => e.requestBody).length, icon: '📤' },
+            { label: 'Responses', value: endpoints.reduce((n, e) => n + e.responses.length, 0), icon: '📥' },
+            { label: 'Examples', value: endpoints.reduce((n, e) => n + e.responses.reduce((m, r) => m + (r.examples?.length ?? 0), 0) + (e.requestBody?.examples?.length ?? 0), 0), icon: '📝' },
           ].map((item) => (
             <div key={item.label} style={{
               background: 'var(--bg-overlay)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '12px 14px', textAlign: 'center',
+              borderRadius: 10, padding: '10px 12px', textAlign: 'center',
             }}>
-              <div style={{ fontSize: 20, marginBottom: 4 }}>{item.icon}</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' }}>{item.value}</div>
+              <div style={{ fontSize: 18, marginBottom: 3 }}>{item.icon}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{item.value}</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.label}</div>
             </div>
           ))}

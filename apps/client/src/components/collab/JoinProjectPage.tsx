@@ -6,76 +6,116 @@ import toast from 'react-hot-toast';
 
 interface JoinProjectPageProps {
   token: string;
+  isWorkspace?: boolean; // true → workspace invite, false → single-project invite
   onJoined: () => void;
   onCancel: () => void;
 }
 
-type Status = 'loading' | 'valid' | 'invalid' | 'expired' | 'joining';
+type Status = 'loading' | 'valid' | 'invalid' | 'expired' | 'joining' | 'done';
 
 interface InviteInfo {
-  projectName: string;
+  label: string;       // project name OR "X projects"
   role: 'editor' | 'viewer';
   expiresAt: string | null;
+  isWorkspace: boolean;
 }
 
-export function JoinProjectPage({ token, onJoined, onCancel }: JoinProjectPageProps) {
+export function JoinProjectPage({ token, isWorkspace = false, onJoined, onCancel }: JoinProjectPageProps) {
   const [status, setStatus] = useState<Status>('loading');
   const [info, setInfo] = useState<InviteInfo | null>(null);
-  const { acceptInvite } = useCollabStore();
+  const { acceptInvite, acceptWorkspaceInvite } = useCollabStore();
   const { loadProjectFromSupabase } = useApiSpecStore();
 
   useEffect(() => {
     validateToken();
-  }, [token]);
+  }, [token, isWorkspace]);
 
   const validateToken = async () => {
     setStatus('loading');
-    const { data: invite } = await supabase
-      .from('project_invites')
-      .select('role, expires_at, max_uses, use_count, project_id')
-      .eq('token', token)
-      .single();
 
-    if (!invite) { setStatus('invalid'); return; }
+    if (isWorkspace) {
+      // Validate against workspace_invites
+      const { data: inv } = await supabase
+        .from('workspace_invites')
+        .select('role, expires_at, max_uses, use_count, owner_id')
+        .eq('token', token)
+        .single();
 
-    if (invite.expires_at && new Date(invite.expires_at) < new Date()) {
-      setStatus('expired'); return;
+      if (!inv) { setStatus('invalid'); return; }
+      if (inv.expires_at && new Date(inv.expires_at) < new Date()) { setStatus('expired'); return; }
+      if (inv.max_uses !== null && inv.use_count >= inv.max_uses) { setStatus('expired'); return; }
+
+      // Count owner's projects
+      const { count } = await supabase
+        .from('projects')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', inv.owner_id);
+
+      setInfo({
+        label: `${count ?? '?'} projects`,
+        role: inv.role as 'editor' | 'viewer',
+        expiresAt: inv.expires_at,
+        isWorkspace: true,
+      });
+      setStatus('valid');
+    } else {
+      // Validate against project_invites (existing flow)
+      const { data: invite } = await supabase
+        .from('project_invites')
+        .select('role, expires_at, max_uses, use_count, project_id')
+        .eq('token', token)
+        .single();
+
+      if (!invite) { setStatus('invalid'); return; }
+      if (invite.expires_at && new Date(invite.expires_at) < new Date()) { setStatus('expired'); return; }
+      if (invite.max_uses !== null && invite.use_count >= invite.max_uses) { setStatus('expired'); return; }
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('name')
+        .eq('id', invite.project_id)
+        .single();
+
+      setInfo({
+        label: project?.name ?? 'Untitled Project',
+        role: invite.role as 'editor' | 'viewer',
+        expiresAt: invite.expires_at,
+        isWorkspace: false,
+      });
+      setStatus('valid');
     }
-    if (invite.max_uses !== null && invite.use_count >= invite.max_uses) {
-      setStatus('expired'); return;
-    }
-
-    // Fetch project name
-    const { data: project } = await supabase
-      .from('projects')
-      .select('name')
-      .eq('id', invite.project_id)
-      .single();
-
-    setInfo({
-      projectName: project?.name ?? 'Untitled Project',
-      role: invite.role as 'editor' | 'viewer',
-      expiresAt: invite.expires_at,
-    });
-    setStatus('valid');
   };
 
   const handleAccept = async () => {
     setStatus('joining');
-    const result = await acceptInvite(token);
-    if (!result) {
-      toast.error('Failed to join project. The link may have expired.');
-      setStatus('invalid');
-      return;
+
+    if (isWorkspace) {
+      const result = await acceptWorkspaceInvite(token);
+      if (!result || result.projectIds.length === 0) {
+        toast.error('Failed to join workspace. The link may have expired.');
+        setStatus('invalid');
+        return;
+      }
+      // Load the first project automatically
+      await loadProjectFromSupabase(result.projectIds[0], result.role as 'owner' | 'editor' | 'viewer');
+      toast.success(`Joined ${result.projectIds.length} project${result.projectIds.length !== 1 ? 's' : ''} as ${result.role}!`);
+      onJoined();
+    } else {
+      const result = await acceptInvite(token);
+      if (!result) {
+        toast.error('Failed to join project. The link may have expired.');
+        setStatus('invalid');
+        return;
+      }
+      await loadProjectFromSupabase(result.projectId, result.role as 'owner' | 'editor' | 'viewer');
+      toast.success(`Joined as ${result.role}!`);
+      onJoined();
     }
-    await loadProjectFromSupabase(result.projectId, result.role as 'owner' | 'editor' | 'viewer');
-    toast.success(`Joined as ${result.role}!`);
-    onJoined();
   };
 
-  const roleColor = info?.role === 'editor' ? 'var(--accent-blue)' : 'var(--accent-green)';
-  const roleBg = info?.role === 'editor' ? 'rgba(137,180,250,0.15)' : 'rgba(166,227,161,0.15)';
-  const roleBorder = info?.role === 'editor' ? 'rgba(137,180,250,0.3)' : 'rgba(166,227,161,0.3)';
+  const roleColor  = info?.role === 'editor' ? 'var(--accent-blue)' : 'var(--accent-green)';
+  const roleBg     = info?.role === 'editor' ? 'rgba(137,180,250,0.15)' : 'rgba(166,227,161,0.15)';
+  const roleBorder = info?.role === 'editor' ? 'rgba(137,180,250,0.3)'  : 'rgba(166,227,161,0.3)';
 
   return (
     <div style={{
@@ -117,10 +157,17 @@ export function JoinProjectPage({ token, onJoined, onCancel }: JoinProjectPagePr
 
         {(status === 'valid' || status === 'joining') && info && (
           <>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>You've been invited to join</div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 16 }}>
-              {info.projectName}
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6 }}>
+              You've been invited to join
+            </div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+              {info.isWorkspace ? '🗂 Workspace' : info.label}
             </h2>
+            {info.isWorkspace && (
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
+                {info.label} will be shared with you
+              </p>
+            )}
 
             {/* Role badge */}
             <div style={{ marginBottom: 20 }}>
@@ -146,7 +193,11 @@ export function JoinProjectPage({ token, onJoined, onCancel }: JoinProjectPagePr
                 disabled={status === 'joining'}
                 style={{ width: '100%', justifyContent: 'center', padding: '10px' }}
               >
-                {status === 'joining' ? 'Joining…' : '✓ Accept & Open Project'}
+                {status === 'joining'
+                  ? 'Joining…'
+                  : info.isWorkspace
+                    ? `✓ Accept & Open Workspace`
+                    : `✓ Accept & Open Project`}
               </button>
               <button className="btn btn-ghost" onClick={onCancel} style={{ width: '100%', justifyContent: 'center' }}>
                 Cancel

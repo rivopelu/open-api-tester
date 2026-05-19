@@ -24,11 +24,15 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [inDashboard, setInDashboard] = useState(true);
 
-  // Read invite token once from URL on mount — stored in state so it can be
-  // cleared after accept/cancel without a full page reload.
+  // Read invite tokens once from URL on mount.
   const [inviteToken, setInviteToken] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('invite');
+  });
+
+  const [inviteWorkspaceToken, setInviteWorkspaceToken] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('invite_workspace');
   });
 
   // ── Auth state ─────────────────────────────────────────────────────────────
@@ -83,14 +87,35 @@ export default function App() {
     return <Auth />;
   }
 
-  // 2. Invite flow — shown after login so user context is available
+  // 2. Workspace invite flow
+  if (inviteWorkspaceToken) {
+    return (
+      <JoinProjectPage
+        token={inviteWorkspaceToken}
+        isWorkspace={true}
+        onJoined={() => {
+          clearInviteFromUrl();
+          setInviteWorkspaceToken(null);
+          setInDashboard(false);
+        }}
+        onCancel={() => {
+          clearInviteFromUrl();
+          setInviteWorkspaceToken(null);
+          setInDashboard(true);
+        }}
+      />
+    );
+  }
+
+  // 3. Per-project invite flow
   if (inviteToken) {
     return (
       <JoinProjectPage
         token={inviteToken}
+        isWorkspace={false}
         onJoined={() => {
           clearInviteFromUrl();
-          setInDashboard(false); // go straight into the project editor
+          setInDashboard(false);
         }}
         onCancel={() => {
           clearInviteFromUrl();

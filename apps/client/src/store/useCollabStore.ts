@@ -28,6 +28,16 @@ export interface ProjectInvite {
   createdAt: string;
 }
 
+export interface WorkspaceInvite {
+  id: string;
+  token: string;
+  role: 'editor' | 'viewer';
+  expiresAt: string | null;
+  maxUses: number | null;
+  useCount: number;
+  createdAt: string;
+}
+
 // Deterministic avatar color from user id
 const PRESENCE_COLORS = [
   '#89b4fa', '#cba6f7', '#94e2d5', '#a6e3a1',
@@ -67,6 +77,11 @@ interface CollabStore {
   removeMember: (memberId: string) => Promise<void>;
   updateMemberRole: (memberId: string, role: 'editor' | 'viewer') => Promise<void>;
   acceptInvite: (token: string) => Promise<{ projectId: string; role: string } | null>;
+  // Workspace invites
+  createWorkspaceInvite: (role: 'editor' | 'viewer', expiresInDays?: number) => Promise<WorkspaceInvite | null>;
+  revokeWorkspaceInvite: (inviteId: string) => Promise<void>;
+  fetchWorkspaceInvites: () => Promise<WorkspaceInvite[]>;
+  acceptWorkspaceInvite: (token: string) => Promise<{ projectIds: string[]; role: string } | null>;
   broadcastSave: (savedByEmail: string) => void;
   broadcastSaveLock: (email: string) => void;
   broadcastSaveUnlock: () => void;
@@ -300,6 +315,74 @@ export const useCollabStore = create<CollabStore>((set, get) => ({
       .eq('id', invite.id);
 
     return { projectId: invite.project_id, role: invite.role };
+  },
+
+  // ─── Workspace Invites ────────────────────────────────────────────────────
+  createWorkspaceInvite: async (role, expiresInDays) => {
+    const tokenBytes = new Uint8Array(24);
+    crypto.getRandomValues(tokenBytes);
+    const token = Array.from(tokenBytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+
+    const expiresAt = expiresInDays
+      ? new Date(Date.now() + expiresInDays * 86400_000).toISOString()
+      : null;
+
+    const { data, error } = await supabase
+      .rpc('create_workspace_invite', {
+        p_role: role,
+        p_token: token,
+        p_expires_at: expiresAt,
+      });
+
+    if (error || !data || data.length === 0) {
+      console.error('[createWorkspaceInvite]', error?.message);
+      return null;
+    }
+
+    const d = data[0];
+    return {
+      id: d.id,
+      token: d.token,
+      role: d.role as 'editor' | 'viewer',
+      expiresAt: d.expires_at,
+      maxUses: d.max_uses,
+      useCount: d.use_count,
+      createdAt: d.created_at,
+    };
+  },
+
+  revokeWorkspaceInvite: async (inviteId) => {
+    await supabase.rpc('revoke_workspace_invite', { p_invite_id: inviteId });
+  },
+
+  fetchWorkspaceInvites: async () => {
+    const { data, error } = await supabase.rpc('get_my_workspace_invites');
+    if (error || !data) return [];
+    return (data as any[]).map((d) => ({
+      id: d.id,
+      token: d.token,
+      role: d.role as 'editor' | 'viewer',
+      expiresAt: d.expires_at,
+      maxUses: d.max_uses,
+      useCount: d.use_count,
+      createdAt: d.created_at,
+    }));
+  },
+
+  acceptWorkspaceInvite: async (token) => {
+    const { data, error } = await supabase
+      .rpc('accept_workspace_invite', { p_token: token });
+
+    if (error) {
+      console.error('[acceptWorkspaceInvite]', error.message);
+      return null;
+    }
+    if (!data || data.length === 0) return null;
+
+    return {
+      projectIds: (data as any[]).map((r) => r.project_id),
+      role: (data as any[])[0].role,
+    };
   },
 
   broadcastSave: (savedByEmail) => {
