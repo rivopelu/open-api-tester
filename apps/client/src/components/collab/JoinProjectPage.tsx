@@ -39,7 +39,7 @@ export function JoinProjectPage({ token, isWorkspace = false, onJoined, onCancel
         .from('workspace_invites')
         .select('role, expires_at, max_uses, use_count, owner_id')
         .eq('token', token)
-        .single();
+        .maybeSingle();
 
       if (!inv) { setStatus('invalid'); return; }
       if (inv.expires_at && new Date(inv.expires_at) < new Date()) { setStatus('expired'); return; }
@@ -64,7 +64,7 @@ export function JoinProjectPage({ token, isWorkspace = false, onJoined, onCancel
         .from('project_invites')
         .select('role, expires_at, max_uses, use_count, project_id')
         .eq('token', token)
-        .single();
+        .maybeSingle();
 
       if (!invite) { setStatus('invalid'); return; }
       if (invite.expires_at && new Date(invite.expires_at) < new Date()) { setStatus('expired'); return; }
