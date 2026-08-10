@@ -8,7 +8,7 @@ export default function ButtonLabPage() {
   return (
     <div className="max-w-4xl space-y-10">
       <div>
-        <div className="mb-3 h-1 w-10 rounded-md bg-primary" />
+        <div className="mb-3 h-1 w-10 rounded-none bg-primary" />
         <Typography variant="heading-lg" as="h1">Button Atom Lab</Typography>
         <Typography variant="body" tone="secondary" className="mt-2">
           Variants, sizes, loading states, and icon-only buttons with framer-motion tap feedback.

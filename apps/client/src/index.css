@@ -24,12 +24,12 @@
   --font-body: 'Manrope', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
 }
 
 :root {
@@ -58,12 +58,12 @@
   --method-put: #f9e2af;
   --method-patch: #fab387;
   --method-delete: #f38ba8;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
   --transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
 }
 
@@ -108,7 +108,7 @@ button, input, select, textarea { font: inherit; }
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 0px;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -188,7 +188,7 @@ textarea.input { resize: vertical; min-height: 80px; }
 .tabs { display: flex; gap: 2px; background: var(--bg-overlay); padding: 4px; border-radius: var(--radius-sm); }
 .tab {
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: 0px;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -238,8 +238,8 @@ textarea.input { resize: vertical; min-height: 80px; }
 .status-5xx { color: var(--accent-red); }
 
 /* Glow effects */
-.glow-blue { box-shadow: 0 0 20px rgba(137,180,250,0.15); }
-.glow-purple { box-shadow: 0 0 20px rgba(203,166,247,0.15); }
+.glow-blue { box-shadow: none; }
+.glow-purple { box-shadow: none; }
 
 /* Sidebar item */
 .sidebar-item {

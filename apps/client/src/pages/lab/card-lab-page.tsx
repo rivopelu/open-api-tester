@@ -5,7 +5,7 @@ export default function CardLabPage() {
   return (
     <div className="max-w-4xl space-y-10">
       <div>
-        <div className="mb-3 h-1 w-10 rounded-md bg-teal" />
+        <div className="mb-3 h-1 w-10 rounded-none bg-teal" />
         <Typography variant="heading-lg" as="h1">Card Atom Lab</Typography>
         <Typography variant="body" tone="secondary" className="mt-2">
           Standard, elevated, and featured surfaces with spring hover elevation.
@@ -44,7 +44,7 @@ export default function CardLabPage() {
                 Blue-tinted inset ring reserved for a single hero surface — not every block.
               </Typography>
             </div>
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md border border-border bg-overlay text-primary">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-none border border-border bg-overlay text-primary">
               <ShieldCheck className="h-5 w-5" />
             </div>
           </div>
@@ -59,7 +59,7 @@ export default function CardLabPage() {
         <Typography variant="heading-sm" as="h2">Service Cards</Typography>
         <div className="grid gap-5 sm:grid-cols-2">
           <Card interactive>
-            <div className="mb-4 grid h-10 w-10 place-items-center rounded-lg border border-border bg-overlay text-primary">
+            <div className="mb-4 grid h-10 w-10 place-items-center rounded-none border border-border bg-overlay text-primary">
               <Bot className="h-5 w-5" />
             </div>
             <Typography variant="heading-sm" as="h3" className="mb-2">Autonomous Agent Core</Typography>
@@ -68,7 +68,7 @@ export default function CardLabPage() {
             </Typography>
           </Card>
           <Card interactive>
-            <div className="mb-4 grid h-10 w-10 place-items-center rounded-lg border border-border bg-overlay text-teal">
+            <div className="mb-4 grid h-10 w-10 place-items-center rounded-none border border-border bg-overlay text-teal">
               <Zap className="h-5 w-5" />
             </div>
             <Typography variant="heading-sm" as="h3" className="mb-2">Real-time Intelligence</Typography>

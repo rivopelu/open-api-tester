@@ -27,9 +27,9 @@ export interface SelectProps {
 }
 
 const sizeClasses: Record<NonNullable<SelectProps['size']>, string> = {
-  sm: 'h-9 pl-3 pr-8 text-xs rounded-md',
-  md: 'h-[42px] pl-3.5 pr-9 text-sm rounded-md',
-  lg: 'h-12 pl-4 pr-10 text-sm rounded-md',
+  sm: 'h-9 pl-3 pr-8 text-xs rounded-none',
+  md: 'h-[42px] pl-3.5 pr-9 text-sm rounded-none',
+  lg: 'h-12 pl-4 pr-10 text-sm rounded-none',
 };
 
 export function Select({
@@ -177,7 +177,7 @@ export function Select({
               onChange?.('');
               setOpen(false);
             }}
-            className="-mr-1 inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-text-muted transition-colors hover:bg-overlay hover:text-text-primary"
+            className="-mr-1 inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-none text-text-muted transition-colors hover:bg-overlay hover:text-text-primary"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </span>
@@ -205,7 +205,7 @@ export function Select({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.16, ease: 'easeOut' }}
-            className="absolute top-[calc(100%+4px)] left-0 z-50 w-full overflow-hidden rounded-lg border border-border bg-card shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
+            className="absolute top-[calc(100%+4px)] left-0 z-50 w-full overflow-hidden rounded-none border border-border bg-card"
           >
             {searchable && (
               <div className="flex items-center gap-2 border-b border-border/70 px-3 py-2">
@@ -242,7 +242,7 @@ export function Select({
                         onMouseEnter={() => setActiveIndex(index)}
                         onClick={() => selectOption(option)}
                         className={cn(
-                          'flex w-full cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-left transition-colors duration-150',
+                          'flex w-full cursor-pointer items-center gap-2.5 rounded-none px-3 py-2 text-left transition-colors duration-150',
                           isActive ? 'bg-primary/10' : 'hover:bg-overlay',
                         )}
                       >

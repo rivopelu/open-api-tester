@@ -31,7 +31,7 @@ export default function ShowcaseLabPage() {
   return (
     <div className="max-w-4xl space-y-10">
       <div>
-        <div className="mb-3 h-1 w-10 rounded-md bg-purple" />
+        <div className="mb-3 h-1 w-10 rounded-none bg-purple" />
         <Typography variant="heading-lg" as="h1">Motion Showcase</Typography>
         <Typography variant="body" tone="secondary" className="mt-2">
           Framer-motion patterns used across the system: staggered reveals, mounted transitions, and layout reflow.
@@ -62,7 +62,7 @@ export default function ShowcaseLabPage() {
                     key={i}
                     variants={fadeUp}
                     transition={spring}
-                    className="flex h-16 items-center justify-center rounded-lg border border-border bg-overlay font-mono text-xs text-text-secondary"
+                    className="flex h-16 items-center justify-center rounded-none border border-border bg-overlay font-mono text-xs text-text-secondary"
                   >
                     request-0{i + 1}
                   </motion.div>
@@ -80,7 +80,7 @@ export default function ShowcaseLabPage() {
             initial={{ opacity: 0, y: 18, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ ...spring, delayChildren: 0.1 }}
-            className="rounded-lg bg-card p-5"
+            className="rounded-none bg-card p-5"
           >
             <Typography variant="heading-sm" as="h3" className="mb-1">Card enters on mount</Typography>
             <Typography variant="body-sm" tone="secondary">
@@ -108,13 +108,13 @@ export default function ShowcaseLabPage() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 18 }}
                 transition={spring}
-                className="mb-2 flex items-center justify-between rounded-lg border border-border bg-overlay px-4 py-3"
+                className="mb-2 flex items-center justify-between rounded-none border border-border bg-overlay px-4 py-3"
               >
                 <span className={`font-mono text-xs font-bold ${item.tone}`}>{item.label}</span>
                 <button
                   onClick={() => remove(item.id)}
                   aria-label={`Remove ${item.label}`}
-                  className="cursor-pointer rounded-md p-1 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                  className="cursor-pointer rounded-none p-1 text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -144,13 +144,13 @@ export default function ShowcaseLabPage() {
                 whileHover={{ y: -3 }}
                 whileTap={{ scale: 0.94 }}
                 transition={spring}
-                className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-xl border border-border bg-card text-text-secondary hover:border-primary/50 hover:text-primary"
+                className="flex h-14 w-14 cursor-pointer items-center justify-center rounded-none border border-border bg-card text-text-secondary hover:border-primary/50 hover:text-primary"
                 aria-label={`Interaction ${i + 1}`}
               >
                 {i + 1}
               </motion.button>
             ))}
-            <motion.div whileTap={{ rotate: 45 }} transition={spring} className="grid h-14 w-14 cursor-pointer place-items-center rounded-xl bg-primary text-base">
+            <motion.div whileTap={{ rotate: 45 }} transition={spring} className="grid h-14 w-14 cursor-pointer place-items-center rounded-none bg-primary text-base">
               <Plus className="h-6 w-6" />
             </motion.div>
           </div>

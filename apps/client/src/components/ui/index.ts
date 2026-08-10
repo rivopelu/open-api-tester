@@ -9,3 +9,4 @@ export * from './Popover';
 export * from './Select';
 export * from './Spinner';
 export * from './Typography';
+export * from './GridPanel';

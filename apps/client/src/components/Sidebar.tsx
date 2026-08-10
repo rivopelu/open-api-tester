@@ -114,7 +114,7 @@ export function Sidebar() {
           <div
             key={t.id}
             className={cn(
-              'flex items-center overflow-hidden rounded-md border',
+              'flex items-center overflow-hidden rounded-none border',
               filterTag === t.name ? 'border-primary/40 bg-primary/15' : 'border-border bg-overlay',
             )}
           >

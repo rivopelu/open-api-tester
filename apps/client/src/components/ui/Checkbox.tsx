@@ -21,7 +21,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(({ label, id
       <span
         aria-hidden="true"
         className={cn(
-          'grid h-[18px] w-[18px] shrink-0 place-items-center rounded-md border bg-overlay transition-all duration-200',
+          'grid h-[18px] w-[18px] shrink-0 place-items-center rounded-none border bg-overlay transition-all duration-200',
           'border-border peer-checked:border-primary peer-checked:bg-primary peer-focus-visible:ring-[3px] peer-focus-visible:ring-primary/20',
           'peer-disabled:cursor-not-allowed peer-disabled:opacity-50',
         )}

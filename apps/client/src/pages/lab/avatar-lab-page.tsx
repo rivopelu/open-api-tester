@@ -14,7 +14,7 @@ export default function AvatarLabPage() {
   return (
     <div className="max-w-4xl space-y-10">
       <div>
-        <div className="mb-3 h-1 w-10 rounded-md bg-primary" />
+        <div className="mb-3 h-1 w-10 rounded-none bg-primary" />
         <Typography variant="heading-lg" as="h1">Avatar Atom Lab</Typography>
         <Typography variant="body" tone="secondary" className="mt-2">
           Image and initials fallback avatars with error recovery.
@@ -69,7 +69,7 @@ export default function AvatarLabPage() {
             <Avatar src={src} alt="Failed image" size="lg" />
             <button
               onClick={() => setSrc((s) => (s ? null : 'https://invalid-image-url.xyz/pic.jpg'))}
-              className="cursor-pointer rounded-lg border border-primary/60 px-4 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
+              className="cursor-pointer rounded-none border border-primary/60 px-4 py-2 text-xs font-bold text-primary transition-colors hover:bg-primary/10"
             >
               {src ? 'Break image URL' : 'Restore broken URL'}
             </button>

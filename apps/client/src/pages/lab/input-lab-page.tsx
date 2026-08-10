@@ -9,7 +9,7 @@ export default function InputLabPage() {
   return (
     <div className="max-w-4xl space-y-10">
       <div>
-        <div className="mb-3 h-1 w-10 rounded-md bg-purple" />
+        <div className="mb-3 h-1 w-10 rounded-none bg-purple" />
         <Typography variant="heading-lg" as="h1">Input Molecule Lab</Typography>
         <Typography variant="body" tone="secondary" className="mt-2">
           Labels stay close to their control. Leading/trailing icons, clearable values, sizes, and error states.
@@ -59,7 +59,7 @@ export default function InputLabPage() {
       <section className="space-y-4">
         <Typography variant="heading-sm" as="h2">Live state</Typography>
         <Card interactive={false}>
-          <pre className="overflow-auto rounded-lg border border-border bg-overlay p-4 font-mono text-xs text-purple">
+          <pre className="overflow-auto rounded-none border border-border bg-overlay p-4 font-mono text-xs text-purple">
 {`endpoint name = "${name}"
 token         = "${token}"`}
           </pre>

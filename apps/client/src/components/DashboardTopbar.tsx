@@ -27,7 +27,7 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
         <img
           src="/logo.png"
           alt="Max API Studio logo"
-          className="h-8 w-8 rounded-lg object-contain"
+          className="h-8 w-8 rounded-none object-contain"
         />
         <span className="mr-1 hidden text-sm font-bold text-text-primary sm:inline">
           Max API Studio
@@ -53,7 +53,7 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
         trigger={({ open }) => (
           <button
             type="button"
-            className={`flex items-center gap-2 rounded-lg border px-1.5 py-1 transition-colors ${
+            className={`flex items-center gap-2 rounded-none border px-1.5 py-1 transition-colors ${
               open ? 'border-primary/40 bg-primary/10' : 'border-transparent hover:bg-overlay'
             }`}
           >
@@ -92,7 +92,7 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
                 close();
                 openProfileSettings();
               }}
-              className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-text-primary transition-colors hover:bg-overlay"
+              className="mt-1 flex w-full items-center gap-2.5 rounded-none px-2.5 py-2 text-sm text-text-primary transition-colors hover:bg-overlay"
             >
               <User className="h-4 w-4 text-text-muted" aria-hidden="true" />
               Profile Settings
@@ -104,7 +104,7 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
                 close();
                 signOut();
               }}
-              className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm text-danger transition-colors hover:bg-danger/10"
+              className="flex w-full items-center gap-2.5 rounded-none px-2.5 py-2 text-sm text-danger transition-colors hover:bg-danger/10"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
               Logout

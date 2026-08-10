@@ -44,7 +44,7 @@ export function DesignerPanel() {
             <div className="scroll-y flex h-full flex-col gap-4 p-4">
               {!activeEndpoint ? (
                 <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-                  <span className="grid h-16 w-16 place-items-center rounded-2xl border border-border bg-surface">
+                  <span className="grid h-16 w-16 place-items-center rounded-none border border-border bg-surface">
                     <MousePointerClick className="h-7 w-7 text-primary" aria-hidden="true" />
                   </span>
                   <Typography variant="heading-sm" tone="secondary">No Endpoint Selected</Typography>

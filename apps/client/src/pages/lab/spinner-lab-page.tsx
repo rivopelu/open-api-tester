@@ -4,7 +4,7 @@ export default function SpinnerLabPage() {
   return (
     <div className="max-w-4xl space-y-10">
       <div>
-        <div className="mb-3 h-1 w-10 rounded-md bg-primary" />
+        <div className="mb-3 h-1 w-10 rounded-none bg-primary" />
         <Typography variant="heading-lg" as="h1">Spinner Atom Lab</Typography>
         <Typography variant="body" tone="secondary" className="mt-2">
           Lucide Loader2 with a standard spin animation and size token map.
@@ -58,7 +58,7 @@ export default function SpinnerLabPage() {
       <section className="space-y-4">
         <Typography variant="heading-sm" as="h2">In context</Typography>
         <Card interactive={false}>
-          <div className="flex items-center justify-between rounded-lg bg-card px-5 py-4">
+          <div className="flex items-center justify-between rounded-none bg-card px-5 py-4">
             <Typography variant="body-sm" tone="secondary">Synchronizing workspace…</Typography>
             <Spinner size="sm" />
           </div>

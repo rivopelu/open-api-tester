@@ -1,12 +1,8 @@
 import { forwardRef } from "react";
-import { motion, type HTMLMotionProps } from "framer-motion";
 import { cn } from "../../lib/utils";
 import { Spinner } from "./Spinner";
 
-export interface ButtonProps extends Omit<
-  HTMLMotionProps<"button">,
-  "children"
-> {
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
   loading?: boolean;
@@ -18,20 +14,20 @@ const baseClasses =
   "inline-flex items-center justify-center font-body font-semibold cursor-pointer select-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none";
 
 const sizeClasses = {
-  sm: "h-8 px-3 text-xs gap-1.5 rounded-md",
-  md: "h-10 px-4 text-sm gap-2 rounded-md",
-  lg: "h-11 px-6 text-sm gap-2.5 rounded-md",
+  sm: "h-8 px-3 text-xs gap-1.5 rounded-none",
+  md: "h-10 px-4 text-sm gap-2 rounded-none",
+  lg: "h-11 px-6 text-sm gap-2.5 rounded-none",
 };
 
 const iconSizeClasses = {
-  sm: "h-8 w-8 p-0 rounded-md",
-  md: "h-10 w-10 p-0 rounded-md",
-  lg: "h-11 w-11 p-0 rounded-md",
+  sm: "h-8 w-8 p-0 rounded-none",
+  md: "h-10 w-10 p-0 rounded-none",
+  lg: "h-11 w-11 p-0 rounded-none",
 };
 
 const variantClasses = {
   primary:
-    "bg-primary text-base border border-primary shadow-[0_2px_8px_rgba(137,180,250,0.2)] hover:bg-primary-dark hover:border-primary-dark hover:shadow-[0_4px_16px_rgba(137,180,250,0.3)] active:bg-primary-dark",
+    "bg-primary text-base border border-primary hover:bg-primary-dark hover:border-primary-dark active:bg-primary-dark",
   secondary:
     "bg-surface text-text-primary border border-border hover:bg-card hover:border-text-muted/40 active:bg-card",
   outline:
@@ -56,9 +52,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref,
   ) => (
-    <motion.button
+    <button
       ref={ref}
-      whileTap={disabled || loading ? undefined : { scale: 0.98 }}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(
@@ -72,7 +67,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     >
       {loading && <Spinner size="sm" />}
       {iconOnly && loading ? null : children}
-    </motion.button>
+    </button>
   ),
 );
 

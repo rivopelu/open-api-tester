@@ -19,8 +19,8 @@ export function Avatar({ src, alt, fallback, size = 'md', className, ...props }:
   return (
     <div
       className={cn(
-        'inline-grid flex-none place-items-center overflow-hidden rounded-md font-heading font-bold',
-        'bg-purple/15 text-purple shadow-[inset_0_0_0_1px_rgba(203,166,247,0.2)]',
+        'inline-grid flex-none place-items-center overflow-hidden rounded-none font-heading font-bold',
+        'bg-purple/15 text-purple',
         sizeClasses[size],
         className,
       )}

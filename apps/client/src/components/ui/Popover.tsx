@@ -69,8 +69,8 @@ export function Popover({
         <div
           role="menu"
           className={cn(
-            'absolute top-full z-[150] mt-2 min-w-[220px] rounded-lg border border-border bg-surface p-1.5',
-            'shadow-[0_18px_50px_rgba(0,0,0,0.5)] animate-slideIn',
+            'absolute top-full z-[150] mt-2 min-w-[220px] rounded-none border border-border bg-surface p-1.5',
+            'animate-slideIn',
             align === 'end' ? 'right-0' : 'left-0',
             className,
           )}

@@ -61,7 +61,7 @@ export default function SignInPage() {
         />
 
         <div className="relative flex items-center gap-3">
-          <img src="/logo.png" alt="Max API Studio logo" className="h-10 w-10 rounded-xl object-contain" />
+          <img src="/logo.png" alt="Max API Studio logo" className="h-10 w-10 rounded-none object-contain" />
           <div className="leading-none">
             <div className="text-base font-bold text-text-primary">Max API Studio</div>
             <div className="mt-1 text-xs text-text-muted">Modern OpenAPI Designer</div>
@@ -84,7 +84,7 @@ export default function SignInPage() {
               const Icon = f.icon;
               return (
                 <li key={f.title} className="flex items-start gap-3">
-                  <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-border bg-surface text-primary">
+                  <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-none border border-border bg-surface text-primary">
                     <Icon className="h-4 w-4" aria-hidden="true" />
                   </span>
                   <div>
@@ -119,7 +119,7 @@ export default function SignInPage() {
         >
           <Card variant="elevated" padding="lg">
             <div className="mb-8 flex flex-col items-center text-center lg:hidden">
-              <img src="/logo.png" alt="Max API Studio logo" className="mb-4 h-12 w-12 rounded-xl object-contain" />
+              <img src="/logo.png" alt="Max API Studio logo" className="mb-4 h-12 w-12 rounded-none object-contain" />
               <Typography variant="heading-md" as="h1">
                 Max API Studio
               </Typography>

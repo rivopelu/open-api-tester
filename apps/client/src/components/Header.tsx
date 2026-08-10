@@ -77,12 +77,12 @@ function ConflictDialog({
       onClick={onDismiss}
     >
       <div
-        className="w-[440px] max-w-[95vw] rounded-xl border border-danger/40 bg-surface p-7 shadow-[0_20px_60px_rgba(0,0,0,0.5)] animate-slideIn"
+        className="w-[440px] max-w-[95vw] rounded-none border border-danger/40 bg-surface p-7 animate-slideIn"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-lg bg-danger/15 text-danger">
+            <span className="grid h-10 w-10 place-items-center rounded-none bg-danger/15 text-danger">
               <AlertTriangle className="h-5 w-5" aria-hidden="true" />
             </span>
             <Typography id="conflict-title" variant="heading-sm" as="h2">
@@ -211,7 +211,7 @@ export function Header() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div className="glow-blue grid h-8 w-8 place-items-center rounded-lg bg-linear-to-br from-primary to-purple text-base">
+          <div className="glow-blue grid h-8 w-8 place-items-center rounded-none bg-linear-to-br from-primary to-purple text-base">
             <Zap className="h-4 w-4" aria-hidden="true" />
           </div>
           <div className="leading-none">

@@ -16,9 +16,9 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
 }
 
 const sizeClasses = {
-  sm: 'h-9 pl-3 pr-3 text-xs rounded-md',
-  md: 'h-[42px] pl-3.5 pr-3.5 text-sm rounded-md',
-  lg: 'h-12 pl-4 pr-4 text-sm rounded-md',
+  sm: 'h-9 pl-3 pr-3 text-xs rounded-none',
+  md: 'h-[42px] pl-3.5 pr-3.5 text-sm rounded-none',
+  lg: 'h-12 pl-4 pr-4 text-sm rounded-none',
 };
 
 const iconWidthClasses = {
@@ -39,7 +39,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
       <div className="flex w-full flex-col gap-1.5">
         {label && <Typography as="label" htmlFor={inputId} variant="label">{label}</Typography>}
         <div className={cn(
-              'relative w-full border border-border bg-overlay transition-colors duration-200 rounded-md hover:border-text-muted/50 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20',
+              'relative w-full border border-border bg-overlay transition-colors duration-200 rounded-none hover:border-text-muted/50 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20',
               error && 'border-danger hover:border-danger focus-within:border-danger focus-within:ring-danger/20',
               props.disabled && 'opacity-55',
             )}>
@@ -76,7 +76,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                   type="button"
                   aria-label="Clear input"
                   onClick={onClear}
-                  className="grid h-6 w-6 cursor-pointer place-items-center rounded-md text-text-muted transition-colors hover:bg-overlay hover:text-text-primary"
+                  className="grid h-6 w-6 cursor-pointer place-items-center rounded-none text-text-muted transition-colors hover:bg-overlay hover:text-text-primary"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>

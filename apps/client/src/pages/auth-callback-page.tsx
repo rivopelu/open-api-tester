@@ -39,7 +39,7 @@ export default function AuthCallbackPage() {
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-base p-6">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(137,180,250,0.13),transparent_38%)]" />
       <Card variant="featured" padding="lg" className="relative w-full max-w-md text-center">
-        <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-lg border border-primary/30 bg-primary/10">
+        <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-none border border-primary/30 bg-primary/10">
           {error ? <span className="text-xl text-danger">!</span> : <Spinner size="md" />}
         </div>
         <Typography variant="heading-md">

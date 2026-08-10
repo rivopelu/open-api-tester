@@ -77,7 +77,7 @@ export default function LabIndexPage() {
           <Link key={card.path} to={card.path}>
             <Card interactive className="flex h-full flex-col justify-between">
               <div>
-                <div className={`mb-4 grid h-12 w-12 place-items-center rounded-xl border border-border bg-overlay ${card.tone}`}>
+                <div className={`mb-4 grid h-12 w-12 place-items-center rounded-none border border-border bg-overlay ${card.tone}`}>
                   <card.icon className="h-6 w-6" />
                 </div>
                 <div className="mb-2 flex items-center justify-between">

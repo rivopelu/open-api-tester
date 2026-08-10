@@ -10,7 +10,7 @@ export default function SelectLabPage() {
   return (
     <div className="max-w-4xl space-y-10">
       <div>
-        <div className="mb-3 h-1 w-10 rounded-md bg-teal" />
+        <div className="mb-3 h-1 w-10 rounded-none bg-teal" />
         <Typography variant="heading-lg" as="h1">Select Molecule Lab</Typography>
         <Typography variant="body" tone="secondary" className="mt-2">
           Professional searchable select with animated dropdown, keyboard navigation, and clearable state.
@@ -95,7 +95,7 @@ export default function SelectLabPage() {
       <section className="space-y-4">
         <Typography variant="heading-sm" as="h2">Live state</Typography>
         <Card interactive={false}>
-          <pre className="overflow-auto rounded-lg border border-border bg-overlay p-4 font-mono text-xs text-teal">
+          <pre className="overflow-auto rounded-none border border-border bg-overlay p-4 font-mono text-xs text-teal">
 {`environment = ${environment ? `"${environment}"` : '"" (placeholder)'}
 region      = "${region}"
 operator    = ${operator ? `"${operator}"` : '"" (placeholder)'}`}

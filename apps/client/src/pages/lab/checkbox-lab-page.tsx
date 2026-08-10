@@ -9,7 +9,7 @@ export default function CheckboxLabPage() {
   return (
     <div className="max-w-4xl space-y-10">
       <div>
-        <div className="mb-3 h-1 w-10 rounded-md bg-primary" />
+        <div className="mb-3 h-1 w-10 rounded-none bg-primary" />
         <Typography variant="heading-lg" as="h1">Checkbox Atom Lab</Typography>
         <Typography variant="body" tone="secondary" className="mt-2">
           Custom check control with peer focus rings and motion feedback.
@@ -48,7 +48,7 @@ export default function CheckboxLabPage() {
               label="Purple-tinted highlight via className"
               checked={custom}
               onChange={(e) => setCustom(e.target.checked)}
-              className="rounded-lg bg-purple/10 px-3 py-2"
+              className="rounded-none bg-purple/10 px-3 py-2"
             />
           </div>
         </Card>

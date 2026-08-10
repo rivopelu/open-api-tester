@@ -16,7 +16,7 @@ export default function TypographyLabPage() {
   return (
     <div className="max-w-4xl space-y-10">
       <div>
-        <div className="mb-3 h-1 w-10 rounded-md bg-purple" />
+        <div className="mb-3 h-1 w-10 rounded-none bg-purple" />
         <Typography variant="heading-lg" as="h1">Typography Atom Lab</Typography>
         <Typography variant="body" tone="secondary" className="mt-2">
           Sora for hierarchy, Manrope for work, JetBrains Mono for code.
@@ -34,7 +34,7 @@ export default function TypographyLabPage() {
                 type="text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                className="h-10 rounded-lg border border-border bg-overlay px-3 text-sm font-semibold text-text-primary outline-none transition-all focus:border-primary focus:ring-[3px] focus:ring-primary/15"
+                className="h-10 rounded-none border border-border bg-overlay px-3 text-sm font-semibold text-text-primary outline-none transition-all focus:border-primary focus:ring-[3px] focus:ring-primary/15"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -43,7 +43,7 @@ export default function TypographyLabPage() {
                 id="typography-variant"
                 value={variant}
                 onChange={(e) => setVariant(e.target.value as TypographyVariant)}
-                className="h-10 cursor-pointer appearance-none rounded-lg border border-border bg-overlay px-3 text-sm font-semibold text-text-primary outline-none transition-all focus:border-primary focus:ring-[3px] focus:ring-primary/15"
+                className="h-10 cursor-pointer appearance-none rounded-none border border-border bg-overlay px-3 text-sm font-semibold text-text-primary outline-none transition-all focus:border-primary focus:ring-[3px] focus:ring-primary/15"
               >
                 {variants.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
@@ -54,7 +54,7 @@ export default function TypographyLabPage() {
                 id="typography-tone"
                 value={tone}
                 onChange={(e) => setTone(e.target.value as TypographyTone)}
-                className="h-10 cursor-pointer appearance-none rounded-lg border border-border bg-overlay px-3 text-sm font-semibold text-text-primary outline-none transition-all focus:border-primary focus:ring-[3px] focus:ring-primary/15"
+                className="h-10 cursor-pointer appearance-none rounded-none border border-border bg-overlay px-3 text-sm font-semibold text-text-primary outline-none transition-all focus:border-primary focus:ring-[3px] focus:ring-primary/15"
               >
                 {tones.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -75,7 +75,7 @@ export default function TypographyLabPage() {
             ))}
           </div>
 
-          <div className="mt-6 flex min-h-28 items-center justify-center overflow-auto rounded-lg border border-border/60 bg-overlay/60 p-6">
+          <div className="mt-6 flex min-h-28 items-center justify-center overflow-auto rounded-none border border-border/60 bg-overlay/60 p-6">
             <Typography variant={variant} tone={tone} as={tag as never} className="text-center">
               {text || 'Type something…'}
             </Typography>

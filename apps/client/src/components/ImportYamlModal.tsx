@@ -125,11 +125,11 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
       className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
       onClick={(e) => { if (e.target === e.currentTarget && step !== 'saving') onClose(); }}
     >
-      <div className="flex max-h-[90vh] w-[620px] max-w-[95vw] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-lg)] animate-slideIn">
+      <div className="flex max-h-[90vh] w-[620px] max-w-[95vw] flex-col overflow-hidden rounded-none border border-border bg-surface animate-slideIn">
         {/* Header */}
         <header className="flex items-center justify-between gap-3 border-b border-border bg-linear-to-br from-primary/10 via-transparent to-purple/10 px-6 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="glow-blue grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-linear-to-br from-primary to-purple text-base">
+            <div className="glow-blue grid h-9 w-9 shrink-0 place-items-center rounded-none bg-linear-to-br from-primary to-purple text-base">
               <Download className="h-4 w-4 text-base" aria-hidden="true" />
             </div>
             <div className="min-w-0">
@@ -202,7 +202,7 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               className={cn(
-                'flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border-2 border-dashed px-5 py-8 text-center transition-colors duration-200',
+                'flex cursor-pointer flex-col items-center gap-1.5 rounded-none border-2 border-dashed px-5 py-8 text-center transition-colors duration-200',
                 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
                 isDragging ? 'border-primary bg-primary/10' : 'border-border bg-overlay hover:border-primary/50 hover:bg-primary/5',
               )}
@@ -256,7 +256,7 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
           <div className="scroll-y flex flex-col gap-4 p-6">
             {/* Warnings */}
             {warnings.length > 0 && (
-              <div role="alert" className="rounded-lg border border-warning/30 bg-warning/10 px-3.5 py-2.5">
+              <div role="alert" className="rounded-none border border-warning/30 bg-warning/10 px-3.5 py-2.5">
                 <Typography variant="label" tone="warning" className="mb-1 flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
                   Warnings
@@ -286,7 +286,7 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
                   icon: FileText,
                 },
               ].map(({ label, value, icon: Icon }) => (
-                <div key={label} className="flex flex-col items-center gap-1 rounded-lg border border-border bg-overlay p-3 text-center">
+                <div key={label} className="flex flex-col items-center gap-1 rounded-none border border-border bg-overlay p-3 text-center">
                   <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
                   <span className="text-lg font-bold leading-none text-text-primary">{value}</span>
                   <span className="text-[11px] leading-tight text-text-muted">{label}</span>
@@ -295,7 +295,7 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
             </div>
 
             {/* API info */}
-            <div className="rounded-lg border border-border bg-overlay px-4 py-3">
+            <div className="rounded-none border border-border bg-overlay px-4 py-3">
               <Typography variant="label" tone="secondary" className="mb-1">API Info</Typography>
               <Typography variant="body-sm" className="font-semibold">{parsedSpec.info.title}</Typography>
               {parsedSpec.info.description && (
@@ -314,7 +314,7 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
                 <Typography variant="label" tone="secondary">Endpoints preview (first 8)</Typography>
                 <ul className="flex flex-col gap-1">
                   {parsedSpec.endpoints.slice(0, 8).map((ep) => (
-                    <li key={ep.id} className="flex items-center gap-2.5 rounded-md border border-border bg-overlay px-2.5 py-1.5">
+                    <li key={ep.id} className="flex items-center gap-2.5 rounded-none border border-border bg-overlay px-2.5 py-1.5">
                       <span className={cn('method-badge shrink-0', `badge-${ep.method.toLowerCase()}`)}>{ep.method}</span>
                       <span className="min-w-0 truncate font-mono text-xs text-text-secondary">{ep.path}</span>
                       {ep.summary && <span className="ml-auto hidden truncate text-[11px] text-text-muted sm:inline">{ep.summary.slice(0, 40)}</span>}

@@ -6,7 +6,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { Button, Card, PageContainer, Typography } from '../../components/ui';
+import { Button, GridCell, GridPanel, PageContainer, Typography } from '../../components/ui';
 import { DashboardTopbar } from '../../components/DashboardTopbar';
 import { ImportYamlModal } from '../../components/ImportYamlModal';
 import type { ProjectDto } from '../../lib/api';
@@ -32,19 +32,19 @@ export default function DashboardPage() {
           </Typography>
         </header>
 
-      {/* Stats */}
-      <div className="mb-8 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Stats — 2 items only, use 2-col grid */}
+      <GridPanel columns="grid-cols-1 sm:grid-cols-2" className="mb-8">
         {page.stats.map((stat) => (
-          <Card key={stat.key} padding="md" className="flex flex-col gap-1">
+          <GridCell key={stat.key} className="p-5 flex flex-col gap-1">
             <Typography tone="muted" variant="body-sm">
               {stat.label}
             </Typography>
             <Typography variant="heading-md" as="p" className="font-mono">
               {stat.value}
             </Typography>
-          </Card>
+          </GridCell>
         ))}
-      </div>
+      </GridPanel>
 
       {/* Project grid */}
       {page.loading ? (
@@ -58,21 +58,23 @@ export default function DashboardPage() {
           <ProjectCardSkeleton />
         </div>
       ) : page.projects.length === 0 ? (
-        <Card className="flex flex-col items-center py-14 text-center">
-          <FolderOpen
-            className="mb-3 h-10 w-10 text-text-muted"
-            aria-hidden="true"
-          />
-          <Typography variant="heading-sm" tone="secondary" className="mb-2">
-            No projects yet
-          </Typography>
-          <Typography variant="body-sm" tone="muted" className="mb-5">
-            Create your first API project to get started
-          </Typography>
-          <Button variant="primary" onClick={page.handleCreateClick}>
-            Create your first API
-          </Button>
-        </Card>
+        <GridPanel columns="sm:col-span-2 lg:grid-cols-4">
+          <GridCell className="sm:col-span-2 lg:col-span-4 flex flex-col items-center py-14 text-center">
+            <FolderOpen
+              className="mb-3 h-10 w-10 text-text-muted"
+              aria-hidden="true"
+            />
+            <Typography variant="heading-sm" tone="secondary" className="mb-2">
+              No projects yet
+            </Typography>
+            <Typography variant="body-sm" tone="muted" className="mb-5">
+              Create your first API project to get started
+            </Typography>
+            <Button variant="primary" onClick={page.handleCreateClick}>
+              Create your first API
+            </Button>
+          </GridCell>
+        </GridPanel>
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
           {page.projects.map((p) => (
@@ -101,11 +103,11 @@ export default function DashboardPage() {
 
 function ProjectCardSkeleton() {
   return (
-    <Card padding="sm" aria-hidden="true">
+    <div className="rounded-none border border-border bg-surface p-4" aria-hidden="true">
       <div className="mb-4 h-4 w-2/3 animate-pulse rounded bg-overlay" />
       <div className="mb-4 h-3 w-1/3 animate-pulse rounded bg-overlay" />
-      <div className="h-8 w-24 animate-pulse rounded-md bg-overlay" />
-    </Card>
+      <div className="h-8 w-24 animate-pulse rounded-none bg-overlay" />
+    </div>
   );
 }
 
@@ -164,11 +166,9 @@ function ProjectCard({
   };
 
   return (
-    <Card
-      interactive
-      padding="sm"
+    <div
       onClick={editing ? undefined : onSelect}
-      className="hover:border-primary/50"
+      className="rounded-none border border-border bg-surface p-4 cursor-pointer hover:bg-card transition-colors"
       aria-label={editing ? `Renaming ${project.name}` : `Open project ${project.name}`}
     >
       {/* Name row */}
@@ -186,7 +186,7 @@ function ProjectCard({
               onBlur={commitEdit}
               onKeyDown={onKeyDown}
               aria-label="Project name"
-              className="min-w-0 flex-1 rounded-md border border-primary bg-overlay px-2 py-1 text-[15px] font-semibold text-text-primary outline-none"
+              className="min-w-0 flex-1 rounded-none border border-primary bg-overlay px-2 py-1 text-[15px] font-semibold text-text-primary outline-none"
             />
             <Button
               variant="ghost"
@@ -251,6 +251,6 @@ function ProjectCard({
           Delete
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }

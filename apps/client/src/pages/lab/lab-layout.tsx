@@ -57,9 +57,9 @@ export default function LabLayout() {
                 end={item.path === '/lab'}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition-all duration-200',
+                    'flex items-center gap-3 rounded-none px-3.5 py-2.5 text-sm font-semibold transition-all duration-200',
                     isActive
-                      ? 'bg-primary text-base shadow-[0_4px_14px_rgba(137,180,250,0.3)]'
+                      ? 'bg-primary text-base'
                       : 'text-text-secondary hover:bg-overlay hover:text-text-primary',
                   )
                 }
@@ -72,13 +72,13 @@ export default function LabLayout() {
         </div>
 
         <div className="mt-8 border-t border-border-subtle pt-6">
-          <div className="rounded-xl bg-card p-4 text-text-primary">
+          <div className="rounded-none bg-card p-4 text-text-primary">
             <span className="font-heading mb-1 block text-xs font-semibold uppercase tracking-wider text-purple">
               System V1
             </span>
             <p className="text-xs text-text-muted">
               Sora headlines, Manrope body. Primary{' '}
-              <code className="rounded-md bg-overlay px-1 py-0.5 font-mono text-primary">#89B4FA</code>.
+              <code className="rounded-none bg-overlay px-1 py-0.5 font-mono text-primary">#89B4FA</code>.
             </p>
           </div>
         </div>

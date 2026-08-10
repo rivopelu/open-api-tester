@@ -55,7 +55,7 @@ export function RightSidebar() {
       </div>
 
       <div className="scroll-y flex flex-1 flex-col gap-4 p-3">
-        <section className="rounded-lg border border-border bg-overlay p-3">
+        <section className="rounded-none border border-border bg-overlay p-3">
           <Typography variant="label" tone="muted" className="mb-3 uppercase tracking-wide">
             Environment
           </Typography>

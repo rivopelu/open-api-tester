@@ -29,6 +29,12 @@ pnpm format             # prettier --check src/  (run before/after lint)
 
 Single server test: `bun test src/lib/__test__/i18n.test.ts`. Client "build" includes `tsc -b` (acts as its typecheck).
 
+## Working rules
+
+- Do NOT auto-run build/dev/lint/test commands after every change. Run only when the user explicitly asks, or when command output is genuinely needed to answer a question.
+- Do NOT restart dev servers or open the browser after edits without being asked. The user verifies UI in their own browser; visual confirmation comes from the user's screenshot or explicit request, not from automated browser checks.
+- Prefer reasoning and reading files over re-running the toolchain.
+
 ## Environment
 
 - Single root `.env` (copy `.env.example`). Server loads it via `--env-file=../../.env`; Vite only reads `VITE_*` vars. Never commit `.env`.
@@ -45,3 +51,9 @@ Single server test: `bun test src/lib/__test__/i18n.test.ts`. Client "build" inc
 
 - `DESIGN.md` is the required design system: Catppuccin-style dark palette, Sora/Manrope/JetBrains Mono fonts, 4px spacing base, 8/12px radii, 150-220ms motion. Reference it for any client UI work.
 - Client: Zustand for state (local spec persisted to storage), Supabase client-side auth/realtime collaboration, Tailwind v4 + framer-motion.
+
+### Layout components
+
+- Pages follow the `use-<name>-page` hook pattern + `<PageContainer>`: route via `src/routes.ts` accessor (`router.X`), no inline path strings.
+- Grid panels use the `GridPanel` + `GridCell` pair (see `DESIGN.md > Grid Panels` for the seamless-border technique).
+- Cards: standard surface (`#1e1e2e`) with `border-border`, 0-radius (flat) per this project's design language. Elevated variant uses `#24273a` raised surface.
