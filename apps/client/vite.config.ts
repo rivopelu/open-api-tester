@@ -6,10 +6,6 @@ import path from 'path';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   envDir: path.resolve(import.meta.dirname, '../..'),
-  build: {
-    outDir: path.resolve(import.meta.dirname, '../../dist'),
-    emptyOutDir: true,
-  },
   resolve: {
     alias: {
       '@modern-api-studio/types': path.resolve(import.meta.dirname, '../../packages/types/index.ts'),
