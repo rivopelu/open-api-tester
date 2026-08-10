@@ -1,6 +1,5 @@
 import { useUiStore } from './store/useUiStore';
-import { useApiSpecStore } from './store/useApiSpecStore';
-import { useCollabStore } from './store/useCollabStore';
+import { useAuthStore } from './store/useAuthStore';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { RightSidebar } from './components/RightSidebar';
@@ -12,61 +11,17 @@ import { SecurityPanel } from './components/security/SecurityPanel';
 import { PreviewPanel } from './components/preview/PreviewPanel';
 import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
-import { JoinProjectPage } from './components/collab/JoinProjectPage';
-import { supabase } from './lib/supabase';
 import { useEffect, useState } from 'react';
 
 export default function App() {
   const { activePanel } = useUiStore();
-  const { activeProjectId, currentUserRole } = useApiSpecStore();
-  const { subscribeToProject, unsubscribeFromProject } = useCollabStore();
-
-  const [session, setSession] = useState<any>(null);
+  const { user, initializing, init } = useAuthStore();
   const [inDashboard, setInDashboard] = useState(true);
 
-  // Read invite tokens once from URL on mount.
-  const [inviteToken, setInviteToken] = useState<string | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('invite');
-  });
-
-  const [inviteWorkspaceToken, setInviteWorkspaceToken] = useState<string | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('invite_workspace');
-  });
-
-  // ── Auth state ─────────────────────────────────────────────────────────────
+  // Restore session (validates stored token against the server).
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (!session) setInDashboard(true);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // ── Realtime: subscribe when a project becomes active ─────────────────────
-  useEffect(() => {
-    if (!activeProjectId || !session) return;
-
-    subscribeToProject(
-      activeProjectId,
-      { id: session.user.id, email: session.user.email ?? '' },
-      currentUserRole ?? 'viewer',
-    );
-
-    return () => unsubscribeFromProject();
-  }, [activeProjectId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Clear invite token from address bar without reload ────────────────────
-  const clearInviteFromUrl = () => {
-    window.history.replaceState({}, '', window.location.pathname);
-    setInviteToken(null);
-  };
+    init();
+  }, [init]);
 
   const renderPanel = () => {
     switch (activePanel) {
@@ -82,47 +37,14 @@ export default function App() {
 
   // ── Render order ──────────────────────────────────────────────────────────
 
-  // 1. Must be authenticated first
-  if (!session) {
+  // 1. Restoring session
+  if (initializing) {
+    return null;
+  }
+
+  // 2. Must be authenticated first
+  if (!user) {
     return <Auth />;
-  }
-
-  // 2. Workspace invite flow
-  if (inviteWorkspaceToken) {
-    return (
-      <JoinProjectPage
-        token={inviteWorkspaceToken}
-        isWorkspace={true}
-        onJoined={() => {
-          clearInviteFromUrl();
-          setInviteWorkspaceToken(null);
-          setInDashboard(false);
-        }}
-        onCancel={() => {
-          clearInviteFromUrl();
-          setInviteWorkspaceToken(null);
-          setInDashboard(true);
-        }}
-      />
-    );
-  }
-
-  // 3. Per-project invite flow
-  if (inviteToken) {
-    return (
-      <JoinProjectPage
-        token={inviteToken}
-        isWorkspace={false}
-        onJoined={() => {
-          clearInviteFromUrl();
-          setInDashboard(false);
-        }}
-        onCancel={() => {
-          clearInviteFromUrl();
-          setInDashboard(true);
-        }}
-      />
-    );
   }
 
   // 3. Dashboard — project picker

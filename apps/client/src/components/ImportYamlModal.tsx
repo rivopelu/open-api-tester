@@ -2,7 +2,6 @@ import { useRef, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { parseOpenApiToSpec } from '../lib/yamlImporter';
 import { useApiSpecStore } from '../store/useApiSpecStore';
-import { supabase } from '../lib/supabase';
 import { v4 as uuidv4 } from 'uuid';
 import type { ApiSpec } from '@modern-api-studio/types';
 
@@ -63,7 +62,7 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
     }
   };
 
-  // ── Save to Supabase ─────────────────────────────────────────────────────────
+  // ── Save to server ─────────────────────────────────────────────────────────
 
   const handleSave = async () => {
     if (!parsedSpec) return;
@@ -72,39 +71,14 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
     setStep('saving');
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) throw new Error('Not authenticated');
-
       const finalSpec: ApiSpec = {
         ...parsedSpec,
         id: uuidv4(),
         info: { ...parsedSpec.info, title: projectName.trim() },
       };
 
-      const { error } = await supabase
-        .from('projects')
-        .insert({
-          user_id: userData.user.id,
-          name: projectName.trim(),
-          spec_data: finalSpec,
-        });
-
-      if (error) throw new Error(error.message);
-
-      // Load the newly created project into the store
-      const { data: projectRow } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('user_id', userData.user.id)
-        .eq('name', projectName.trim())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (projectRow) {
-        const { loadProjectFromSupabase } = useApiSpecStore.getState();
-        await loadProjectFromSupabase(projectRow.id, 'owner');
-      }
+      const ok = await useApiSpecStore.getState().importProject(projectName.trim(), finalSpec);
+      if (!ok) throw new Error('Failed to import project');
 
       toast.success(`"${projectName.trim()}" imported successfully!`);
       onImported();

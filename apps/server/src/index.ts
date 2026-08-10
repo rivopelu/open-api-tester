@@ -9,6 +9,7 @@ import { errorHandler } from './configs/error-handler'
 import { systemController } from './bff/controllers/system.controller'
 import { authController } from './bff/controllers/auth.controller'
 import { accountController } from './bff/controllers/account.controller'
+import { projectsController } from './bff/controllers/projects.controller'
 import { renderHome } from './views/home'
 import { detectLocale } from './lib/i18n'
 import { logger } from './configs/logger'
@@ -21,7 +22,7 @@ app.use('*', requestLogger())
 app.use('*', secureHeaders())
 registerControllers(
   app,
-  [systemController, authController, accountController],
+  [systemController, authController, accountController, projectsController],
   env.API_PREFIX as string,
 )
 

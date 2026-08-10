@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type {
   ApiSpec, Endpoint, ApiTag, SchemaComponent, SecurityScheme,
 } from '@modern-api-studio/types';
-import { supabase } from '../lib/supabase';
+import { projectApi, SaveConflictError } from '../lib/api';
 
 const DEFAULT_SPEC: ApiSpec = {
   id: uuidv4(),
@@ -112,15 +112,15 @@ interface ApiSpecStore {
   searchQuery: string;
   filterTag: string | null;
   activeProjectId: string | null;
-  currentUserRole: 'owner' | 'editor' | 'viewer' | null;
   /** ISO timestamp of when the current project was last loaded/saved (server value). Used for optimistic locking. */
   localUpdatedAt: string | null;
-  /** ISO timestamp when we last successfully saved to Supabase. */
+  /** ISO timestamp when we last successfully saved to the server. */
   lastSavedAt: string | null;
 
-  loadProjectFromSupabase: (id: string, role?: 'owner' | 'editor' | 'viewer') => Promise<void>;
+  loadProject: (id: string) => Promise<void>;
   createNewProject: (name: string) => Promise<boolean>;
-  saveProjectToSupabase: () => Promise<void>;
+  importProject: (name: string, spec: ApiSpec) => Promise<boolean>;
+  saveProject: (forceOverwrite?: boolean) => Promise<void>;
   deleteProject: (id: string) => Promise<boolean>;
   renameProject: (id: string, name: string) => Promise<boolean>;
 
@@ -176,7 +176,6 @@ export const useApiSpecStore = create<ApiSpecStore>()(
       spec: DEFAULT_SPEC,
       activeEndpointId: DEFAULT_SPEC.endpoints[0]?.id ?? null,
       activeProjectId: null,
-      currentUserRole: null,
       localUpdatedAt: null,
       lastSavedAt: null,
       history: [],
@@ -184,64 +183,41 @@ export const useApiSpecStore = create<ApiSpecStore>()(
       searchQuery: '',
       filterTag: null,
 
-      loadProjectFromSupabase: async (id: string, role: 'owner' | 'editor' | 'viewer' = 'owner') => {
-        const { data, error } = await supabase
-          .from('projects')
-          .select('spec_data, updated_at')
-          .eq('id', id)
-          .single();
-
-        if (error || !data) {
+      loadProject: async (id: string) => {
+        let data;
+        try {
+          data = await projectApi.get(id);
+        } catch {
           const { toast } = await import('react-hot-toast');
           toast.error('Failed to load project');
           return;
         }
 
-        const spec = data.spec_data as ApiSpec;
+        const spec = data.specData;
         get().pushHistory();
         set({
           spec,
           activeProjectId: id,
-          currentUserRole: role,
           activeEndpointId: spec.endpoints[0]?.id ?? null,
-          localUpdatedAt: (data as any).updated_at ?? null,
-          lastSavedAt: (data as any).updated_at ?? null,
+          localUpdatedAt: data.updatedAt ?? null,
+          lastSavedAt: data.updatedAt ?? null,
         });
       },
 
       createNewProject: async (name: string): Promise<boolean> => {
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) {
-          const { toast } = await import('react-hot-toast');
-          toast.error('You must be logged in to create a project');
-          return false;
-        }
-
         const newSpec: ApiSpec = {
           ...DEFAULT_SPEC,
           id: uuidv4(),
           info: { ...DEFAULT_SPEC.info, title: name },
         };
 
-        const { data, error } = await supabase
-          .from('projects')
-          .insert({
-            user_id: userData.user.id,
-            name,
-            spec_data: newSpec,
-          })
-          .select('id')
-          .single();
-
-        if (error) {
-          console.error('[createNewProject] Supabase error:', error.message, error.details ?? '', error.hint ?? '');
+        let data;
+        try {
+          data = await projectApi.create(name, newSpec);
+        } catch (err: any) {
+          console.error('[createNewProject]', err);
           const { toast } = await import('react-hot-toast');
-          toast.error(`Failed to create project: ${error.message}`);
-          return false;
-        }
-        if (!data) {
-          const { toast } = await import('react-hot-toast');
-          toast.error('Failed to create project: no data returned');
+          toast.error(`Failed to create project: ${err?.message ?? 'Unknown error'}`);
           return false;
         }
 
@@ -249,84 +225,91 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         set({
           spec: newSpec,
           activeProjectId: data.id,
-          currentUserRole: 'owner',
           activeEndpointId: newSpec.endpoints[0]?.id ?? null,
+          localUpdatedAt: data.updatedAt ?? null,
+          lastSavedAt: data.updatedAt ?? null,
         });
         return true;
       },
 
-      saveProjectToSupabase: async () => {
+      importProject: async (name: string, spec: ApiSpec): Promise<boolean> => {
+        let data;
+        try {
+          data = await projectApi.create(name, spec);
+        } catch (err: any) {
+          console.error('[importProject]', err);
+          const { toast } = await import('react-hot-toast');
+          toast.error(`Failed to import project: ${err?.message ?? 'Unknown error'}`);
+          return false;
+        }
+
+        get().pushHistory();
+        set({
+          spec,
+          activeProjectId: data.id,
+          activeEndpointId: spec.endpoints[0]?.id ?? null,
+          localUpdatedAt: data.updatedAt ?? null,
+          lastSavedAt: data.updatedAt ?? null,
+        });
+        return true;
+      },
+
+      saveProject: async (forceOverwrite = false) => {
         const { spec, activeProjectId, localUpdatedAt } = get();
         if (!activeProjectId) return;
 
         // ── Optimistic locking: check if someone else saved since we loaded ──
-        const { data: current, error: checkErr } = await supabase
-          .from('projects')
-          .select('updated_at')
-          .eq('id', activeProjectId)
-          .single();
+        if (!forceOverwrite) {
+          let current;
+          try {
+            current = await projectApi.get(activeProjectId);
+          } catch (err: any) {
+            const { toast } = await import('react-hot-toast');
+            toast.error(`Failed to save: ${err?.message ?? 'Unknown error'}`);
+            return;
+          }
 
-        if (checkErr) {
-          const { toast } = await import('react-hot-toast');
-          toast.error(`Failed to save: ${checkErr.message}`);
-          return;
-        }
+          const serverUpdatedAt: string | null = current.updatedAt ?? null;
 
-        const serverUpdatedAt: string | null = (current as any)?.updated_at ?? null;
-
-        // Timestamps from Supabase may include sub-second precision; normalise to seconds.
-        const toSec = (ts: string | null) => ts ? ts.slice(0, 19) : null;
-        if (localUpdatedAt && serverUpdatedAt && toSec(serverUpdatedAt) !== toSec(localUpdatedAt)) {
-          // Conflict — caller (Header) will catch this and show the dialog.
-          const err = new Error('SAVE_CONFLICT');
-          (err as any).serverUpdatedAt = serverUpdatedAt;
-          throw err;
+          // Timestamps may include sub-second precision; normalise to seconds.
+          const toSec = (ts: string | null) => ts ? ts.slice(0, 19) : null;
+          if (localUpdatedAt && serverUpdatedAt && toSec(serverUpdatedAt) !== toSec(localUpdatedAt)) {
+            throw new SaveConflictError(serverUpdatedAt);
+          }
         }
 
         // ── Proceed with save ─────────────────────────────────────────────────
-        const { error } = await supabase
-          .from('projects')
-          .update({ spec_data: spec, name: spec.info.title })
-          .eq('id', activeProjectId);
-
-        if (error) {
-          console.error('[saveProjectToSupabase] Supabase error:', error.message, error.details ?? '', error.hint ?? '');
+        let updated;
+        try {
+          updated = await projectApi.update(activeProjectId, {
+            name: spec.info.title,
+            specData: spec,
+          });
+        } catch (err: any) {
+          console.error('[saveProject]', err);
           const { toast } = await import('react-hot-toast');
-          toast.error(`Failed to save project: ${error.message}`);
+          toast.error(`Failed to save project: ${err?.message ?? 'Unknown error'}`);
           return;
         }
 
         // ── Update localUpdatedAt so subsequent saves don't false-alarm ───────
-        const { data: saved } = await supabase
-          .from('projects')
-          .select('updated_at')
-          .eq('id', activeProjectId)
-          .single();
-        const newTs: string | null = (saved as any)?.updated_at ?? null;
-        set({ localUpdatedAt: newTs, lastSavedAt: newTs ?? new Date().toISOString() });
-
-        // Notify collaborators via Realtime broadcast
-        const { data: userData } = await supabase.auth.getUser();
-        const { useCollabStore } = await import('./useCollabStore');
-        useCollabStore.getState().broadcastSave(userData.user?.email ?? 'A collaborator');
+        const newTs: string | null = updated.updatedAt ?? new Date().toISOString();
+        set({ localUpdatedAt: newTs, lastSavedAt: newTs });
       },
 
       deleteProject: async (id: string): Promise<boolean> => {
-        const { error } = await supabase
-          .from('projects')
-          .delete()
-          .eq('id', id);
-
-        if (error) {
-          console.error('[deleteProject] Supabase error:', error.message, error.details ?? '', error.hint ?? '');
+        try {
+          await projectApi.remove(id);
+        } catch (err: any) {
+          console.error('[deleteProject]', err);
           const { toast } = await import('react-hot-toast');
-          toast.error(`Failed to delete project: ${error.message}`);
+          toast.error(`Failed to delete project: ${err?.message ?? 'Unknown error'}`);
           return false;
         }
 
         // If the deleted project was currently active, reset state
         if (get().activeProjectId === id) {
-          set({ activeProjectId: null, currentUserRole: null });
+          set({ activeProjectId: null });
         }
         return true;
       },
@@ -335,15 +318,12 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         const trimmed = name.trim();
         if (!trimmed) return false;
 
-        const { error } = await supabase
-          .from('projects')
-          .update({ name: trimmed })
-          .eq('id', id);
-
-        if (error) {
-          console.error('[renameProject] Supabase error:', error.message, error.details ?? '', error.hint ?? '');
+        try {
+          await projectApi.update(id, { name: trimmed });
+        } catch (err: any) {
+          console.error('[renameProject]', err);
           const { toast } = await import('react-hot-toast');
-          toast.error(`Failed to rename project: ${error.message}`);
+          toast.error(`Failed to rename project: ${err?.message ?? 'Unknown error'}`);
           return false;
         }
 

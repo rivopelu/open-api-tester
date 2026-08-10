@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApiSpecStore } from '../store/useApiSpecStore';
 import { useUiStore } from '../store/useUiStore';
-import { useCollabStore } from '../store/useCollabStore';
 import { apiSpecToOpenApi3 } from '@modern-api-studio/utils';
-import { CollaboratorsBar } from './collab/CollaboratorsBar';
-import { ShareModal } from './collab/ShareModal';
+import { SaveConflictError, getErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
 
 const NAV_ITEMS = [
@@ -18,23 +16,22 @@ const NAV_ITEMS = [
 
 // ─── "Last saved X ago" helper ────────────────────────────────────────────────
 function useTimeAgo(isoTs: string | null): string {
-  const [label, setLabel] = useState('');
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (!isoTs) { setLabel(''); return; }
-
-    const update = () => {
-      const diff = Math.floor((Date.now() - new Date(isoTs).getTime()) / 1000);
-      if (diff < 10)  setLabel('just now');
-      else if (diff < 60) setLabel(`${diff}s ago`);
-      else if (diff < 3600) setLabel(`${Math.floor(diff / 60)}m ago`);
-      else setLabel(`${Math.floor(diff / 3600)}h ago`);
-    };
-
-    update();
-    const id = setInterval(update, 10_000);
+    if (!isoTs) return;
+    const id = setInterval(() => setNow(Date.now()), 10_000);
     return () => clearInterval(id);
   }, [isoTs]);
+
+  const label = useMemo(() => {
+    if (!isoTs) return '';
+    const diff = Math.floor((now - new Date(isoTs).getTime()) / 1000);
+    if (diff < 10)   return 'just now';
+    if (diff < 60)   return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return `${Math.floor(diff / 3600)}h ago`;
+  }, [isoTs, now]);
 
   return label;
 }
@@ -111,85 +108,45 @@ function ConflictDialog({
 export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }) {
   const {
     spec, undo, redo, historyIndex, history,
-    activeProjectId, currentUserRole,
-    saveProjectToSupabase, loadProjectFromSupabase,
+    activeProjectId,
+    saveProject, loadProject,
     lastSavedAt,
   } = useApiSpecStore();
   const { activePanel, setActivePanel } = useUiStore();
-  const {
-    hasRemoteChange, remoteChangedBy, clearRemoteChange,
-    saveLockOwner,
-    broadcastSaveLock, broadcastSaveUnlock,
-  } = useCollabStore();
 
   const [saving, setSaving] = useState(false);
-  const [showShare, setShowShare] = useState(false);
   const [conflictMeta, setConflictMeta] = useState<{ changedBy: string; serverTs: string } | null>(null);
 
   const timeAgo = useTimeAgo(lastSavedAt);
-  const isViewer = currentUserRole === 'viewer';
-
-  // Is someone else holding the save lock?
-  const lockedByOther = saveLockOwner !== null;
 
   // ── Main save flow ──────────────────────────────────────────────────────────
   const executeSave = useCallback(async (forceOverwrite = false) => {
-    if (!activeProjectId || isViewer) return;
-
-    // Broadcast lock so other collaborators know we're saving
-    const { data: userData } = await (await import('../lib/supabase')).supabase.auth.getUser();
-    const email = userData.user?.email ?? 'Someone';
-    broadcastSaveLock(email);
+    if (!activeProjectId) return;
 
     setSaving(true);
     try {
-      if (forceOverwrite) {
-        // Skip conflict check: align localUpdatedAt to server before saving
-        const { supabase } = await import('../lib/supabase');
-        const { data: cur } = await supabase
-          .from('projects')
-          .select('updated_at')
-          .eq('id', activeProjectId)
-          .single();
-        useApiSpecStore.setState({ localUpdatedAt: (cur as any)?.updated_at ?? null });
-      }
-
-      await saveProjectToSupabase();
+      await saveProject(forceOverwrite);
       toast.success('✅ Project saved');
       setConflictMeta(null);
-    } catch (err: any) {
-      if (err?.message === 'SAVE_CONFLICT') {
-        // Surface conflict dialog instead of auto-overwriting
-        setConflictMeta({
-          changedBy: remoteChangedBy ?? 'Another collaborator',
-          serverTs: err.serverUpdatedAt ?? '',
-        });
+    } catch (err: unknown) {
+      if (err instanceof SaveConflictError) {
+        setConflictMeta({ changedBy: 'Another user', serverTs: err.serverUpdatedAt });
       } else {
-        toast.error(`Save failed: ${err?.message ?? 'Unknown error'}`);
+        toast.error(`Save failed: ${getErrorMessage(err, 'Unknown error')}`);
       }
     } finally {
       setSaving(false);
-      broadcastSaveUnlock();
     }
-  }, [activeProjectId, isViewer, saveProjectToSupabase, remoteChangedBy, broadcastSaveLock, broadcastSaveUnlock]);
+  }, [activeProjectId, saveProject]);
 
-  const handleSave = () => executeSave(false);
-
+  const handleSave = useCallback(() => executeSave(false), [executeSave]);
   const handleConflictOverwrite = () => executeSave(true);
 
   const handleConflictReload = async () => {
     if (!activeProjectId) return;
-    await loadProjectFromSupabase(activeProjectId, currentUserRole ?? 'viewer');
-    clearRemoteChange();
+    await loadProject(activeProjectId);
     setConflictMeta(null);
     toast.success('🔄 Reloaded latest version');
-  };
-
-  const handleReloadRemote = async () => {
-    if (!activeProjectId) return;
-    await loadProjectFromSupabase(activeProjectId, currentUserRole ?? 'viewer');
-    clearRemoteChange();
-    toast.success('Spec reloaded');
   };
 
   const handleExportYaml = () => {
@@ -207,50 +164,21 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
   // Keyboard shortcut: Ctrl+S / Cmd+S
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's' && !isViewer && activeProjectId) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's' && activeProjectId) {
         e.preventDefault();
-        if (!saving && !lockedByOther) handleSave();
+        if (!saving) handleSave();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [saving, lockedByOther, isViewer, activeProjectId, handleSave]);
+  }, [saving, activeProjectId, handleSave]);
 
-  // Save button tooltip
-  const saveTooltip = lockedByOther
-    ? `🔒 ${saveLockOwner} is saving…`
-    : saving
+  const saveTooltip = saving
     ? 'Saving…'
-    : `Save to cloud${lastSavedAt ? ` · last saved ${timeAgo}` : ''} (Ctrl+S)`;
+    : `Save to server${lastSavedAt ? ` · last saved ${timeAgo}` : ''} (Ctrl+S)`;
 
   return (
     <>
-      {/* Remote-change banner */}
-      {hasRemoteChange && (
-        <div style={{
-          background: 'rgba(249,226,175,0.12)', borderBottom: '1px solid rgba(249,226,175,0.3)',
-          padding: '7px 16px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 12, color: 'var(--accent-yellow)', flex: 1 }}>
-            ⚡ <strong>{remoteChangedBy}</strong> saved changes to this project
-          </span>
-          <button className="btn btn-ghost btn-sm" onClick={handleReloadRemote}>Reload</button>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={clearRemoteChange} style={{ fontSize: 11 }}>✕</button>
-        </div>
-      )}
-
-      {/* Save-lock banner — shown to collaborators while someone else is saving */}
-      {lockedByOther && !saving && (
-        <div style={{
-          background: 'rgba(137,180,250,0.08)', borderBottom: '1px solid rgba(137,180,250,0.2)',
-          padding: '5px 16px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 11, color: 'var(--accent-blue)' }}>
-            ⏳ <strong>{saveLockOwner}</strong> is saving… Save is temporarily locked.
-          </span>
-        </div>
-      )}
-
       <header style={{
         display: 'flex', alignItems: 'center', gap: 0,
         background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)',
@@ -276,9 +204,7 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
           }}>⚡</div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', lineHeight: 1 }}>API Studio</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1 }}>
-              {isViewer ? '👁 View only' : 'Modern OpenAPI Designer'}
-            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1 }}>Modern OpenAPI Designer</div>
           </div>
         </div>
 
@@ -296,13 +222,6 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
 
         {/* Actions */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {/* Collaborators bar */}
-          {activeProjectId && (
-            <CollaboratorsBar onShareClick={() => setShowShare(true)} />
-          )}
-
-          <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
-
           <button className="btn btn-ghost btn-sm btn-icon" onClick={undo} disabled={historyIndex <= 0} data-tooltip="Undo">↩</button>
           <button className="btn btn-ghost btn-sm btn-icon" onClick={redo} disabled={historyIndex >= history.length - 1} data-tooltip="Redo">↪</button>
 
@@ -311,31 +230,25 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
           <button className="btn btn-ghost btn-sm" onClick={handleExportYaml}>↓ YAML</button>
           <button className="btn btn-ghost btn-sm" onClick={handleExportJson}>↓ JSON</button>
 
-          {activeProjectId && !isViewer && (
+          {activeProjectId && (
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
               <button
-                className={`btn btn-sm ${lockedByOther ? 'btn-ghost' : 'btn-ghost'}`}
+                className="btn btn-sm btn-ghost"
                 onClick={handleSave}
-                disabled={saving || lockedByOther}
+                disabled={saving}
                 data-tooltip={saveTooltip}
-                style={{
-                  opacity: lockedByOther ? 0.45 : 1,
-                  transition: 'opacity 0.2s',
-                  position: 'relative',
-                }}
+                style={{ transition: 'opacity 0.2s', position: 'relative' }}
               >
                 {saving
                   ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
                       Saving…
                     </span>
-                  : lockedByOther
-                  ? '🔒 Locked'
                   : '☁ Save'}
               </button>
 
               {/* Last saved indicator */}
-              {lastSavedAt && !saving && !lockedByOther && (
+              {lastSavedAt && !saving && (
                 <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                   {timeAgo}
                 </span>
@@ -346,11 +259,6 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
           <button className="btn btn-primary btn-sm" onClick={() => setActivePanel('preview')}>▶ Preview</button>
         </div>
       </header>
-
-      {/* Share modal */}
-      {showShare && activeProjectId && (
-        <ShareModal projectId={activeProjectId} onClose={() => setShowShare(false)} />
-      )}
 
       {/* Conflict dialog */}
       {conflictMeta && (
