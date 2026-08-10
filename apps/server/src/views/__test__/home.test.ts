@@ -40,7 +40,7 @@ describe('renderHome', () => {
       svg: '<svg/>',
       locale: 'en',
     })
-    expect(html).toStartWith('<!doctype html>')
+    expect(html.startsWith('<!doctype html>')).toBe(true)
     expect(html).toContain('</html>')
   })
 })

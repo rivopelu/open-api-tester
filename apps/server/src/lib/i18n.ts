@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 
 const cache = new Map<string, Record<string, string>>()
@@ -7,7 +8,7 @@ const SUPPORTED = ['en', 'id'] as const
 export type Locale = (typeof SUPPORTED)[number]
 
 function resolve(locale: string) {
-  return join(import.meta.dir, '..', '..', 'resources', 'lang', `${locale}.json`)
+  return join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', 'resources', 'lang', `${locale}.json`)
 }
 
 export function isSupported(locale: string): locale is Locale {

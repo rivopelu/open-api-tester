@@ -1,5 +1,4 @@
 import winston from 'winston'
-import { env } from './env'
 
 const levels = {
   error: 0,
@@ -93,10 +92,12 @@ export function createTransports(appEnv: string, logLevel: string): winston.tran
   return transports
 }
 
-const transports = createTransports(env.APP_ENV, env.LOG_LEVEL)
+const appEnv = process.env.APP_ENV ?? 'dev'
+const logLevel = process.env.LOG_LEVEL ?? 'debug'
+const transports = createTransports(appEnv, logLevel)
 
 export const logger = winston.createLogger({
-  level: env.LOG_LEVEL,
+  level: logLevel,
   levels,
   transports,
   exitOnError: false,

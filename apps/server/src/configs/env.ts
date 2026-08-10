@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 import { z } from 'zod'
+import { logger } from './logger'
 
 export const envSchema = z.object({
   PORT: z.coerce.number().default(8888),
@@ -22,7 +22,6 @@ export const envSchema = z.object({
 export function validateEnv() {
   const parsed = envSchema.safeParse(process.env)
   if (!parsed.success) {
-    const { logger } = require('./logger') as typeof import('./logger')
     logger.error(`Invalid environment variables: ${JSON.stringify(parsed.error.issues)}`)
     process.exit(1)
   }

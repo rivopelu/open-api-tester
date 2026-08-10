@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { Hono } from 'hono'
 import { authController } from '../auth.controller'
 import { registerControllers } from '../../../lib/decorators'

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import { AuthBffService } from '../auth-bff.service'
 import { SystemBffService } from '../system-bff.service'
 
 describe('SystemBffService', () => {
@@ -9,13 +10,11 @@ describe('SystemBffService', () => {
 })
 
 describe('AuthBffService', () => {
-  test('class is importable', async () => {
-    const { AuthBffService } = await import('../auth-bff.service')
+  test('class is importable', () => {
     expect(AuthBffService).toBeDefined()
   })
 
   test('signUp delegates to AuthService', async () => {
-    const { AuthBffService } = await import('../auth-bff.service')
     const service = new AuthBffService({
       signUp: () =>
         Promise.resolve({
@@ -29,7 +28,6 @@ describe('AuthBffService', () => {
   })
 
   test('signIn delegates to AuthService', async () => {
-    const { AuthBffService } = await import('../auth-bff.service')
     const service = new AuthBffService({
       signIn: () =>
         Promise.resolve({

@@ -1,11 +1,12 @@
 import Handlebars from 'handlebars'
 import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 
 const cache = new Map<string, HandlebarsTemplateDelegate>()
 
 function resolve(...parts: string[]) {
-  return join(import.meta.dir, '..', '..', 'resources', ...parts)
+  return join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', 'resources', ...parts)
 }
 
 export function render(templatePath: string, data: Record<string, unknown>): string {
