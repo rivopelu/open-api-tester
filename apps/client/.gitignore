@@ -13,6 +13,9 @@ dist
 dist-ssr
 *.local
 
+# Vercel serverless bundle artifact
+api/_bundle/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
