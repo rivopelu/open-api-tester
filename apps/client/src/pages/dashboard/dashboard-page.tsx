@@ -48,15 +48,16 @@ export default function DashboardPage() {
 
       {/* Project grid */}
       {page.loading ? (
-        <div
-          className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5"
+        <GridPanel
+          columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]"
+          className="mb-8"
           role="status"
           aria-label="Loading projects"
         >
           <ProjectCardSkeleton />
           <ProjectCardSkeleton />
           <ProjectCardSkeleton />
-        </div>
+        </GridPanel>
       ) : page.projects.length === 0 ? (
         <GridPanel columns="sm:col-span-2 lg:grid-cols-4">
           <GridCell className="sm:col-span-2 lg:col-span-4 flex flex-col items-center py-14 text-center">
@@ -76,7 +77,7 @@ export default function DashboardPage() {
           </GridCell>
         </GridPanel>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
+        <GridPanel columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
           {page.projects.map((p) => (
             <ProjectCard
               key={p.id}
@@ -89,7 +90,7 @@ export default function DashboardPage() {
               onRename={(newName) => page.renameSelectedProject(p.id, newName)}
             />
           ))}
-        </div>
+        </GridPanel>
       )}
 
       {/* Import YAML modal */}
@@ -103,11 +104,11 @@ export default function DashboardPage() {
 
 function ProjectCardSkeleton() {
   return (
-    <div className="rounded-none border border-border bg-surface p-4" aria-hidden="true">
+    <GridCell className="p-4" aria-hidden="true">
       <div className="mb-4 h-4 w-2/3 animate-pulse rounded bg-overlay" />
       <div className="mb-4 h-3 w-1/3 animate-pulse rounded bg-overlay" />
       <div className="h-8 w-24 animate-pulse rounded-none bg-overlay" />
-    </div>
+    </GridCell>
   );
 }
 
@@ -166,9 +167,9 @@ function ProjectCard({
   };
 
   return (
-    <div
+    <GridCell
       onClick={editing ? undefined : onSelect}
-      className="rounded-none border border-border bg-surface p-4 cursor-pointer hover:bg-card transition-colors"
+      className="p-4 cursor-pointer hover:bg-card transition-colors"
       aria-label={editing ? `Renaming ${project.name}` : `Open project ${project.name}`}
     >
       {/* Name row */}
@@ -251,6 +252,6 @@ function ProjectCard({
           Delete
         </Button>
       </div>
-    </div>
+    </GridCell>
   );
 }
