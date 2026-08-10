@@ -42,7 +42,7 @@ export default function AuthCallbackPage() {
           {error || 'Verifying your Google account and preparing your workspace.'}
         </Typography>
         {error && (
-          <Button className="mt-6 w-full" onClick={() => navigate('/', { replace: true })}>
+          <Button className="mt-6 w-full" onClick={() => navigate('/auth/sign-in', { replace: true })}>
             Back to sign in
           </Button>
         )}

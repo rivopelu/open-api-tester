@@ -203,7 +203,7 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
             fontSize: 16, boxShadow: '0 0 16px rgba(137,180,250,0.3)',
           }}>⚡</div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', lineHeight: 1 }}>API Studio</div>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', lineHeight: 1 }}>Max API Studio</div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1 }}>Modern OpenAPI Designer</div>
           </div>
         </div>

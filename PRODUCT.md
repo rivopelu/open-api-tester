@@ -12,7 +12,7 @@ API developers and product teams designing, previewing, testing, and collaborati
 
 ## Product Purpose
 
-Modern API Studio provides a visual workflow for creating API definitions, converting formats, previewing documentation, testing endpoints, and sharing workspaces.
+Max API Studio provides a visual workflow for creating API definitions, converting formats, previewing documentation, testing endpoints, and sharing workspaces. Product name is Max API Studio.
 
 ## Operating Context
 
@@ -29,7 +29,7 @@ Users work in a dense desktop editor for long sessions, with a project dashboard
 
 - Keep the existing dark purple editor character.
 - Adapt Bitech's professional blue, teal, spacing, typography, and component discipline to the dark product UI.
-- Product name remains Modern API Studio.
+- Product name is Max API Studio.
 
 ## Evidence on Hand
 

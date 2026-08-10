@@ -1,3 +1,4 @@
+import { Navigate } from 'react-router-dom';
 import { useUiStore } from './store/useUiStore';
 import { useAuthStore } from './store/useAuthStore';
 import { Header } from './components/Header';
@@ -9,7 +10,6 @@ import { ConverterPanel } from './components/converter/ConverterPanel';
 import { ComponentsPanel } from './components/components/ComponentsPanel';
 import { SecurityPanel } from './components/security/SecurityPanel';
 import { PreviewPanel } from './components/preview/PreviewPanel';
-import { Auth } from './components/Auth';
 import { Dashboard } from './components/Dashboard';
 import { useEffect, useState } from 'react';
 
@@ -44,7 +44,7 @@ export default function App() {
 
   // 2. Must be authenticated first
   if (!user) {
-    return <Auth />;
+    return <Navigate to="/auth/sign-in" replace />;
   }
 
   // 3. Dashboard — project picker

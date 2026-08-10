@@ -8,7 +8,7 @@ import { projectApi, SaveConflictError } from '../lib/api';
 
 const DEFAULT_SPEC: ApiSpec = {
   id: uuidv4(),
-  info: { title: 'My API', version: '1.0.0', description: 'Built with Modern API Studio' },
+  info: { title: 'My API', version: '1.0.0', description: 'Built with Max API Studio' },
   servers: [{ url: 'https://api.example.com', description: 'Production' }],
   tags: [
     { id: uuidv4(), name: 'Users', description: 'User operations' },

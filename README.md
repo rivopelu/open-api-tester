@@ -1,6 +1,6 @@
-# ⚡ Modern API Studio
+# ⚡ Max API Studio
 
-Modern API Studio is a powerful OpenAPI and Swagger designer built in the browser. It provides a visual interface for constructing endpoints, generating specs, and executing HTTP requests against your APIs — with cloud persistence via Supabase.
+Max API Studio is a powerful OpenAPI and Swagger designer built in the browser. It provides a visual interface for constructing endpoints, generating specs, and executing HTTP requests against your APIs — with cloud persistence via Supabase.
 
 ## ✨ Features
 
@@ -162,6 +162,8 @@ https://<your-vercel-domain>/api/auth/google/callback
 ```
 
 Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ALLOWED_EMAIL_DOMAINS` in Vercel. Accounts from an allowed domain are created automatically on their first successful Google sign-in.
+
+`GOOGLE_REDIRECT_URI` must exactly match one of the Google Cloud Authorized redirect URIs, including protocol, host, port, and path. Set it to the production callback URL in Vercel.
 
 ## 🤝 Contributing
 

@@ -1,10 +1,10 @@
 -- =============================================================================
--- Modern API Studio — Complete Database Schema
+-- Max API Studio — Complete Database Schema
 -- =============================================================================
 -- File   : supabase/migrations/001_full_schema.sql
 -- Scope  : Apply this ONCE to a fresh Supabase project.
 --          It creates all tables, triggers, helper functions, RLS policies,
---          and grants needed by the Modern API Studio application.
+--          and grants needed by the Max API Studio application.
 --
 -- Tables
 --   public.projects          — API spec projects owned by a user

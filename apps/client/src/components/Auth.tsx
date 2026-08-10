@@ -40,7 +40,7 @@ export function Auth() {
       <div className="card" style={{ width: 400, padding: 32 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 8px 0', color: 'var(--text-primary)' }}>
-            Modern API Studio
+            Max API Studio
           </h1>
           <p style={{ margin: 0, color: 'var(--text-muted)' }}>
             {isLogin ? 'Sign in to access office projects' : 'Create an account to start designing'}

@@ -1,4 +1,4 @@
-# Modern API Studio Design System
+# Max API Studio Design System
 
 The product adapts Bitech's modern, minimal, professional system to the existing dark purple editor.
 

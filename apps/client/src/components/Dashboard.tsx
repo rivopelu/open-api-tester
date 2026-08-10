@@ -71,7 +71,7 @@ export function Dashboard({ onProjectSelect }: { onProjectSelect: () => void }) 
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 18, boxShadow: '0 0 16px rgba(137,180,250,0.3)',
             }}>⚡</div>
-            <h1 style={{ fontSize: 24, margin: 0, color: 'var(--text-primary)', fontWeight: 700 }}>API Studio</h1>
+            <h1 style={{ fontSize: 24, margin: 0, color: 'var(--text-primary)', fontWeight: 700 }}>Max API Studio</h1>
           </div>
           <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>Office API projects</p>
         </div>

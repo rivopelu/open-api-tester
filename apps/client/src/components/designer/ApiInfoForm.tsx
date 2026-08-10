@@ -12,7 +12,7 @@ export function ApiInfoForm() {
         background: 'linear-gradient(135deg, rgba(137,180,250,0.1), rgba(203,166,247,0.1))',
         border: '1px solid rgba(137,180,250,0.2)', borderRadius: 12, padding: 20,
       }}>
-        <div style={{ fontSize: 20, marginBottom: 4 }}>⚡ Modern API Studio</div>
+        <div style={{ fontSize: 20, marginBottom: 4 }}>⚡ Max API Studio</div>
         <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
           Design, build, and document your APIs visually. Select an endpoint from the sidebar or configure your API info below.
         </div>

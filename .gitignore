@@ -41,3 +41,11 @@ Thumbs.db
 # Supabase local dev (if using Supabase CLI)
 supabase/.branches/
 supabase/.temp/
+.impeccable/
+.codex/
+.gemini/
+.claude/
+.kiro
+.opencode
+.agents/skills/impeccable/
+.agents/scripts/

@@ -1,4 +1,4 @@
-# Supabase Migrations — Modern API Studio
+# Supabase Migrations — Max API Studio
 
 ## Cara Apply ke Supabase Baru
 
