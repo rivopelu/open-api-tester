@@ -71,7 +71,7 @@ export function createTransports(appEnv: string, logLevel: string): winston.tran
     }),
   ]
 
-  if (appEnv !== 'dev') {
+  if (appEnv !== 'dev' && !process.env.VERCEL) {
     transports.push(
       new winston.transports.File({
         filename: 'logs/error.log',
