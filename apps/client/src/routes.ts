@@ -16,6 +16,9 @@ const EDITOR_BASE = '/editor'
 export const router = {
   home: () => '/',
   dashboard: () => '/dashboard',
+  settings: {
+    profile: () => '/settings/profile',
+  },
   auth: {
     signIn: () => '/auth/sign-in',
     callback: () => '/auth',

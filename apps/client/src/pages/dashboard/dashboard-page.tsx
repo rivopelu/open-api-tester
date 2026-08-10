@@ -2,15 +2,12 @@ import { useRef, useState } from 'react';
 import {
   Check,
   FolderOpen,
-  LogOut,
   Pencil,
-  Plus,
   Trash2,
-  Upload,
   X,
-  Zap,
 } from 'lucide-react';
 import { Button, Card, PageContainer, Typography } from '../../components/ui';
+import { DashboardTopbar } from '../../components/DashboardTopbar';
 import { ImportYamlModal } from '../../components/ImportYamlModal';
 import type { ProjectDto } from '../../lib/api';
 import useDashboardPage from './use-dashboard-page';
@@ -19,37 +16,21 @@ export default function DashboardPage() {
   const page = useDashboardPage();
 
   return (
-    <PageContainer size="lg">
-      {/* Header */}
-      <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="glow-blue grid h-10 w-10 place-items-center rounded-lg bg-linear-to-br from-primary to-purple">
-            <Zap className="h-5 w-5 text-base" aria-hidden="true" />
-          </div>
-          <div>
-            <Typography variant="heading-lg" as="h1">
-              {page.headline}
-            </Typography>
-            <Typography tone="muted" variant="body-sm">
-              {page.subtitle}
-            </Typography>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2.5">
-          <Button variant="ghost" size="sm" onClick={page.signout}>
-            <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-            Sign Out
-          </Button>
-          <Button variant="ghost" size="sm" onClick={page.openImport}>
-            <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-            Import YAML
-          </Button>
-          <Button variant="primary" size="sm" onClick={page.handleCreateClick}>
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            New Project
-          </Button>
-        </div>
-      </header>
+    <div className="flex min-h-screen flex-col bg-base">
+      <DashboardTopbar
+        onCreateProject={page.handleCreateClick}
+        onOpenImport={page.openImport}
+      />
+      <PageContainer size="lg">
+        {/* Header */}
+        <header className="mb-8">
+          <Typography variant="heading-lg" as="h1">
+            {page.headline}
+          </Typography>
+          <Typography tone="muted" variant="body-sm">
+            {page.subtitle}
+          </Typography>
+        </header>
 
       {/* Stats */}
       <div className="mb-8 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -113,7 +94,8 @@ export default function DashboardPage() {
       {page.showImport && (
         <ImportYamlModal onClose={page.closeImport} onImported={page.onImported} />
       )}
-    </PageContainer>
+      </PageContainer>
+    </div>
   );
 }
 
