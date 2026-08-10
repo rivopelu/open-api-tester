@@ -54,11 +54,15 @@ describe('AuthService', () => {
     stubs: Partial<{
       findByEmail: (email: string) => Promise<Account | null>
       create: (data: any) => Promise<Account>
+      updateProfilePicture: (id: string, picture: string) => Promise<Account>
     }>,
   ) {
     const mockAccountService = {
       findByEmail: stubs.findByEmail!,
       create: stubs.create ?? (async (data) => ({ ...mockAccount, ...data })),
+      updateProfilePicture:
+        stubs.updateProfilePicture ??
+        (async (id, picture) => ({ ...mockAccount, id, profile_picture: picture })),
     } as any
     return new AuthService(mockAccountService)
   }
@@ -70,8 +74,11 @@ describe('AuthService', () => {
       const service = createAuthService({ findByEmail: async () => null, create })
       vi.stubGlobal(
         'fetch',
-        vi.fn()
-          .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'google-token' }), { status: 200 }))
+        vi
+          .fn()
+          .mockResolvedValueOnce(
+            new Response(JSON.stringify({ access_token: 'google-token' }), { status: 200 }),
+          )
           .mockResolvedValueOnce(
             new Response(
               JSON.stringify({
@@ -98,8 +105,11 @@ describe('AuthService', () => {
       const service = createAuthService({ findByEmail: async () => null })
       vi.stubGlobal(
         'fetch',
-        vi.fn()
-          .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'google-token' }), { status: 200 }))
+        vi
+          .fn()
+          .mockResolvedValueOnce(
+            new Response(JSON.stringify({ access_token: 'google-token' }), { status: 200 }),
+          )
           .mockResolvedValueOnce(
             new Response(
               JSON.stringify({ email: 'user@example.com', email_verified: true, name: 'User' }),
@@ -111,6 +121,73 @@ describe('AuthService', () => {
       await expect(service.signInWithGoogle('code', 'http://localhost/callback')).rejects.toThrow(
         'email domain is not allowed',
       )
+    })
+
+    test('backfills profile picture when the account has none', async () => {
+      env.ALLOWED_EMAIL_DOMAINS = 'maxxiagri.id'
+      const existing = { ...mockAccount, profile_picture: null }
+      const updateProfilePicture = vi.fn(async (id: string, picture: string) => ({
+        ...existing,
+        profile_picture: picture,
+      }))
+      const service = createAuthService({ findByEmail: async () => existing, updateProfilePicture })
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce(
+            new Response(JSON.stringify({ access_token: 'google-token' }), { status: 200 }),
+          )
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                email: 'user@maxxiagri.id',
+                email_verified: true,
+                name: 'Google User',
+                picture: 'https://example.com/user.jpg',
+              }),
+              { status: 200 },
+            ),
+          ),
+      )
+
+      const result = await service.signInWithGoogle('code', 'http://localhost/callback')
+
+      expect(updateProfilePicture).toHaveBeenCalledWith('acc-1', 'https://example.com/user.jpg')
+      expect(result.account.profile_picture).toBe('https://example.com/user.jpg')
+    })
+
+    test('keeps existing profile picture when one is already set', async () => {
+      env.ALLOWED_EMAIL_DOMAINS = 'maxxiagri.id'
+      const updateProfilePicture = vi.fn()
+      const service = createAuthService({
+        findByEmail: async () => mockAccount,
+        updateProfilePicture,
+      })
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValueOnce(
+            new Response(JSON.stringify({ access_token: 'google-token' }), { status: 200 }),
+          )
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                email: 'user@maxxiagri.id',
+                email_verified: true,
+                name: 'Google User',
+                picture: 'https://example.com/user.jpg',
+              }),
+              { status: 200 },
+            ),
+          ),
+      )
+
+      const result = await service.signInWithGoogle('code', 'http://localhost/callback')
+
+      expect(updateProfilePicture).not.toHaveBeenCalled()
+      expect(result.account.profile_picture).toBe(mockAccount.profile_picture)
     })
   })
 

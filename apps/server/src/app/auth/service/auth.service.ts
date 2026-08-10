@@ -131,6 +131,11 @@ export class AuthService {
     }
     if (!account.active) throw new ForbiddenError('Account is deactivated')
 
+    // Backfill profile picture from Google when the account has none yet.
+    if (profile.picture && !account.profile_picture) {
+      account = await this.accountService.updateProfilePicture(account.id, profile.picture)
+    }
+
     return {
       access_token: await this.signToken(account.id, account.email),
       account: {

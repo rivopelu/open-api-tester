@@ -30,4 +30,8 @@ export class AccountService {
       created_by: data.created_by,
     })
   }
+
+  async updateProfilePicture(id: string, picture: string): Promise<Account> {
+    return this.repository.update(id, { profile_picture: picture })
+  }
 }
