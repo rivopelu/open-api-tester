@@ -3,13 +3,13 @@ const path = require('node:path')
 
 const clientDir = path.resolve(__dirname, '..')
 const serverEntry = path.resolve(clientDir, '../../apps/server/src/app.ts')
-const outfile = path.join(clientDir, 'api/_bundle/server.mjs')
+const outfile = path.join(clientDir, 'api/_bundle/server.cjs')
 
 build({
   entryPoints: [serverEntry],
   bundle: true,
   platform: 'node',
-  format: 'esm',
+  format: 'cjs',
   target: 'node20',
   outfile,
   tsconfig: path.resolve(clientDir, '../../apps/server/tsconfig.json'),
