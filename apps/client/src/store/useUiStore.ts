@@ -1,10 +1,8 @@
 import { create } from 'zustand';
 
-type ActivePanel = 'home' | 'designer' | 'converter' | 'components' | 'security' | 'preview';
 type EditorMode = 'visual' | 'yaml' | 'json';
 
 interface UiStore {
-  activePanel: ActivePanel;
   editorMode: EditorMode;
   darkMode: boolean;
   sidebarCollapsed: boolean;
@@ -17,7 +15,6 @@ interface UiStore {
   testAuthToken: string;
   endpointTestUrls: Record<string, string>;
 
-  setActivePanel: (p: ActivePanel) => void;
   setEditorMode: (m: EditorMode) => void;
   toggleDarkMode: () => void;
   toggleSidebar: () => void;
@@ -32,7 +29,6 @@ interface UiStore {
 }
 
 export const useUiStore = create<UiStore>()((set) => ({
-  activePanel: 'home',
   editorMode: 'visual',
   darkMode: true,
   sidebarCollapsed: false,
@@ -45,7 +41,6 @@ export const useUiStore = create<UiStore>()((set) => ({
   testAuthToken: '',
   endpointTestUrls: {},
 
-  setActivePanel: (p) => set({ activePanel: p }),
   setEditorMode: (m) => set({ editorMode: m }),
   toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),

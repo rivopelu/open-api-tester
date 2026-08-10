@@ -9,14 +9,17 @@ import {
   Search,
   X,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApiSpecStore } from '../store/useApiSpecStore';
 import { useUiStore } from '../store/useUiStore';
+import { router } from '../routes';
 import { Button, Input } from './ui';
 import { cn } from '../lib/utils';
 
 export function Sidebar() {
   const { spec, activeEndpointId, setActiveEndpoint, addEndpoint, searchQuery, setSearchQuery, filterTag, setFilterTag } = useApiSpecStore();
-  const { sidebarCollapsed, toggleSidebar, setActivePanel } = useUiStore();
+  const { sidebarCollapsed, toggleSidebar } = useUiStore();
+  const navigate = useNavigate();
   const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set(['Users', 'Products', 'Authentication']));
 
   const filtered = spec.endpoints.filter((ep) => {
@@ -167,7 +170,7 @@ export function Sidebar() {
                   <li key={ep.id}>
                     <button
                       type="button"
-                      onClick={() => { setActiveEndpoint(ep.id); setActivePanel('designer'); }}
+                      onClick={() => { setActiveEndpoint(ep.id); navigate(router.editor.panel('designer')); }}
                       className={cn('sidebar-item pl-5', activeEndpointId === ep.id && 'active')}
                     >
                       <span className={cn('method-badge', `badge-${ep.method.toLowerCase()}`)}>{ep.method}</span>

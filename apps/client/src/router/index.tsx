@@ -1,5 +1,12 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
-import App from '../App';
+import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { router } from '../routes'
+import RequireAuth from '../components/RequireAuth'
+import DashboardPage from '../pages/dashboard/dashboard-page'
+import { DesignerPanel } from '../components/designer/DesignerPanel';
+import { ConverterPanel } from '../components/converter/ConverterPanel';
+import { ComponentsPanel } from '../components/components/ComponentsPanel';
+import { SecurityPanel } from '../components/security/SecurityPanel';
+import { PreviewPanel } from '../components/preview/PreviewPanel';
 import LabLayout from '../pages/lab/lab-layout';
 import LabIndexPage from '../pages/lab/lab-index-page';
 import ButtonLabPage from '../pages/lab/button-lab-page';
@@ -13,11 +20,13 @@ import SpinnerLabPage from '../pages/lab/spinner-lab-page';
 import ShowcaseLabPage from '../pages/lab/showcase-lab-page';
 import AuthCallbackPage from '../pages/auth-callback-page';
 import SignInPage from '../pages/auth/sign-in-page';
+import EditorLayout from '../pages/editor/editor-layout';
+import EditorHomePage from '../pages/editor/editor-home-page';
 
-export const router = createBrowserRouter([
+export const appRouter = createBrowserRouter([
   {
     path: '/',
-    element: <App />,
+    element: <Navigate to={router.dashboard()} replace />,
   },
   {
     path: '/auth',
@@ -44,7 +53,29 @@ export const router = createBrowserRouter([
     ],
   },
   {
+    // Protected area — requires a valid session before rendering the app shell.
+    element: <RequireAuth />,
+    children: [
+      {
+        path: '/dashboard',
+        element: <DashboardPage />,
+      },
+      {
+        path: '/editor',
+        element: <EditorLayout />,
+        children: [
+          { index: true, element: <EditorHomePage /> },
+          { path: 'designer', element: <DesignerPanel /> },
+          { path: 'converter', element: <ConverterPanel /> },
+          { path: 'schemas', element: <ComponentsPanel /> },
+          { path: 'security', element: <SecurityPanel /> },
+          { path: 'preview', element: <PreviewPanel /> },
+        ],
+      },
+    ],
+  },
+  {
     path: '*',
-    element: <Navigate to="/" replace />,
+    element: <Navigate to={router.dashboard()} replace />,
   },
 ]);

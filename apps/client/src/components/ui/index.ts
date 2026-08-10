@@ -4,6 +4,7 @@ export * from './Card';
 export * from './Checkbox';
 export * from './GoogleIcon';
 export * from './Input';
+export * from './PageContainer';
 export * from './Select';
 export * from './Spinner';
 export * from './Typography';

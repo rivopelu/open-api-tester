@@ -17,23 +17,22 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useApiSpecStore } from '../store/useApiSpecStore';
-import { useUiStore } from '../store/useUiStore';
+import { router } from '../routes';
 import { apiSpecToOpenApi3 } from '@modern-api-studio/utils';
 import { SaveConflictError, getErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
 import { Button, Typography } from './ui';
 
 const NAV_ITEMS = [
-  { id: 'home', label: 'Home', icon: Home },
-  { id: 'designer', label: 'Designer', icon: PenTool },
-  { id: 'converter', label: 'Converter', icon: ArrowLeftRight },
-  { id: 'components', label: 'Schemas', icon: Boxes },
-  { id: 'security', label: 'Security', icon: ShieldCheck },
-  { id: 'preview', label: 'Preview', icon: Eye },
+  { panel: 'home', label: 'Home', icon: Home },
+  { panel: 'designer', label: 'Designer', icon: PenTool },
+  { panel: 'converter', label: 'Converter', icon: ArrowLeftRight },
+  { panel: 'schemas', label: 'Schemas', icon: Boxes },
+  { panel: 'security', label: 'Security', icon: ShieldCheck },
+  { panel: 'preview', label: 'Preview', icon: Eye },
 ] as const;
-
-type NavItemId = (typeof NAV_ITEMS)[number]['id'];
 
 // ─── "Last saved X ago" helper ────────────────────────────────────────────────
 function useTimeAgo(isoTs: string | null): string {
@@ -125,14 +124,15 @@ function ConflictDialog({
   );
 }
 
-export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }) {
+export function Header() {
   const {
     spec, undo, redo, historyIndex, history,
     activeProjectId,
     saveProject, loadProject,
     lastSavedAt,
   } = useApiSpecStore();
-  const { activePanel, setActivePanel } = useUiStore();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const [saving, setSaving] = useState(false);
   const [conflictMeta, setConflictMeta] = useState<{ changedBy: string; serverTs: string } | null>(null);
@@ -202,17 +202,15 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
       <header className="z-[100] flex h-[52px] shrink-0 items-center border-b border-border bg-surface px-4">
         {/* Logo / Back */}
         <div className="mr-6 flex items-center gap-2.5">
-          {onBackToDashboard && (
-            <Button
-              variant="ghost"
-              size="sm"
-              iconOnly
-              aria-label="Back to Projects"
-              onClick={onBackToDashboard}
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            aria-label="Back to Projects"
+            onClick={() => navigate(router.dashboard())}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div className="glow-blue grid h-8 w-8 place-items-center rounded-lg bg-linear-to-br from-primary to-purple text-base">
             <Zap className="h-4 w-4" aria-hidden="true" />
           </div>
@@ -226,14 +224,17 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
         <nav aria-label="Editor panels" className="flex flex-1 gap-0.5">
           {NAV_ITEMS.map((item) => {
             const Icon: LucideIcon = item.icon;
-            const isActive = activePanel === item.id;
+            const path = router.editor.panel(item.panel);
+            const isActive = item.panel === 'home'
+              ? pathname === path
+              : pathname.startsWith(path);
             return (
               <button
-                key={item.id}
+                key={item.panel}
                 type="button"
                 aria-current={isActive ? 'page' : undefined}
                 className={`tab flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
-                onClick={() => setActivePanel(item.id as NavItemId)}
+                onClick={() => navigate(path)}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="hidden sm:inline">{item.label}</span>
@@ -299,7 +300,7 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
             </div>
           )}
 
-          <Button variant="primary" size="sm" onClick={() => setActivePanel('preview')}>
+          <Button variant="primary" size="sm" onClick={() => navigate(router.editor.panel('preview'))}>
             <Play className="h-3.5 w-3.5" aria-hidden="true" />
             Preview
           </Button>
