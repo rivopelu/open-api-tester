@@ -125,7 +125,10 @@ describe('ProjectService', () => {
 
   test('toItem falls back to empty object when spec_data is null', () => {
     const service = createService({})
-    const item = service.toItem({ ...mockRow, spec_data: null as unknown as Record<string, unknown> })
+    const item = service.toItem({
+      ...mockRow,
+      spec_data: null as unknown as Record<string, unknown>,
+    })
     expect(item.specData).toEqual({})
   })
 })

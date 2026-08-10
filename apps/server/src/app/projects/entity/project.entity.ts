@@ -8,7 +8,9 @@ export const ProjectEntity = pgTable('projects', {
   name: text('name').notNull().default('Untitled Project'),
   description: text('description'),
   version: varchar('version', { length: 64 }).default('1.0.0'),
-  openapi_version: varchar('openapi_version', { length: 16 }).$type<OpenApiVersion>().default('openapi3'),
+  openapi_version: varchar('openapi_version', { length: 16 })
+    .$type<OpenApiVersion>()
+    .default('openapi3'),
   global_security: jsonb('global_security').$type<string[]>().default([]),
   spec_data: jsonb('spec_data').notNull().default({}).$type<Record<string, unknown>>(),
   ...baseEntity,

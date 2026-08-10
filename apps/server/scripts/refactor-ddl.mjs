@@ -13,40 +13,61 @@ if (!TARGET_URL) {
   process.exit(1)
 }
 
-const ARGS = new Set(process.argv.slice(2))
-const DRY = ARGS.has('--dry-run')
-const FILES = ARGS.has('--data-only')
-  ? []
-  : ['0001_yielding_madame_masque.sql', '0002_loving_nekra.sql']
-
 const client = new Client({ connectionString: TARGET_URL, ssl: { rejectUnauthorized: false } })
 await client.connect()
 console.log('🔌 Connected to', TARGET_URL.split('@').pop())
 
-const { rows } = await client.query(`select to_regclass('public.endpoints') as t`)
-const endpointsExist = !!rows[0].t
+// Track applied drizzle files so DDL is idempotent across runs.
+await client.query(`create table if not exists public._applied_ddl (
+  id bigserial primary key,
+  file text not null unique,
+  applied_at timestamptz not null default now()
+)`)
 
-if (FILES.length === 0) {
-  console.log('--data-only: skipping DDL')
-} else if (endpointsExist) {
-  console.log('⏭ DDL already applied (public.endpoints exists)')
-} else {
-  for (const f of FILES) {
-    const file = path.join(__dirname, '../drizzle', f)
-    if (!fs.existsSync(file)) {
-      console.error(`✖ missing migration file: ${f}`)
-      process.exit(1)
-    }
-    const raw = fs.readFileSync(file, 'utf8')
-    const sql = raw.replace(/\s*--> statement-breakpoint\s*/g, '\n')
-    if (DRY) {
-      console.log(`(dry-run) would apply ${f} (${sql.length} chars)`)
-      continue
-    }
+// Preseed files that were already applied manually before this marker existed.
+const { rows: endpoints } = await client.query(`select to_regclass('public.endpoints') as t`)
+const { rows: accounts } = await client.query(`select to_regclass('public.account') as t`)
+const { rows: projects } = await client.query(
+  `select column_name from information_schema.columns where table_name = 'projects' and column_name = 'description'`,
+)
+const preApplied = new Set()
+if (accounts[0].t) preApplied.add('0000_whole_jasper_sitwell.sql')
+if (endpoints[0].t) preApplied.add('0001_yielding_madame_masque.sql')
+if (projects.length > 0) preApplied.add('0002_loving_nekra.sql')
+
+for (const f of preApplied) {
+  await client.query(`insert into public._applied_ddl (file) values ($1) on conflict (file) do nothing`, [f])
+}
+
+const drizzleDir = path.join(__dirname, '../drizzle')
+const { rows: marked } = await client.query(`select file from public._applied_ddl`)
+const applied = new Set(marked.map((m) => m.file))
+
+const files = fs
+  .readdirSync(drizzleDir)
+  .filter((f) => f.endsWith('.sql') && /^\d{4}_/.test(f))
+  .sort()
+
+for (const f of files) {
+  if (applied.has(f)) {
+    console.log('⏭  already applied:', f)
+    continue
+  }
+  const raw = fs.readFileSync(path.join(drizzleDir, f), 'utf8')
+  const sql = raw.replace(/\s*--> statement-breakpoint\s*/g, '\n')
+  try {
+    await client.query('begin')
     await client.query(sql)
+    await client.query(`insert into public._applied_ddl (file) values ($1)`, [f])
+    await client.query('commit')
     console.log('✅ applied', f)
+  } catch (err) {
+    await client.query('rollback')
+    console.error('✖ failed', f, '-', err.message)
+    process.exitCode = 1
+    break
   }
 }
 
 await client.end()
-console.log(DRY ? '🧪 DDL dry-run complete' : '🔌 done')
+console.log('🔌 done')

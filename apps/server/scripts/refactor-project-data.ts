@@ -9,7 +9,10 @@ import { ProjectEntity } from '../src/app/projects/entity/project.entity'
 import { EnvironmentsEntity } from '../src/app/projects/entity/environment.entity'
 import { TagEntity } from '../src/app/projects/entity/tag.entity'
 import { SecuritySchemesEntity } from '../src/app/projects/entity/security-scheme.entity'
-import { ComponentSchemasEntity, SchemaPropertiesEntity } from '../src/app/projects/entity/component-schema.entity'
+import {
+  ComponentSchemasEntity,
+  SchemaPropertiesEntity,
+} from '../src/app/projects/entity/component-schema.entity'
 import { EndpointsEntity } from '../src/app/endpoints/entity/endpoint.entity'
 import { EndpointParametersEntity } from '../src/app/endpoints/entity/endpoint.parameter.entity'
 import { EndpointRequestBodiesEntity } from '../src/app/endpoints/entity/endpoint.request-body.entity'
@@ -121,7 +124,11 @@ if (!TARGET_URL) {
   process.exit(1)
 }
 
-const pool = new pg.Pool({ connectionString: TARGET_URL, ssl: { rejectUnauthorized: false }, max: 5 })
+const pool = new pg.Pool({
+  connectionString: TARGET_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 5,
+})
 const db = drizzle(pool)
 
 function hostFromUrl(url: string): string {
@@ -148,7 +155,7 @@ function collectProps(
       schema_id: parentId ? undefined : schemaId,
       parent_id: parentId ?? undefined,
       name: p.name ?? 'item',
-      type: (p.type ?? 'string') as (typeof SchemaPropertiesEntity.$inferInsert.type),
+      type: (p.type ?? 'string') as typeof SchemaPropertiesEntity.$inferInsert.type,
       format: p.format ?? undefined,
       required: p.required ?? false,
       nullable: p.nullable ?? false,
@@ -162,7 +169,8 @@ function collectProps(
       created_by: owner,
     })
     count += 1
-    if (p.properties) count += collectProps(schemaId, p.properties, p.id ?? generateId(), owner, out)
+    if (p.properties)
+      count += collectProps(schemaId, p.properties, p.id ?? generateId(), owner, out)
   }
   return count
 }
@@ -206,7 +214,9 @@ async function main() {
       }
 
       // ── reset per project (FK cascades clean children) ─────────────────────
-      await tx.delete(ComponentSchemasEntity).where(eq(ComponentSchemasEntity.project_id, project.id))
+      await tx
+        .delete(ComponentSchemasEntity)
+        .where(eq(ComponentSchemasEntity.project_id, project.id))
       await tx.delete(EndpointsEntity).where(eq(EndpointsEntity.project_id, project.id))
       await tx.delete(SecuritySchemesEntity).where(eq(SecuritySchemesEntity.project_id, project.id))
       await tx.delete(TagEntity).where(eq(TagEntity.project_id, project.id))
@@ -350,7 +360,8 @@ async function main() {
             name: p.name ?? '',
             required: p.required ?? false,
             description: p.description ?? undefined,
-            schema_type: p.schema?.type as 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'null' | undefined,
+            schema_type: p.schema?.type as
+              'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'null' | undefined,
             format: p.schema?.format ?? undefined,
             example: p.schema?.example ?? null,
             enum_values: p.schema?.enum ?? null,
@@ -369,7 +380,12 @@ async function main() {
             endpoint_id: epId,
             required: rb.required ?? false,
             description: rb.description ?? undefined,
-            content_type: rb.contentType as 'application/json' | 'multipart/form-data' | 'application/x-www-form-urlencoded' | undefined ?? 'application/json',
+            content_type:
+              (rb.contentType as
+                | 'application/json'
+                | 'multipart/form-data'
+                | 'application/x-www-form-urlencoded'
+                | undefined) ?? 'application/json',
             mode: rb.mode ?? null,
             schema_ref: rb.ref ? (schemaIdByName.get(rb.ref) ?? null) : null,
             schema_data: rb.schema && rb.schema.length ? rb.schema : null,
@@ -406,7 +422,8 @@ async function main() {
             mode: r.mode ?? null,
             schema_ref: r.ref ? (schemaIdByName.get(r.ref) ?? null) : null,
             schema_data: r.schema && r.schema.length ? r.schema : null,
-            raw_json: r.rawJson ?? (r.example !== undefined ? JSON.stringify(r.example, null, 2) : null),
+            raw_json:
+              r.rawJson ?? (r.example !== undefined ? JSON.stringify(r.example, null, 2) : null),
             sort_order: ri,
             created_by: owner,
           })
@@ -430,7 +447,9 @@ async function main() {
         const tagNames: string[] = []
         for (const n of ep.tags ?? []) if (!tagNames.includes(n)) tagNames.push(n)
         for (let ti = 0; ti < tagNames.length; ti += 1) {
-          await tx.insert(EndpointTagsEntity).values({ endpoint_id: epId, tag_id: await ensureTag(tagNames[ti]) })
+          await tx
+            .insert(EndpointTagsEntity)
+            .values({ endpoint_id: epId, tag_id: await ensureTag(tagNames[ti]) })
         }
         const securityNames: string[] = []
         for (const n of ep.security ?? []) if (!securityNames.includes(n)) securityNames.push(n)
