@@ -12,19 +12,17 @@ export function Dashboard({ onProjectSelect }: { onProjectSelect: () => void }) 
   const { loadProject, createNewProject, deleteProject, renameProject } = useApiSpecStore();
   const { signOut } = useAuthStore();
 
-  const fetchProjects = async () => {
-    try {
-      const items = await projectApi.list();
-      setProjects(items);
-    } catch (err: unknown) {
-      console.error('[fetchProjects]', err);
-      toast.error(getErrorMessage(err, 'Failed to load projects'));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchProjects(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    projectApi.list()
+      .then((items) => { if (!cancelled) setProjects(items); })
+      .catch((err: unknown) => {
+        console.error('[fetchProjects]', err);
+        toast.error(getErrorMessage(err, 'Failed to load projects'));
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleCreate = async () => {
     const name = window.prompt('Enter project name:', 'New API Project');
