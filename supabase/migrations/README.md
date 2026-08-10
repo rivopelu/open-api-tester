@@ -4,7 +4,7 @@
 
 Kini proses pembuatan tabel sudah diotomatisasi lewat script Node.js.
 
-1. Buka file `apps/client/.env`
+1. Buka file `.env` di root project
 2. Tambahkan variabel `DATABASE_URL` dengan Connection String Postgres dari Supabase Anda:
    ```env
    DATABASE_URL="postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres"

@@ -62,10 +62,10 @@ pnpm install
 Copy the example and fill in your Supabase credentials:
 
 ```bash
-cp apps/client/.env.example apps/client/.env
+cp .env.example .env
 ```
 
-**`apps/client/.env`**
+**`.env`**
 
 ```env
 VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co
@@ -79,7 +79,7 @@ VITE_SUPABASE_ANON_KEY=<your-anon-key>
 We provide an automated script to set up all tables, Row Level Security (RLS) policies, and database functions.
 
 1. Find your **Database Connection String (URI)** in the Supabase Dashboard under **Settings → Database**.
-2. Add it to your `apps/client/.env` file:
+2. Add it to your root `.env` file:
    ```env
    DATABASE_URL="postgresql://postgres.[your-project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres"
    ```

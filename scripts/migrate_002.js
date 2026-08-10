@@ -9,7 +9,6 @@ const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 
 dotenv.config({ path: path.join(rootDir, '.env') });
-dotenv.config({ path: path.join(rootDir, 'apps/client/.env') });
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
