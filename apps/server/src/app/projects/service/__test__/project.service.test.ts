@@ -6,6 +6,10 @@ import type { Project } from '../../entity/project.entity'
 const mockRow: Project = {
   id: 'proj-1',
   name: 'My API',
+  description: null,
+  version: '1.0.0',
+  openapi_version: 'openapi3',
+  global_security: [],
   spec_data: { id: 'spec-1' },
   active: true,
   created_date: 1000,

@@ -1,5 +1,6 @@
 import { bigint, boolean, varchar } from 'drizzle-orm/pg-core'
 import { generateId } from './string-utils'
+import { AccountEntity } from '../app/account/entity/account.entity'
 
 export const generateEntityId = () => generateId()
 export const nowTimestamp = () => Date.now()
@@ -11,7 +12,9 @@ export const entityId = {
 export const baseEntity = {
   active: boolean('active').default(true).notNull(),
   created_date: bigint('created_date', { mode: 'number' }).$defaultFn(nowTimestamp).notNull(),
-  created_by: varchar('created_by', { length: 256 }),
+  created_by: varchar('created_by', { length: 256 }).references(() => AccountEntity.id, {
+    onDelete: 'set null',
+  }),
   updated_date: bigint('updated_date', { mode: 'number' }),
   updated_by: varchar('updated_by', { length: 256 }),
   deleted_date: bigint('deleted_date', { mode: 'number' }),

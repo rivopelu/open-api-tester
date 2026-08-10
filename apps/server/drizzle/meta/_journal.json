@@ -15,6 +15,13 @@
       "when": 1786388845821,
       "tag": "0001_yielding_madame_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786389120623,
+      "tag": "0002_loving_nekra",
+      "breakpoints": true
     }
   ]
 }
