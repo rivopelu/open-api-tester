@@ -11,7 +11,7 @@ Kini proses pembuatan tabel sudah diotomatisasi lewat script Node.js.
    ```
 3. Buka terminal di root project, lalu jalankan:
    ```bash
-   npm run migrate
+   pnpm migrate
    ```
 
 Script akan otomatis mengeksekusi file `001_full_schema.sql` ini ke database Anda.

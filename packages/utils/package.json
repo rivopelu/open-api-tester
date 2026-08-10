@@ -1,8 +1,16 @@
 {
   "name": "@modern-api-studio/utils",
+  "private": true,
   "version": "1.0.0",
+  "type": "module",
   "main": "index.ts",
   "dependencies": {
-    "@modern-api-studio/types": "*"
+    "@modern-api-studio/types": "workspace:*",
+    "js-yaml": "^4.1.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/uuid": "^10.0.0"
   }
 }

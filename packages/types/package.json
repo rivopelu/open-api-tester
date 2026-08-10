@@ -1,5 +1,8 @@
 {
   "name": "@modern-api-studio/types",
+  "private": true,
   "version": "1.0.0",
+  "type": "module",
+  "types": "index.ts",
   "main": "index.ts"
 }

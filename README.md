@@ -39,21 +39,22 @@ OpenAPI/
 │   └── utils/           # Schema inference, spec conversion logic
 ├── supabase/
 │   └── migrations/      # SQL migrations for Supabase
-└── package.json         # Monorepo root (npm workspaces)
+├── pnpm-workspace.yaml  # pnpm workspace configuration
+└── package.json         # Monorepo root scripts
 ```
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js v18+
-- npm v7+ (for workspace support)
+- Node.js v20+
+- pnpm v10 (run `corepack enable` if pnpm is unavailable)
 - A [Supabase](https://supabase.com) project (free tier works)
 
 ### 1. Install dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
 ### 2. Configure environment variables
@@ -84,7 +85,7 @@ We provide an automated script to set up all tables, Row Level Security (RLS) po
    ```
 3. Run the migration scripts:
    ```bash
-   npm run migrate
+   pnpm migrate
    ```
 
 This creates the `projects`, `project_members`, `project_invites`, and `workspace_invites` tables with RLS enabled, along with necessary RPC functions for collaboration.
@@ -92,9 +93,7 @@ This creates the `projects`, `project_members`, `project_invites`, and `workspac
 ### 4. Start the development server
 
 ```bash
-npm run dev --workspace=@modern-api-studio/client
-# or
-cd apps/client && npm run dev
+pnpm dev
 ```
 
 App runs at **http://localhost:5173**
@@ -134,8 +133,7 @@ RPC functions included:
 ## 🏗 Building for Production
 
 ```bash
-cd apps/client
-npm run build
+pnpm build
 ```
 
 Static assets are output to `apps/client/dist/`.
