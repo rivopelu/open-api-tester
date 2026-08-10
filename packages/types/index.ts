@@ -2,7 +2,7 @@
 // OpenAPI / Swagger Core Types
 // ============================================================
 
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD' | 'TRACE';
 export type OpenApiVersion = 'openapi3' | 'swagger2';
 export type OutputFormat = 'json' | 'yaml';
 export type ParameterLocation = 'path' | 'query' | 'header' | 'cookie';

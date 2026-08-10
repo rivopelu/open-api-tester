@@ -79,7 +79,7 @@ function SchemaEditor({ schema, onUpdate, onDelete }: { schema: SchemaComponent;
       setShowJsonInput(false);
       setRawJson('');
       toast.success('Added properties from JSON');
-    } catch (e) {
+    } catch {
       toast.error('Invalid JSON format');
     }
   };

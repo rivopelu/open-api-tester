@@ -189,13 +189,13 @@ export function TestRunner({ endpoint, mockBodyStr }: Props) {
         data: formattedData,
       });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       setResponse({
         status: 0,
         statusText: 'Network Error / CORS',
         time: 0,
         size: 0,
-        data: String(err.message || err),
+        data: err instanceof Error && err.message ? err.message : String(err),
       });
     } finally {
       setIsTesting(false);

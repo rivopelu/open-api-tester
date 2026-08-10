@@ -1,7 +1,25 @@
-import { useRef, useState, useCallback } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Boxes,
+  CheckCircle2,
+  Download,
+  FileText,
+  FileUp,
+  Reply,
+  Send,
+  Tags,
+  X,
+  Zap,
+} from 'lucide-react';
 import { parseOpenApiToSpec } from '../lib/yamlImporter';
 import { useApiSpecStore } from '../store/useApiSpecStore';
+import { getErrorMessage } from '../lib/api';
+import { Button, Input, Spinner, Typography } from './ui';
+import { cn } from '../lib/utils';
 import { v4 as uuidv4 } from 'uuid';
 import type { ApiSpec } from '@modern-api-studio/types';
 
@@ -13,7 +31,10 @@ interface ImportYamlModalProps {
 
 type Step = 'upload' | 'preview' | 'saving';
 
+const STEPS: Step[] = ['upload', 'preview'];
+
 export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
+  const titleId = useId();
   const [step, setStep] = useState<Step>('upload');
   const [rawText, setRawText] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -28,7 +49,10 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
   const loadFile = (file: File) => {
     setFileName(file.name);
     const reader = new FileReader();
-    reader.onload = (ev) => setRawText(ev.target?.result as string ?? '');
+    reader.onload = (ev) => {
+      const result = ev.target?.result;
+      setRawText(typeof result === 'string' ? result : '');
+    };
     reader.readAsText(file);
   };
 
@@ -47,6 +71,8 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = () => setIsDragging(false);
 
+  const openFilePicker = () => fileInputRef.current?.click();
+
   // ── Parse & preview ─────────────────────────────────────────────────────────
 
   const handleParse = () => {
@@ -58,7 +84,7 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
       setProjectName(spec.info.title || 'Imported API');
       setStep('preview');
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err, 'Failed to parse the spec'));
     }
   };
 
@@ -84,309 +110,255 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
       onImported();
       onClose();
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(getErrorMessage(err, 'Failed to import project'));
       setStep('preview');
     }
   };
 
-  // ── Styles ───────────────────────────────────────────────────────────────────
-
-  const overlayStyle: React.CSSProperties = {
-    position: 'fixed', inset: 0, zIndex: 1000,
-    background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    animation: 'fadeIn 0.15s ease',
-  };
-
-  const modalStyle: React.CSSProperties = {
-    background: 'var(--bg-surface)',
-    border: '1px solid var(--border)',
-    borderRadius: 16,
-    width: 620,
-    maxWidth: '95vw',
-    maxHeight: '90vh',
-    overflow: 'hidden',
-    display: 'flex',
-    flexDirection: 'column',
-    boxShadow: '0 24px 80px rgba(0,0,0,0.5)',
-    animation: 'slideUp 0.2s ease',
-  };
-
-  const headerStyle: React.CSSProperties = {
-    padding: '18px 24px',
-    borderBottom: '1px solid var(--border)',
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    background: 'linear-gradient(135deg, rgba(137,180,250,0.08), rgba(203,166,247,0.08))',
-  };
-
-  const dropZoneStyle: React.CSSProperties = {
-    border: `2px dashed ${isDragging ? 'var(--accent-blue)' : 'var(--border)'}`,
-    borderRadius: 12,
-    padding: '32px 20px',
-    textAlign: 'center',
-    cursor: 'pointer',
-    background: isDragging ? 'rgba(137,180,250,0.06)' : 'var(--bg-overlay)',
-    transition: 'all 0.2s ease',
-  };
-
-  // ─── Upload Step ─────────────────────────────────────────────────────────────
-
-  const renderUpload = () => (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
-      {/* Drop zone */}
-      <div
-        style={dropZoneStyle}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <div style={{ fontSize: 36, marginBottom: 10 }}>📂</div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
-          {fileName ? `✅ ${fileName}` : 'Drag & drop your OpenAPI file here'}
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          Supports .yaml, .yml, .json — OpenAPI 3.x &amp; Swagger 2.x
-        </div>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".yaml,.yml,.json"
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
-        />
-      </div>
-
-      {/* Paste area */}
-      <div>
-        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-          Or paste YAML / JSON directly:
-        </label>
-        <textarea
-          value={rawText}
-          onChange={(e) => { setRawText(e.target.value); setFileName(null); }}
-          placeholder={`openapi: 3.0.3\ninfo:\n  title: My API\n  version: 1.0.0\npaths:\n  /users:\n    get:\n      summary: List users\n      responses:\n        '200':\n          description: OK`}
-          style={{
-            width: '100%', minHeight: 200, resize: 'vertical',
-            fontFamily: 'JetBrains Mono, Consolas, monospace', fontSize: 12,
-            background: 'var(--bg-overlay)', border: '1px solid var(--border)',
-            borderRadius: 8, padding: '10px 12px', color: 'var(--text-primary)',
-            outline: 'none', boxSizing: 'border-box',
-            transition: 'border-color 0.15s',
-          }}
-          onFocus={(e) => (e.target.style.borderColor = 'var(--accent-blue)')}
-          onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-        />
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" onClick={handleParse} disabled={!rawText.trim()}>
-          Parse &amp; Preview →
-        </button>
-      </div>
-    </div>
-  );
-
-  // ─── Preview Step ─────────────────────────────────────────────────────────────
-
-  const renderPreview = () => {
-    if (!parsedSpec) return null;
-    const { info, endpoints, tags, components } = parsedSpec;
-
-    return (
-      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto' }}>
-        {/* Warnings */}
-        {warnings.length > 0 && (
-          <div style={{
-            background: 'rgba(249,226,175,0.1)', border: '1px solid rgba(249,226,175,0.3)',
-            borderRadius: 8, padding: '10px 14px',
-          }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent-yellow)', marginBottom: 4 }}>⚠ Warnings</div>
-            {warnings.map((w, i) => (
-              <div key={i} style={{ fontSize: 12, color: 'var(--accent-yellow)', opacity: 0.85 }}>• {w}</div>
-            ))}
-          </div>
-        )}
-
-        {/* Summary cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-          {[
-            { label: 'Endpoints', value: endpoints.length, icon: '⚡' },
-            { label: 'Tags', value: tags.length, icon: '🏷' },
-            { label: 'Schemas', value: components.schemas.length, icon: '📦' },
-            { label: 'With Body', value: endpoints.filter((e) => e.requestBody).length, icon: '📤' },
-            { label: 'Responses', value: endpoints.reduce((n, e) => n + e.responses.length, 0), icon: '📥' },
-            { label: 'Examples', value: endpoints.reduce((n, e) => n + e.responses.reduce((m, r) => m + (r.examples?.length ?? 0), 0) + (e.requestBody?.examples?.length ?? 0), 0), icon: '📝' },
-          ].map((item) => (
-            <div key={item.label} style={{
-              background: 'var(--bg-overlay)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '10px 12px', textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 18, marginBottom: 3 }}>{item.icon}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{item.value}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* API Info */}
-        <div style={{ background: 'var(--bg-overlay)', borderRadius: 10, padding: '12px 16px', border: '1px solid var(--border)' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>API Info</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{info.title}</div>
-          {info.description && (
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.5 }}>{info.description.slice(0, 150)}{info.description.length > 150 ? '…' : ''}</div>
-          )}
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Version {info.version} · {parsedSpec.openApiVersion === 'swagger2' ? 'Swagger 2.0' : 'OpenAPI 3.x'}</div>
-        </div>
-
-        {/* Endpoint preview list */}
-        {endpoints.length > 0 && (
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
-              Endpoints preview (first 8)
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {endpoints.slice(0, 8).map((ep) => (
-                <div key={ep.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 8,
-                  background: 'var(--bg-overlay)', borderRadius: 6, padding: '6px 10px',
-                  border: '1px solid var(--border)',
-                }}>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4,
-                    background: methodColor(ep.method) + '22', color: methodColor(ep.method),
-                    minWidth: 50, textAlign: 'center',
-                  }}>
-                    {ep.method}
-                  </span>
-                  <span style={{ fontSize: 12, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)' }}>{ep.path}</span>
-                  {ep.summary && <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 'auto' }}>{ep.summary.slice(0, 40)}</span>}
-                </div>
-              ))}
-              {endpoints.length > 8 && (
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '4px 10px' }}>
-                  + {endpoints.length - 8} more endpoints
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Project name */}
-        <div>
-          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-            Project name
-          </label>
-          <input
-            className="input"
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
-            placeholder="Enter project name..."
-            style={{ width: '100%', boxSizing: 'border-box' }}
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button className="btn btn-ghost" onClick={() => setStep('upload')}>← Back</button>
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button
-            className="btn btn-primary"
-            onClick={handleSave}
-            disabled={!projectName.trim()}
-          >
-            ✓ Import as Project
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // ─── Saving step ─────────────────────────────────────────────────────────────
-
-  const renderSaving = () => (
-    <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted)' }}>
-      <div style={{ fontSize: 36, marginBottom: 12, animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</div>
-      <div style={{ fontSize: 14 }}>Saving project…</div>
-    </div>
-  );
-
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  const stepIndex = STEPS.indexOf(step === 'saving' ? 'preview' : step);
 
   return (
-    <div style={overlayStyle} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div style={modalStyle}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
+      onClick={(e) => { if (e.target === e.currentTarget && step !== 'saving') onClose(); }}
+    >
+      <div className="flex max-h-[90vh] w-[620px] max-w-[95vw] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-lg)] animate-slideIn">
         {/* Header */}
-        <div style={headerStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 34, height: 34, borderRadius: 9,
-              background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17,
-            }}>
-              📥
+        <header className="flex items-center justify-between gap-3 border-b border-border bg-linear-to-br from-primary/10 via-transparent to-purple/10 px-6 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="glow-blue grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-linear-to-br from-primary to-purple text-base">
+              <Download className="h-4 w-4 text-base" aria-hidden="true" />
             </div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>Import OpenAPI Spec</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {step === 'upload' ? 'YAML / JSON — OpenAPI 3.x or Swagger 2.x'
-                  : step === 'preview' ? 'Review parsed result before importing'
-                  : 'Saving…'}
-              </div>
+            <div className="min-w-0">
+              <Typography id={titleId} as="h2" variant="heading-sm" className="truncate">
+                Import OpenAPI Spec
+              </Typography>
+              <Typography tone="muted" variant="caption">
+                {step === 'upload'
+                  ? 'YAML / JSON — OpenAPI 3.x or Swagger 2.x'
+                  : step === 'preview'
+                    ? 'Review parsed result before importing'
+                    : 'Saving…'}
+              </Typography>
             </div>
           </div>
 
-          {/* Step indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {(['upload', 'preview'] as Step[]).map((s, i) => (
-              <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {i > 0 && <div style={{ width: 20, height: 1, background: 'var(--border)' }} />}
-                <div style={{
-                  width: 24, height: 24, borderRadius: '50%', fontSize: 11, fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: step === s ? 'var(--accent-blue)' : (step === 'saving' || ['upload', 'preview'].indexOf(step) > i) ? 'var(--accent-green)' : 'var(--bg-overlay)',
-                  color: (step === s || step === 'saving') ? '#fff' : 'var(--text-muted)',
-                  border: '1px solid var(--border)',
-                  transition: 'all 0.2s',
-                }}>
-                  {i + 1}
-                </div>
-              </div>
-            ))}
-            <button
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Step indicator */}
+            <ol className="flex items-center gap-2" aria-label="Import progress">
+              {STEPS.map((s, i) => {
+                const done = stepIndex > i || step === 'saving';
+                const current = stepIndex === i;
+                return (
+                  <li key={s} className="flex items-center gap-2">
+                    {i > 0 && <span aria-hidden="true" className="h-px w-4 bg-border" />}
+                    <span
+                      aria-current={current ? 'step' : undefined}
+                      className={cn(
+                        'grid h-6 w-6 place-items-center rounded-full border text-[11px] font-bold transition-colors duration-200',
+                        current
+                          ? 'border-primary bg-primary text-base'
+                          : done
+                            ? 'border-success/40 bg-success/15 text-success'
+                            : 'border-border bg-overlay text-text-muted',
+                      )}
+                    >
+                      {done && !current ? <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> : i + 1}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly
+              aria-label="Close import dialog"
               onClick={onClose}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 18, marginLeft: 8, lineHeight: 1 }}
-              title="Close"
+              disabled={step === 'saving'}
             >
-              ✕
-            </button>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
+        </header>
 
         {/* Body */}
-        {step === 'upload' && renderUpload()}
-        {step === 'preview' && renderPreview()}
-        {step === 'saving' && renderSaving()}
-      </div>
+        {step === 'upload' && (
+          <div className="scroll-y flex flex-col gap-4 p-6">
+            {/* Drop zone */}
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label={fileName ? `Selected file ${fileName}. Choose a different file.` : 'Choose an OpenAPI file'}
+              onClick={openFilePicker}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFilePicker(); }
+              }}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              className={cn(
+                'flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border-2 border-dashed px-5 py-8 text-center transition-colors duration-200',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+                isDragging ? 'border-primary bg-primary/10' : 'border-border bg-overlay hover:border-primary/50 hover:bg-primary/5',
+              )}
+            >
+              {fileName ? (
+                <CheckCircle2 className="mb-1 h-8 w-8 text-success" aria-hidden="true" />
+              ) : (
+                <FileUp className="mb-1 h-8 w-8 text-text-muted" aria-hidden="true" />
+              )}
+              <Typography variant="body-sm" tone="secondary" className="font-semibold">
+                {fileName ? fileName : 'Drag & drop your OpenAPI file here'}
+              </Typography>
+              <Typography variant="caption" tone="muted">
+                Supports .yaml, .yml, .json — OpenAPI 3.x &amp; Swagger 2.x
+              </Typography>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".yaml,.yml,.json"
+                className="sr-only"
+                onChange={handleFileChange}
+              />
+            </div>
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes slideUp {
-          from { opacity: 0; transform: translateY(20px) scale(0.97); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-      `}</style>
+            {/* Paste area */}
+            <div className="flex flex-col gap-1.5">
+              <Typography as="label" htmlFor="import-paste" variant="label" tone="secondary">
+                Or paste YAML / JSON directly
+              </Typography>
+              <textarea
+                id="import-paste"
+                value={rawText}
+                onChange={(e) => { setRawText(e.target.value); setFileName(null); }}
+                placeholder={'openapi: 3.0.3\ninfo:\n  title: My API\n  version: 1.0.0\npaths:\n  /users:\n    get:\n      summary: List users\n      responses:\n        \'200\':\n          description: OK'}
+                spellCheck={false}
+                className="input input-mono min-h-[200px] w-full resize-y"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+              <Button variant="primary" size="sm" onClick={handleParse} disabled={!rawText.trim()}>
+                Parse &amp; Preview
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 'preview' && parsedSpec && (
+          <div className="scroll-y flex flex-col gap-4 p-6">
+            {/* Warnings */}
+            {warnings.length > 0 && (
+              <div role="alert" className="rounded-lg border border-warning/30 bg-warning/10 px-3.5 py-2.5">
+                <Typography variant="label" tone="warning" className="mb-1 flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+                  Warnings
+                </Typography>
+                <ul className="flex flex-col gap-0.5">
+                  {warnings.map((w, i) => (
+                    <li key={i} className="text-xs text-warning/85">• {w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+              {[
+                { label: 'Endpoints', value: parsedSpec.endpoints.length, icon: Zap },
+                { label: 'Tags', value: parsedSpec.tags.length, icon: Tags },
+                { label: 'Schemas', value: parsedSpec.components.schemas.length, icon: Boxes },
+                { label: 'With Body', value: parsedSpec.endpoints.filter((e) => e.requestBody).length, icon: Send },
+                { label: 'Responses', value: parsedSpec.endpoints.reduce((n, e) => n + e.responses.length, 0), icon: Reply },
+                {
+                  label: 'Examples',
+                  value: parsedSpec.endpoints.reduce(
+                    (n, e) => n + e.responses.reduce((m, r) => m + (r.examples?.length ?? 0), 0) + (e.requestBody?.examples?.length ?? 0),
+                    0,
+                  ),
+                  icon: FileText,
+                },
+              ].map(({ label, value, icon: Icon }) => (
+                <div key={label} className="flex flex-col items-center gap-1 rounded-lg border border-border bg-overlay p-3 text-center">
+                  <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
+                  <span className="text-lg font-bold leading-none text-text-primary">{value}</span>
+                  <span className="text-[11px] leading-tight text-text-muted">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* API info */}
+            <div className="rounded-lg border border-border bg-overlay px-4 py-3">
+              <Typography variant="label" tone="secondary" className="mb-1">API Info</Typography>
+              <Typography variant="body-sm" className="font-semibold">{parsedSpec.info.title}</Typography>
+              {parsedSpec.info.description && (
+                <Typography variant="caption" tone="muted" className="mt-0.5 leading-relaxed">
+                  {parsedSpec.info.description.slice(0, 150)}{parsedSpec.info.description.length > 150 ? '…' : ''}
+                </Typography>
+              )}
+              <Typography variant="caption" tone="muted" className="mt-1">
+                Version {parsedSpec.info.version} · {parsedSpec.openApiVersion === 'swagger2' ? 'Swagger 2.0' : 'OpenAPI 3.x'}
+              </Typography>
+            </div>
+
+            {/* Endpoint preview list */}
+            {parsedSpec.endpoints.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <Typography variant="label" tone="secondary">Endpoints preview (first 8)</Typography>
+                <ul className="flex flex-col gap-1">
+                  {parsedSpec.endpoints.slice(0, 8).map((ep) => (
+                    <li key={ep.id} className="flex items-center gap-2.5 rounded-md border border-border bg-overlay px-2.5 py-1.5">
+                      <span className={cn('method-badge shrink-0', `badge-${ep.method.toLowerCase()}`)}>{ep.method}</span>
+                      <span className="min-w-0 truncate font-mono text-xs text-text-secondary">{ep.path}</span>
+                      {ep.summary && <span className="ml-auto hidden truncate text-[11px] text-text-muted sm:inline">{ep.summary.slice(0, 40)}</span>}
+                    </li>
+                  ))}
+                </ul>
+                {parsedSpec.endpoints.length > 8 && (
+                  <Typography variant="caption" tone="muted">
+                    + {parsedSpec.endpoints.length - 8} more endpoints
+                  </Typography>
+                )}
+              </div>
+            )}
+
+            {/* Project name */}
+            <Input
+              label="Project name"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              placeholder="Enter project name…"
+              mono
+            />
+
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setStep('upload')}>
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                Back
+              </Button>
+              <Button variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
+              <Button variant="primary" size="sm" onClick={handleSave} disabled={!projectName.trim()}>
+                <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                Import as Project
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 'saving' && (
+          <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
+            <Spinner size="lg" />
+            <Typography tone="muted" variant="body-sm">Saving project…</Typography>
+          </div>
+        )}
+      </div>
     </div>
   );
-}
-
-// ── Helper ────────────────────────────────────────────────────────────────────
-
-function methodColor(method: string): string {
-  const map: Record<string, string> = {
-    GET: '#89b4fa', POST: '#a6e3a1', PUT: '#fab387',
-    PATCH: '#f9e2af', DELETE: '#f38ba8',
-    OPTIONS: '#cba6f7', HEAD: '#89dceb', TRACE: '#b4befe',
-  };
-  return map[method.toUpperCase()] ?? '#cdd6f4';
 }

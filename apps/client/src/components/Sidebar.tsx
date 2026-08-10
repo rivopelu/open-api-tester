@@ -1,6 +1,18 @@
 import { useState } from 'react';
+import {
+  AlertTriangle,
+  ChevronRight,
+  Lock,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Search,
+  X,
+} from 'lucide-react';
 import { useApiSpecStore } from '../store/useApiSpecStore';
 import { useUiStore } from '../store/useUiStore';
+import { Button, Input } from './ui';
+import { cn } from '../lib/utils';
 
 export function Sidebar() {
   const { spec, activeEndpointId, setActiveEndpoint, addEndpoint, searchQuery, setSearchQuery, filterTag, setFilterTag } = useApiSpecStore();
@@ -25,100 +37,177 @@ export function Sidebar() {
   const toggleTag = (name: string) => {
     setExpandedTags((prev) => {
       const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
       return next;
     });
   };
 
+  const handleDeleteTag = (id: string, name: string) => {
+    if (!window.confirm(`Delete tag "${name}"?`)) return;
+    useApiSpecStore.getState().deleteTag(id);
+    if (filterTag === name) setFilterTag(null);
+  };
+
+  const handleAddTag = () => {
+    const name = window.prompt('Enter new tag name:');
+    if (name) { useApiSpecStore.getState().addTag({ name }); setFilterTag(name); }
+  };
+
   if (sidebarCollapsed) {
     return (
-      <aside style={{ width: 40, background: 'var(--bg-surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0' }}>
-        <button className="btn btn-ghost btn-icon btn-sm" onClick={toggleSidebar} data-tooltip="Expand">»</button>
+      <aside className="flex w-10 shrink-0 flex-col items-center border-r border-border bg-surface py-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          aria-label="Expand sidebar"
+          onClick={toggleSidebar}
+        >
+          <PanelLeftOpen className="h-4 w-4" />
+        </Button>
       </aside>
     );
   }
 
   return (
-    <aside style={{ width: 260, background: 'var(--bg-surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+    <aside className="flex w-[260px] shrink-0 flex-col border-r border-border bg-surface">
       {/* Sidebar header */}
-      <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <input className="input" placeholder="Search endpoints..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ flex: 1, padding: '5px 10px', fontSize: 12 }} />
-        <button className="btn btn-ghost btn-icon btn-sm" onClick={toggleSidebar} data-tooltip="Collapse">«</button>
+      <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
+        <div className="min-w-0 flex-1">
+          <Input
+            size="sm"
+            leadingIcon={<Search className="h-3.5 w-3.5" />}
+            placeholder="Search endpoints..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search endpoints"
+          />
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          aria-label="Collapse sidebar"
+          onClick={toggleSidebar}
+        >
+          <PanelLeftClose className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Tag filter */}
-      <div style={{ padding: '6px 12px', display: 'flex', gap: 4, flexWrap: 'wrap', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
-        <button className={`btn btn-sm ${!filterTag ? 'btn-primary' : 'btn-ghost'}`} style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => setFilterTag(null)}>All</button>
+      <div className="flex flex-wrap items-center gap-1 border-b border-border px-3 py-1.5">
+        <button
+          type="button"
+          className={cn('btn btn-sm', !filterTag ? 'btn-primary' : 'btn-ghost')}
+          onClick={() => setFilterTag(null)}
+        >
+          All
+        </button>
         {spec.tags.map((t) => (
-          <div key={t.id} style={{ display: 'flex', alignItems: 'center', background: filterTag === t.name ? 'var(--accent-primary)' : 'var(--bg-overlay)', borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
-            <button className={`btn btn-sm ${filterTag === t.name ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: 11, padding: '3px 8px', border: 'none', borderRadius: 0 }} 
-              onClick={() => setFilterTag(filterTag === t.name ? null : t.name)}>
+          <div
+            key={t.id}
+            className={cn(
+              'flex items-center overflow-hidden rounded-md border',
+              filterTag === t.name ? 'border-primary/40 bg-primary/15' : 'border-border bg-overlay',
+            )}
+          >
+            <button
+              type="button"
+              className={cn('btn btn-sm border-0', filterTag === t.name ? 'btn-primary' : 'btn-ghost')}
+              onClick={() => setFilterTag(filterTag === t.name ? null : t.name)}
+            >
               {t.name}
             </button>
-            <button className="btn btn-ghost btn-sm hover-bg" style={{ padding: '3px 6px', fontSize: 10, borderLeft: '1px solid var(--border)', borderRadius: 0, color: 'var(--accent-red)' }} 
-              onClick={() => {
-                if(window.confirm(`Delete tag "${t.name}"?`)) {
-                  useApiSpecStore.getState().deleteTag(t.id);
-                  if (filterTag === t.name) setFilterTag(null);
-                }
-              }} title="Delete Tag">
-              ✕
+            <button
+              type="button"
+              aria-label={`Delete tag ${t.name}`}
+              className="btn btn-ghost btn-sm border-l border-border text-danger"
+              onClick={() => handleDeleteTag(t.id, t.name)}
+            >
+              <X className="h-3 w-3" />
             </button>
           </div>
         ))}
-        <button className="btn btn-ghost btn-sm" style={{ fontSize: 14, padding: '0 6px' }} onClick={() => {
-          const name = window.prompt('Enter new tag name:');
-          if (name) { useApiSpecStore.getState().addTag({ name }); setFilterTag(name); }
-        }} title="Add Tag">+</button>
+        <Button variant="ghost" size="sm" iconOnly aria-label="Add tag" onClick={handleAddTag}>
+          <Plus className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Endpoint list */}
-      <div className="scroll-y" style={{ flex: 1, padding: '8px 0' }}>
+      <div className="scroll-y flex-1 py-2">
         {Object.entries(groups).filter(([, eps]) => eps.length > 0).map(([tag, eps]) => (
-          <div key={tag} style={{ marginBottom: 4 }}>
+          <div key={tag} className="mb-1">
             {/* Tag header */}
-            <button onClick={() => toggleTag(tag)} style={{
-              display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '5px 12px',
-              background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)',
-              fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'inherit',
-              justifyContent: 'space-between',
-            }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ color: 'var(--accent-purple)' }}>▸</span>
+            <button
+              type="button"
+              onClick={() => toggleTag(tag)}
+              aria-expanded={expandedTags.has(tag)}
+              className="flex w-full items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-muted transition-colors duration-150 hover:text-text-secondary"
+            >
+              <span className="flex items-center gap-1.5">
+                <ChevronRight
+                  className={cn('h-3 w-3 text-purple transition-transform duration-150', expandedTags.has(tag) && 'rotate-90')}
+                  aria-hidden="true"
+                />
                 {tag}
               </span>
-              <span style={{ background: 'var(--bg-overlay)', padding: '1px 6px', borderRadius: 10, fontSize: 10 }}>{eps.length}</span>
+              <span className="rounded-full bg-overlay px-1.5 py-0.5 text-[10px] font-normal normal-case tracking-normal">
+                {eps.length}
+              </span>
             </button>
 
             {/* Endpoints */}
-            {expandedTags.has(tag) && eps.map((ep) => (
-              <div key={ep.id} onClick={() => { setActiveEndpoint(ep.id); setActivePanel('designer'); }}
-                className={`sidebar-item ${activeEndpointId === ep.id ? 'active' : ''}`}
-                style={{ paddingLeft: 20, gap: 8, display: 'flex', alignItems: 'center' }}>
-                <span className={`method-badge badge-${ep.method.toLowerCase()}`}>{ep.method}</span>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: ep.summary ? 'inherit' : 'JetBrains Mono, monospace', fontSize: 12, fontWeight: ep.summary ? 600 : 400 }}>
-                  {ep.summary || ep.path}
-                </span>
-                {ep.security && ep.security.length > 0 && <span className="auth-badge">🔒</span>}
-                {ep.deprecated && <span style={{ color: 'var(--accent-yellow)', fontSize: 10 }}>⚠</span>}
-              </div>
-            ))}
+            {expandedTags.has(tag) && (
+              <ul className="flex flex-col">
+                {eps.map((ep) => (
+                  <li key={ep.id}>
+                    <button
+                      type="button"
+                      onClick={() => { setActiveEndpoint(ep.id); setActivePanel('designer'); }}
+                      className={cn('sidebar-item pl-5', activeEndpointId === ep.id && 'active')}
+                    >
+                      <span className={cn('method-badge', `badge-${ep.method.toLowerCase()}`)}>{ep.method}</span>
+                      <span className={cn('min-w-0 flex-1 truncate text-xs font-semibold', !ep.summary && 'font-mono font-normal')}>
+                        {ep.summary || ep.path}
+                      </span>
+                      {ep.security && ep.security.length > 0 && (
+                        <Lock className="h-3 w-3 shrink-0 text-warning" aria-label="Requires authentication" />
+                      )}
+                      {ep.deprecated && (
+                        <AlertTriangle className="h-3 w-3 shrink-0 text-warning" aria-label="Deprecated" />
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ))}
       </div>
 
       {/* Footer buttons */}
-      <div style={{ padding: 10, borderTop: '1px solid var(--border)', display: 'flex', gap: 6, flexDirection: 'column' }}>
-        <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', fontSize: 12 }}
-          onClick={() => addEndpoint()}>
-          + Add Endpoint
-        </button>
-        <button className="btn btn-ghost" style={{ width: '100%', justifyContent: 'center', fontSize: 12, color: 'var(--accent-red)' }}
-          onClick={() => { if (window.confirm('Are you sure you want to delete ALL endpoints?')) useApiSpecStore.getState().clearEndpoints(); }}>
-          ✕ Clear All
-        </button>
+      <div className="flex flex-col gap-1.5 border-t border-border p-2.5">
+        <Button variant="primary" size="sm" className="w-full" onClick={() => addEndpoint()}>
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          Add Endpoint
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-danger"
+          onClick={() => {
+            if (window.confirm('Are you sure you want to delete ALL endpoints?')) {
+              useApiSpecStore.getState().clearEndpoints();
+            }
+          }}
+        >
+          <X className="h-3.5 w-3.5" aria-hidden="true" />
+          Clear All
+        </Button>
       </div>
     </aside>
   );

@@ -1,18 +1,39 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowLeftRight,
+  Boxes,
+  Cloud,
+  Download,
+  Eye,
+  Home,
+  PenTool,
+  Play,
+  Redo2,
+  ShieldCheck,
+  Undo2,
+  X,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
 import { useApiSpecStore } from '../store/useApiSpecStore';
 import { useUiStore } from '../store/useUiStore';
 import { apiSpecToOpenApi3 } from '@modern-api-studio/utils';
 import { SaveConflictError, getErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
+import { Button, Typography } from './ui';
 
 const NAV_ITEMS = [
-  { id: 'home',       label: 'Home',        icon: '🏠' },
-  { id: 'designer',   label: 'Designer',    icon: '✦' },
-  { id: 'converter',  label: 'Converter',   icon: '⇄' },
-  { id: 'components', label: 'Schemas',     icon: '◈' },
-  { id: 'security',   label: 'Security',    icon: '🔒' },
-  { id: 'preview',    label: 'Preview',     icon: '◉' },
+  { id: 'home', label: 'Home', icon: Home },
+  { id: 'designer', label: 'Designer', icon: PenTool },
+  { id: 'converter', label: 'Converter', icon: ArrowLeftRight },
+  { id: 'components', label: 'Schemas', icon: Boxes },
+  { id: 'security', label: 'Security', icon: ShieldCheck },
+  { id: 'preview', label: 'Preview', icon: Eye },
 ] as const;
+
+type NavItemId = (typeof NAV_ITEMS)[number]['id'];
 
 // ─── "Last saved X ago" helper ────────────────────────────────────────────────
 function useTimeAgo(isoTs: string | null): string {
@@ -27,8 +48,8 @@ function useTimeAgo(isoTs: string | null): string {
   const label = useMemo(() => {
     if (!isoTs) return '';
     const diff = Math.floor((now - new Date(isoTs).getTime()) / 1000);
-    if (diff < 10)   return 'just now';
-    if (diff < 60)   return `${diff}s ago`;
+    if (diff < 10) return 'just now';
+    if (diff < 60) return `${diff}s ago`;
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     return `${Math.floor(diff / 3600)}h ago`;
   }, [isoTs, now]);
@@ -49,58 +70,57 @@ function ConflictDialog({
   onDismiss: () => void;
 }) {
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 2000,
-      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      animation: 'fadeIn 0.15s ease',
-    }}>
-      <div style={{
-        background: 'var(--bg-surface)', border: '1px solid rgba(243,139,168,0.4)',
-        borderRadius: 14, padding: 28, width: 440, maxWidth: '95vw',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-        animation: 'slideUp 0.2s ease',
-      }}>
-        <div style={{ fontSize: 28, marginBottom: 12 }}>⚠️</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>
-          Save Conflict Detected
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="conflict-title"
+      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
+      onClick={onDismiss}
+    >
+      <div
+        className="w-[440px] max-w-[95vw] rounded-xl border border-danger/40 bg-surface p-7 shadow-[0_20px_60px_rgba(0,0,0,0.5)] animate-slideIn"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-lg bg-danger/15 text-danger">
+              <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <Typography id="conflict-title" variant="heading-sm" as="h2">
+              Save Conflict Detected
+            </Typography>
+          </div>
+          <Button variant="ghost" size="sm" iconOnly aria-label="Dismiss" onClick={onDismiss}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
-        <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 20 }}>
-          <strong style={{ color: 'var(--accent-red)' }}>{changedBy}</strong> saved this project
+
+        <Typography tone="secondary" variant="body-sm" className="mb-6">
+          <strong className="text-danger">{changedBy}</strong> saved this project
           after you last loaded it. Your changes and theirs now conflict.
+        </Typography>
+
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          <Button variant="ghost" onClick={onReload} className="h-auto flex-col items-start py-3">
+            <span className="flex items-center gap-2 font-semibold">
+              <Undo2 className="h-3.5 w-3.5" aria-hidden="true" />
+              Reload theirs
+            </span>
+            <span className="text-xs font-normal text-text-muted">Discard your local edits</span>
+          </Button>
+          <Button variant="danger" onClick={onOverwrite} className="h-auto flex-col items-start py-3">
+            <span className="flex items-center gap-2 font-semibold">
+              <Cloud className="h-3.5 w-3.5" aria-hidden="true" />
+              Overwrite
+            </span>
+            <span className="text-xs font-normal text-white/65">Force-save your edits</span>
+          </Button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-          <button
-            className="btn btn-ghost"
-            onClick={onReload}
-            style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2, height: 'auto', padding: '12px 14px' }}
-          >
-            <span style={{ fontWeight: 600, fontSize: 13 }}>🔄 Reload theirs</span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>Discard your local edits</span>
-          </button>
-          <button
-            className="btn btn-danger"
-            onClick={onOverwrite}
-            style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2, height: 'auto', padding: '12px 14px' }}
-          >
-            <span style={{ fontWeight: 600, fontSize: 13 }}>💾 Overwrite</span>
-            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: 400 }}>Force-save your edits</span>
-          </button>
-        </div>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={onDismiss}
-          style={{ width: '100%', fontSize: 12 }}
-        >
+
+        <Button variant="ghost" size="sm" className="w-full" onClick={onDismiss}>
           Cancel (keep editing without saving)
-        </button>
+        </Button>
       </div>
-      <style>{`
-        @keyframes slideUp {
-          from { opacity:0; transform:translateY(16px) scale(0.97); }
-          to   { opacity:1; transform:translateY(0) scale(1); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -126,7 +146,7 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
     setSaving(true);
     try {
       await saveProject(forceOverwrite);
-      toast.success('✅ Project saved');
+      toast.success('Project saved');
       setConflictMeta(null);
     } catch (err: unknown) {
       if (err instanceof SaveConflictError) {
@@ -146,7 +166,7 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
     if (!activeProjectId) return;
     await loadProject(activeProjectId);
     setConflictMeta(null);
-    toast.success('🔄 Reloaded latest version');
+    toast.success('Reloaded latest version');
   };
 
   const handleExportYaml = () => {
@@ -179,84 +199,110 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
 
   return (
     <>
-      <header style={{
-        display: 'flex', alignItems: 'center', gap: 0,
-        background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)',
-        padding: '0 16px', height: '52px', flexShrink: 0, zIndex: 100,
-      }}>
+      <header className="z-[100] flex h-[52px] shrink-0 items-center border-b border-border bg-surface px-4">
         {/* Logo / Back */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 24 }}>
+        <div className="mr-6 flex items-center gap-2.5">
           {onBackToDashboard && (
-            <button
-              className="btn btn-ghost btn-sm btn-icon"
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly
+              aria-label="Back to Projects"
               onClick={onBackToDashboard}
-              data-tooltip="Back to Projects"
-              style={{ fontSize: 16 }}
             >
-              ←
-            </button>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
           )}
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, boxShadow: '0 0 16px rgba(137,180,250,0.3)',
-          }}>⚡</div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', lineHeight: 1 }}>Max API Studio</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1 }}>Modern OpenAPI Designer</div>
+          <div className="glow-blue grid h-8 w-8 place-items-center rounded-lg bg-linear-to-br from-primary to-purple text-base">
+            <Zap className="h-4 w-4" aria-hidden="true" />
+          </div>
+          <div className="leading-none">
+            <div className="text-sm font-bold text-text-primary">Max API Studio</div>
+            <div className="mt-0.5 text-[10px] leading-none text-text-muted">Modern OpenAPI Designer</div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav style={{ display: 'flex', gap: 2, flex: 1 }}>
-          {NAV_ITEMS.map((item) => (
-            <button key={item.id} className={`tab ${activePanel === item.id ? 'active' : ''}`}
-              onClick={() => setActivePanel(item.id as typeof activePanel)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
+        <nav aria-label="Editor panels" className="flex flex-1 gap-0.5">
+          {NAV_ITEMS.map((item) => {
+            const Icon: LucideIcon = item.icon;
+            const isActive = activePanel === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-current={isActive ? 'page' : undefined}
+                className={`tab flex items-center gap-1.5 ${isActive ? 'active' : ''}`}
+                onClick={() => setActivePanel(item.id as NavItemId)}
+              >
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden sm:inline">{item.label}</span>
+              </button>
+            );
+          })}
         </nav>
 
         {/* Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={undo} disabled={historyIndex <= 0} data-tooltip="Undo">↩</button>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={redo} disabled={historyIndex >= history.length - 1} data-tooltip="Redo">↪</button>
+        <div className="flex items-center gap-1.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            aria-label="Undo"
+            data-tooltip="Undo"
+            onClick={undo}
+            disabled={historyIndex <= 0}
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
+            aria-label="Redo"
+            data-tooltip="Redo"
+            onClick={redo}
+            disabled={historyIndex >= history.length - 1}
+          >
+            <Redo2 className="h-4 w-4" />
+          </Button>
 
-          <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
+          <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
 
-          <button className="btn btn-ghost btn-sm" onClick={handleExportYaml}>↓ YAML</button>
-          <button className="btn btn-ghost btn-sm" onClick={handleExportJson}>↓ JSON</button>
+          <Button variant="ghost" size="sm" onClick={handleExportYaml} data-tooltip="Export as YAML">
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            YAML
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleExportJson} data-tooltip="Export as JSON">
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            JSON
+          </Button>
 
           {activeProjectId && (
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <button
-                className="btn btn-sm btn-ghost"
+            <div className="relative flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={handleSave}
+                loading={saving}
                 disabled={saving}
                 data-tooltip={saveTooltip}
-                style={{ transition: 'opacity 0.2s', position: 'relative' }}
               >
-                {saving
-                  ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
-                      Saving…
-                    </span>
-                  : '☁ Save'}
-              </button>
-
-              {/* Last saved indicator */}
+                <Cloud className="h-3.5 w-3.5" aria-hidden="true" />
+                Save
+              </Button>
               {lastSavedAt && !saving && (
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                <span className="text-[10px] whitespace-nowrap text-text-muted" aria-live="polite">
                   {timeAgo}
                 </span>
               )}
             </div>
           )}
 
-          <button className="btn btn-primary btn-sm" onClick={() => setActivePanel('preview')}>▶ Preview</button>
+          <Button variant="primary" size="sm" onClick={() => setActivePanel('preview')}>
+            <Play className="h-3.5 w-3.5" aria-hidden="true" />
+            Preview
+          </Button>
         </div>
       </header>
 
@@ -269,8 +315,6 @@ export function Header({ onBackToDashboard }: { onBackToDashboard?: () => void }
           onDismiss={() => setConflictMeta(null)}
         />
       )}
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </>
   );
 }

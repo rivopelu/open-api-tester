@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { FolderOpen, LogOut, Pencil, Plus, Trash2, Upload, X, Zap, Check } from 'lucide-react';
 import { projectApi, getErrorMessage, type ProjectDto } from '../lib/api';
 import { useApiSpecStore } from '../store/useApiSpecStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { ImportYamlModal } from './ImportYamlModal';
+import { Button, Card, Typography } from './ui';
 import toast from 'react-hot-toast';
 
 export function Dashboard({ onProjectSelect }: { onProjectSelect: () => void }) {
@@ -60,46 +62,56 @@ export function Dashboard({ onProjectSelect }: { onProjectSelect: () => void }) 
   };
 
   return (
-    <div style={{ padding: 40, maxWidth: 860, margin: '0 auto', animation: 'fadeIn 0.25s ease' }}>
+    <div className="mx-auto max-w-[860px] animate-fadeIn p-10">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 36 }}>
+      <header className="mb-9 flex items-center justify-between gap-4">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: 'linear-gradient(135deg, var(--accent-blue), var(--accent-purple))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, boxShadow: '0 0 16px rgba(137,180,250,0.3)',
-            }}>⚡</div>
-            <h1 style={{ fontSize: 24, margin: 0, color: 'var(--text-primary)', fontWeight: 700 }}>Max API Studio</h1>
+          <div className="mb-1 flex items-center gap-3">
+            <div className="glow-blue grid h-9 w-9 place-items-center rounded-lg bg-linear-to-br from-primary to-purple">
+              <Zap className="h-4 w-4 text-base" aria-hidden="true" />
+            </div>
+            <Typography variant="heading-lg" as="h1">
+              Max API Studio
+            </Typography>
           </div>
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>Office API projects</p>
+          <Typography tone="muted" variant="body-sm">Office API projects</Typography>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-ghost" onClick={handleSignOut}>Sign Out</button>
-          <button
-            className="btn btn-ghost"
+        <div className="flex gap-2.5">
+          <Button variant="ghost" size="sm" onClick={handleSignOut}>
+            <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+            Sign Out
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setShowImport(true)}
             title="Import an OpenAPI YAML or JSON file as a new project"
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            📥 Import YAML
-          </button>
-          <button className="btn btn-primary" onClick={handleCreate}>+ New Project</button>
+            <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+            Import YAML
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleCreate}>
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            New Project
+          </Button>
         </div>
-      </div>
+      </header>
 
       {loading ? (
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 48 }}>Loading projects…</div>
-      ) : projects.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: 56 }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📂</div>
-          <div style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 8 }}>No projects yet</div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>Create your first API project</div>
-          <button className="btn btn-primary" onClick={handleCreate}>Create your first API</button>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5" role="status" aria-label="Loading projects">
+          <ProjectCardSkeleton />
+          <ProjectCardSkeleton />
+          <ProjectCardSkeleton />
         </div>
+      ) : projects.length === 0 ? (
+        <Card className="flex flex-col items-center py-14 text-center">
+          <FolderOpen className="mb-3 h-10 w-10 text-text-muted" aria-hidden="true" />
+          <Typography variant="heading-sm" tone="secondary" className="mb-2">No projects yet</Typography>
+          <Typography variant="body-sm" tone="muted" className="mb-5">Create your first API project</Typography>
+          <Button variant="primary" onClick={handleCreate}>Create your first API</Button>
+        </Card>
       ) : (
-        <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
           {projects.map((p) => (
             <ProjectCard
               key={p.id}
@@ -122,6 +134,16 @@ export function Dashboard({ onProjectSelect }: { onProjectSelect: () => void }) 
           }}
         />
       )}
+    </div>
+  );
+}
+
+function ProjectCardSkeleton() {
+  return (
+    <div className="rounded-lg border border-border bg-surface p-4" aria-hidden="true">
+      <div className="mb-3 h-4 w-2/3 animate-pulse rounded bg-overlay" />
+      <div className="mb-4 h-3 w-1/3 animate-pulse rounded bg-overlay" />
+      <div className="h-8 w-24 animate-pulse rounded-md bg-overlay" />
     </div>
   );
 }
@@ -170,20 +192,17 @@ function ProjectCard({ project, onSelect, onDelete, onRename }: {
   };
 
   return (
-    <div
-      className="card"
+    <Card
+      interactive
+      padding="sm"
       onClick={editing ? undefined : onSelect}
-      style={{ cursor: editing ? 'default' : 'pointer', padding: 18, transition: 'var(--transition)', position: 'relative' }}
-      onMouseEnter={(e) => { if (!editing) (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-blue)'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
+      className="hover:border-primary/50"
+      aria-label={editing ? `Renaming ${project.name}` : `Open project ${project.name}`}
     >
       {/* Name row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 14 }}>
+      <div className="mb-3.5 flex items-start justify-between gap-2">
         {editing ? (
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="flex min-w-0 flex-1 items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <input
               ref={inputRef}
               autoFocus
@@ -191,61 +210,57 @@ function ProjectCard({ project, onSelect, onDelete, onRename }: {
               onChange={(e) => setDraft(e.target.value)}
               onBlur={commitEdit}
               onKeyDown={onKeyDown}
-              style={{
-                flex: 1, fontSize: 15, fontWeight: 600,
-                background: 'var(--bg-overlay)', border: '1px solid var(--accent-blue)',
-                borderRadius: 6, padding: '3px 8px', color: 'var(--text-primary)',
-                outline: 'none',
-              }}
+              aria-label="Project name"
+              className="min-w-0 flex-1 rounded-md border border-primary bg-overlay px-2 py-1 text-[15px] font-semibold text-text-primary outline-none"
             />
-            <button
-              className="btn btn-ghost btn-sm btn-icon"
-              onMouseDown={(e) => { e.preventDefault(); commitEdit(); }}
-              style={{ color: 'var(--accent-green)', fontSize: 13 }}
-              title="Save (Enter)"
-            >✓</button>
-            <button
-              className="btn btn-ghost btn-sm btn-icon"
-              onMouseDown={(e) => { e.preventDefault(); cancelEdit(); }}
-              style={{ fontSize: 11 }}
-              title="Cancel (Esc)"
-            >✕</button>
+            <Button variant="ghost" size="sm" iconOnly aria-label="Save name (Enter)" onMouseDown={(e) => { e.preventDefault(); commitEdit(); }}>
+              <Check className="h-4 w-4 text-success" />
+            </Button>
+            <Button variant="ghost" size="sm" iconOnly aria-label="Cancel (Esc)" onMouseDown={(e) => { e.preventDefault(); cancelEdit(); }}>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
-            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {project.name}
-            </h3>
-            <button
-              className="btn btn-ghost btn-sm btn-icon"
-              onClick={startEdit}
-              title="Rename project"
-              style={{ opacity: 0.4, fontSize: 11, flexShrink: 0, transition: 'opacity 0.15s' }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <Typography
+              as="h3"
+              variant="heading-sm"
+              className="truncate"
             >
-              ✎
-            </button>
+              {project.name}
+            </Typography>
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly
+              aria-label={`Rename project ${project.name}`}
+              onClick={startEdit}
+              className="opacity-40 hover:opacity-100"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
           </div>
         )}
       </div>
 
       {/* Updated date */}
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+      <Typography variant="body-sm" tone="muted" className="mb-3.5">
         Updated {project.updatedAt ? new Date(project.updatedAt).toLocaleDateString() : '—'}
-      </div>
+      </Typography>
 
       {/* Footer actions */}
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button
-          className="btn btn-danger btn-sm"
+      <div className="flex">
+        <Button
+          variant="danger"
+          size="sm"
           onClick={onDelete}
-          style={{ fontSize: 11, marginLeft: 'auto' }}
-          data-tooltip="Delete project"
+          className="ml-auto"
+          title="Delete project"
         >
-          🗑 Delete
-        </button>
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          Delete
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }

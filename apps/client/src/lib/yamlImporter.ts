@@ -15,6 +15,152 @@ import type {
   RequestBodyDefinition,
 } from '@modern-api-studio/types';
 
+// ─── OpenAPI / Swagger document shapes (only the fields the importer reads) ─
+
+type JsonObject = Record<string, unknown>;
+
+interface SchemaObj {
+  type?: string;
+  format?: string;
+  description?: string;
+  nullable?: boolean;
+  example?: unknown;
+  enum?: unknown[];
+  properties?: Record<string, SchemaObj | undefined>;
+  required?: string[];
+  items?: SchemaObj;
+  $ref?: string;
+}
+
+interface ParameterObj {
+  name?: string;
+  in?: string;
+  required?: boolean;
+  description?: string;
+  schema?: SchemaObj;
+  $ref?: string;
+}
+
+interface ExampleObj {
+  summary?: string;
+  value?: unknown;
+}
+
+interface MediaTypeObj {
+  schema?: SchemaObj;
+  example?: unknown;
+  examples?: Record<string, ExampleObj | undefined>;
+}
+
+interface RequestBodyObj {
+  required?: boolean;
+  description?: string;
+  content?: Record<string, MediaTypeObj | undefined>;
+}
+
+interface ResponseObj {
+  description?: string;
+  content?: Record<string, MediaTypeObj | undefined>;
+  example?: unknown;
+}
+
+type SecurityRequirementObj = Record<string, string[]>;
+
+interface OperationObj {
+  summary?: string;
+  description?: string;
+  operationId?: string;
+  tags?: string[];
+  deprecated?: boolean;
+  security?: SecurityRequirementObj[];
+  parameters?: ParameterObj[];
+  requestBody?: RequestBodyObj;
+  responses?: Record<string, ResponseObj | undefined>;
+}
+
+interface PathItemObj extends JsonObject {
+  parameters?: ParameterObj[];
+  get?: OperationObj;
+  post?: OperationObj;
+  put?: OperationObj;
+  patch?: OperationObj;
+  delete?: OperationObj;
+  options?: OperationObj;
+  head?: OperationObj;
+  trace?: OperationObj;
+}
+
+interface SecuritySchemeObj {
+  type?: string;
+  description?: string;
+  scheme?: string;
+  bearerFormat?: string;
+  name?: string;
+  in?: string;
+  flows?: unknown;
+}
+
+interface TagObj {
+  name?: string;
+  description?: string;
+}
+
+interface ServerObj {
+  url?: string;
+  description?: string;
+}
+
+interface ComponentsObj {
+  schemas?: Record<string, SchemaObj | undefined>;
+  securitySchemes?: Record<string, SecuritySchemeObj | undefined>;
+}
+
+interface OpenApiDoc extends JsonObject {
+  openapi?: string;
+  swagger?: string;
+  info?: {
+    title?: string;
+    version?: string;
+    description?: string;
+  };
+  servers?: ServerObj[];
+  tags?: TagObj[];
+  paths?: Record<string, PathItemObj | undefined>;
+  components?: ComponentsObj;
+  security?: SecurityRequirementObj[];
+  host?: string;
+  basePath?: string;
+  schemes?: string[];
+  definitions?: Record<string, SchemaObj | undefined>;
+  securityDefinitions?: Record<string, SecuritySchemeObj | undefined>;
+}
+
+// ─── Safe accessors (normalise unknown → expected shape) ─────────────────────
+
+function isObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null;
+}
+
+function asObj(value: unknown): JsonObject {
+  return isObject(value) ? value : {};
+}
+
+function asSchema(value: unknown): SchemaObj {
+  return isObject(value) ? value as SchemaObj : {};
+}
+
+function asStr(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function asStrArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((x): x is string => typeof x === 'string') : [];
+}
+
+function asBool(value: unknown, fallback = false): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const VALID_SCHEMA_TYPES = ['string', 'number', 'integer', 'boolean', 'object', 'array', 'null'] as const;
@@ -26,13 +172,13 @@ function toSchemaType(raw: unknown): ValidSchemaType {
 }
 
 /** Resolve a JSON-pointer $ref within the same document */
-function resolveRef(ref: string, doc: any): any {
+function resolveRef(ref: string, doc: unknown): unknown {
   if (!ref || !ref.startsWith('#/')) return null;
   const parts = ref.slice(2).split('/');
-  let cur = doc;
+  let cur: unknown = doc;
   for (const p of parts) {
-    if (cur == null) return null;
-    cur = cur[decodeURIComponent(p.replace(/~1/g, '/').replace(/~0/g, '~'))];
+    if (cur == null || typeof cur !== 'object') return null;
+    cur = (cur as JsonObject)[decodeURIComponent(p.replace(/~1/g, '/').replace(/~0/g, '~'))];
   }
   return cur;
 }
@@ -43,13 +189,13 @@ function refName(ref: string): string {
 }
 
 function toSchemaProps(
-  properties: Record<string, any> = {},
+  properties: Record<string, SchemaObj | undefined> = {},
   required: string[] = [],
-  doc?: any,
+  doc?: unknown,
 ): SchemaProperty[] {
   return Object.entries(properties).map(([name, def]) => {
     // Resolve inline $ref
-    const resolved = def.$ref && doc ? resolveRef(def.$ref, doc) ?? def : def;
+    const resolved = def?.$ref && doc ? asSchema(resolveRef(def.$ref, doc) ?? def) : (def ?? {});
 
     const prop: SchemaProperty = {
       id: uuidv4(),
@@ -61,7 +207,7 @@ function toSchemaProps(
       format: resolved.format,
       example: resolved.example,
       enum: Array.isArray(resolved.enum) ? resolved.enum.map(String) : undefined,
-      ref: def.$ref ? refName(def.$ref) : undefined,
+      ref: def?.$ref ? refName(def.$ref) : undefined,
     };
 
     // Nested object
@@ -72,7 +218,7 @@ function toSchemaProps(
     // Array items
     if (resolved.items) {
       const itemsDef = resolved.items.$ref && doc
-        ? resolveRef(resolved.items.$ref, doc) ?? resolved.items
+        ? asSchema(resolveRef(resolved.items.$ref, doc) ?? resolved.items)
         : resolved.items;
       prop.items = {
         id: uuidv4(),
@@ -89,19 +235,20 @@ function toSchemaProps(
 }
 
 /** Parse a raw schema node (possibly a $ref) into SchemaProperty[] */
-function parseSchemaNode(schema: any, doc: any): SchemaProperty[] {
+function parseSchemaNode(schema: unknown, doc: unknown): SchemaProperty[] {
   if (!schema) return [];
+  const node = asSchema(schema);
 
   // Top-level $ref
-  if (schema.$ref) {
-    const resolved = resolveRef(schema.$ref, doc);
+  if (node.$ref) {
+    const resolved = resolveRef(node.$ref, doc);
     if (!resolved) return [];
-    return toSchemaProps(resolved.properties ?? {}, resolved.required ?? [], doc);
+    return toSchemaProps(asObj(resolved).properties as Record<string, SchemaObj | undefined> ?? {}, asStrArray(asObj(resolved).required), doc);
   }
 
   // Array type with items
-  if (schema.type === 'array' && schema.items) {
-    const itemsDef = schema.items.$ref ? resolveRef(schema.items.$ref, doc) ?? schema.items : schema.items;
+  if (node.type === 'array' && node.items) {
+    const itemsDef = node.items.$ref ? asSchema(resolveRef(node.items.$ref, doc) ?? node.items) : node.items;
     const itemProp: SchemaProperty = {
       id: uuidv4(),
       name: 'items',
@@ -109,7 +256,7 @@ function parseSchemaNode(schema: any, doc: any): SchemaProperty[] {
       required: false,
       nullable: false,
       description: itemsDef.description,
-      ref: schema.items.$ref ? refName(schema.items.$ref) : undefined,
+      ref: node.items.$ref ? refName(node.items.$ref) : undefined,
     };
     if (itemsDef.properties) {
       itemProp.properties = toSchemaProps(itemsDef.properties, itemsDef.required ?? [], doc);
@@ -117,27 +264,27 @@ function parseSchemaNode(schema: any, doc: any): SchemaProperty[] {
     return [itemProp];
   }
 
-  return toSchemaProps(schema.properties ?? {}, schema.required ?? [], doc);
+  return toSchemaProps(node.properties ?? {}, node.required ?? [], doc);
 }
 
 /** Serialize an arbitrary value to a JSON string example */
-function toJsonString(val: any): string {
+function toJsonString(val: unknown): string {
   try { return JSON.stringify(val, null, 2); } catch { return '{}'; }
 }
 
 /** Extract named examples from OpenAPI `examples` map or single `example` */
 function parseExamples(
-  mediaObj: any,
+  mediaObj: MediaTypeObj | undefined,
 ): EndpointExample[] {
   if (!mediaObj) return [];
 
   // `examples` map (OAS 3)
   if (mediaObj.examples && typeof mediaObj.examples === 'object') {
-    return Object.entries(mediaObj.examples).map(([name, ex]: [string, any]) => ({
+    return Object.entries(mediaObj.examples).map(([name, ex]) => ({
       id: uuidv4(),
       name,
-      summary: ex.summary,
-      value: typeof ex.value === 'string' ? ex.value : toJsonString(ex.value),
+      summary: ex?.summary,
+      value: typeof ex?.value === 'string' ? ex.value : toJsonString(ex?.value),
     }));
   }
 
@@ -164,32 +311,32 @@ function parseExamples(
   return [];
 }
 
-function parseSchemas(components: Record<string, any> = {}, doc?: any): SchemaComponent[] {
+function parseSchemas(components: ComponentsObj = {}, doc?: unknown): SchemaComponent[] {
   const schemas = components.schemas ?? {};
-  return Object.entries(schemas).map(([name, def]: [string, any]) => ({
+  return Object.entries(schemas).map(([name, def]) => ({
     id: uuidv4(),
     name,
-    description: def.description,
-    properties: toSchemaProps(def.properties ?? {}, def.required ?? [], doc),
+    description: def?.description,
+    properties: toSchemaProps(def?.properties ?? {}, def?.required ?? [], doc),
   }));
 }
 
 function parseSecuritySchemes(
-  components: Record<string, any> = {},
+  components: ComponentsObj = {},
 ): SecurityScheme[] {
   const schemes = components.securitySchemes ?? {};
-  return Object.entries(schemes).map(([name, def]: [string, any]) => {
+  return Object.entries(schemes).map(([name, def]) => {
     const base: Pick<SecurityScheme, 'id' | 'name' | 'description'> = {
       id: uuidv4(),
       name,
-      description: def.description,
+      description: def?.description,
     };
 
-    if (def.type === 'http') {
+    if (def?.type === 'http') {
       if (def.scheme === 'basic') return { ...base, type: 'basic' as const };
       return { ...base, type: 'bearer' as const, bearerFormat: def.bearerFormat };
     }
-    if (def.type === 'apiKey') {
+    if (def?.type === 'apiKey') {
       return {
         ...base,
         type: 'apiKey' as const,
@@ -197,37 +344,40 @@ function parseSecuritySchemes(
         keyName: def.name,
       };
     }
-    if (def.type === 'oauth2') {
-      return { ...base, type: 'oauth2' as const, flows: def.flows };
+    if (def?.type === 'oauth2') {
+      return { ...base, type: 'oauth2' as const, flows: def.flows as SecurityScheme['flows'] };
     }
     return { ...base, type: 'bearer' as const };
   });
 }
 
-function parseTags(rawTags: any[] = []): ApiTag[] {
-  return rawTags.map((t) => ({
-    id: uuidv4(),
-    name: String(t.name ?? 'Unnamed'),
-    description: t.description,
-  }));
+function parseTags(rawTags: unknown[] = []): ApiTag[] {
+  return rawTags.map((t) => {
+    const tag = asObj(t);
+    return {
+      id: uuidv4(),
+      name: asStr(tag.name) ?? 'Unnamed',
+      description: asStr(tag.description),
+    };
+  });
 }
 
-function parseParameters(params: any[] = []): EndpointParameter[] {
+function parseParameters(params: unknown[] = []): EndpointParameter[] {
   return params
-    .filter((p) => p && typeof p === 'object' && !p.$ref)
+    .filter((p): p is JsonObject => isObject(p) && !p.$ref)
     .map((p) => ({
       id: uuidv4(),
-      name: String(p.name ?? ''),
+      name: asStr(p.name) ?? '',
       in: (p.in ?? 'query') as EndpointParameter['in'],
-      required: p.required ?? false,
-      description: p.description,
+      required: asBool(p.required),
+      description: asStr(p.description),
       schema: {
-        type: toSchemaType(p.schema?.type),
-        format: p.schema?.format,
-        example: p.schema?.example,
-        enum: Array.isArray(p.schema?.enum) ? p.schema.enum.map(String) : undefined,
-        items: p.schema?.items ? {
-          type: String(p.schema.items.type ?? 'string'),
+        type: toSchemaType(asObj(p.schema).type),
+        format: asStr(asObj(p.schema).format),
+        example: asObj(p.schema).example,
+        enum: Array.isArray(asObj(p.schema).enum) ? (asObj(p.schema).enum as unknown[]).map(String) : undefined,
+        items: asObj(p.schema).items ? {
+          type: asStr(asObj(asObj(p.schema).items).type) ?? 'string',
         } : undefined,
       },
     }));
@@ -244,7 +394,7 @@ function toContentType(raw: string): ContentType {
 }
 
 /** Parse requestBody fully: schema, contentType, examples, rawJson, description */
-function parseRequestBody(requestBody: any, doc: any): RequestBodyDefinition | undefined {
+function parseRequestBody(requestBody: RequestBodyObj | undefined, doc: unknown): RequestBodyDefinition | undefined {
   if (!requestBody?.content) return undefined;
 
   const content = requestBody.content;
@@ -272,7 +422,7 @@ function parseRequestBody(requestBody: any, doc: any): RequestBodyDefinition | u
     description: requestBody.description,
     contentType: toContentType(mediaTypeKey),
     mode: isRef ? 'ref' : (rawJson ? 'raw' : 'visual'),
-    ref: isRef ? refName(schema.$ref) : undefined,
+    ref: isRef ? refName(schema.$ref as string) : undefined,
     schema: schemaProps,
     rawJson,
     examples: examples.length > 0 ? examples : undefined,
@@ -280,8 +430,8 @@ function parseRequestBody(requestBody: any, doc: any): RequestBodyDefinition | u
 }
 
 /** Parse responses fully: statusCode, description, contentType, schema, examples, rawJson */
-function parseResponses(responses: Record<string, any> = {}, doc: any): ResponseDefinition[] {
-  return Object.entries(responses).map(([code, def]: [string, any]) => {
+function parseResponses(responses: Record<string, ResponseObj | undefined> = {}, doc: unknown): ResponseDefinition[] {
+  return Object.entries(responses).map(([code, def]) => {
     if (!def) {
       return { id: uuidv4(), statusCode: code, description: '' };
     }
@@ -292,7 +442,7 @@ function parseResponses(responses: Record<string, any> = {}, doc: any): Response
     const mediaObj = mediaTypeKey ? content[mediaTypeKey] : null;
     const schema = mediaObj?.schema;
 
-    const examples = parseExamples(mediaObj ?? {});
+    const examples = parseExamples(mediaObj ?? undefined);
     const schemaProps = schema ? parseSchemaNode(schema, doc) : undefined;
     const isRef = !!schema?.$ref;
 
@@ -307,10 +457,10 @@ function parseResponses(responses: Record<string, any> = {}, doc: any): Response
     return {
       id: uuidv4(),
       statusCode: code,
-      description: String(def.description ?? ''),
+      description: asStr(def.description) ?? '',
       contentType: mediaTypeKey ? mediaTypeKey : undefined,
       mode: isRef ? 'ref' : (rawJson ? 'raw' : (schemaProps && schemaProps.length > 0 ? 'visual' : undefined)),
-      ref: isRef ? refName(schema.$ref) : undefined,
+      ref: isRef ? refName(schema.$ref as string) : undefined,
       schema: schemaProps && schemaProps.length > 0 ? schemaProps : [],
       rawJson,
       examples: examples.length > 0 ? examples : undefined,
@@ -322,9 +472,9 @@ const HTTP_METHODS: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const ALL_METHODS = [...HTTP_METHODS, 'OPTIONS', 'HEAD', 'TRACE'] as const;
 
 function parseEndpoints(
-  paths: Record<string, any> = {},
+  paths: Record<string, PathItemObj | undefined> = {},
   allTagNames: string[],
-  doc: any,
+  doc: unknown,
 ): Endpoint[] {
   const endpoints: Endpoint[] = [];
 
@@ -334,7 +484,7 @@ function parseEndpoints(
     const pathParams = parseParameters(pathItem.parameters ?? []);
 
     for (const rawMethod of ALL_METHODS) {
-      const op = pathItem[rawMethod.toLowerCase()];
+      const op = pathItem[rawMethod.toLowerCase()] as OperationObj | undefined;
       if (!op) continue;
 
       const method = rawMethod.toUpperCase() as HttpMethod;
@@ -349,9 +499,9 @@ function parseEndpoints(
       ];
 
       const securityNames = (op.security ?? []).flatMap(
-        (s: Record<string, any>) => Object.keys(s),
+        (s) => Object.keys(s),
       );
-      const tagNames = (op.tags ?? []).filter((t: string) =>
+      const tagNames = (op.tags ?? []).filter((t) =>
         allTagNames.includes(t),
       );
 
@@ -398,15 +548,17 @@ export interface ImportResult {
 export function parseOpenApiToSpec(raw: string): ImportResult {
   const warnings: string[] = [];
 
-  let doc: any;
+  let doc: OpenApiDoc;
   try {
-    doc = yaml.load(raw);
+    const loaded = yaml.load(raw);
+    if (!isObject(loaded)) {
+      throw new Error('File does not contain a valid YAML/JSON object.');
+    }
+    doc = loaded as OpenApiDoc;
   } catch (e) {
-    throw new Error(`Failed to parse file: ${(e as Error).message}`);
-  }
-
-  if (!doc || typeof doc !== 'object') {
-    throw new Error('File does not contain a valid YAML/JSON object.');
+    const message = e instanceof Error ? e.message : String(e);
+    if (message === 'File does not contain a valid YAML/JSON object.') throw e;
+    throw new Error(`Failed to parse file: ${message}`, { cause: e });
   }
 
   const isSwagger2 = !!doc.swagger;
@@ -429,7 +581,7 @@ export function parseOpenApiToSpec(raw: string): ImportResult {
     servers.push({ url: `${scheme}://${host}${basePath}`, description: 'Server' });
   } else {
     for (const s of doc.servers ?? []) {
-      servers.push({ url: s.url, description: s.description });
+      servers.push({ url: s.url ?? '', description: s.description });
     }
   }
   if (servers.length === 0) {
@@ -447,7 +599,7 @@ export function parseOpenApiToSpec(raw: string): ImportResult {
   }
 
   const globalSecurity = (doc.security ?? []).flatMap(
-    (s: Record<string, any>) => Object.keys(s),
+    (s) => Object.keys(s),
   );
 
   // Swagger 2: convert definitions → components.schemas

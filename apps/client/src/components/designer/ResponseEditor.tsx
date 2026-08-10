@@ -66,7 +66,7 @@ export function ResponseEditor({ endpoint, update }: Props) {
       
       updateResponse(respId, { examples: [...(resp.examples || []), newEx] });
       toast.success('Example generated');
-    } catch (e) {
+    } catch {
       toast.error('Failed to generate mock');
     }
   };

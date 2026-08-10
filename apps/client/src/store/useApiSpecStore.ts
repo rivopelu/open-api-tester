@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import type {
   ApiSpec, Endpoint, ApiTag, SchemaComponent, SecurityScheme,
 } from '@modern-api-studio/types';
-import { projectApi, SaveConflictError } from '../lib/api';
+import { getErrorMessage, projectApi, SaveConflictError } from '../lib/api';
 
 const DEFAULT_SPEC: ApiSpec = {
   id: uuidv4(),
@@ -168,7 +168,8 @@ interface ApiSpecStore {
   resetSpec: () => void;
 }
 
-const cloneSpec = (s: ApiSpec): ApiSpec => JSON.parse(JSON.stringify(s));
+const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+const cloneSpec = (s: ApiSpec): ApiSpec => deepClone(s);
 
 export const useApiSpecStore = create<ApiSpecStore>()(
   persist(
@@ -214,10 +215,10 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         let data;
         try {
           data = await projectApi.create(name, newSpec);
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('[createNewProject]', err);
           const { toast } = await import('react-hot-toast');
-          toast.error(`Failed to create project: ${err?.message ?? 'Unknown error'}`);
+          toast.error(`Failed to create project: ${getErrorMessage(err, 'Unknown error')}`);
           return false;
         }
 
@@ -236,10 +237,10 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         let data;
         try {
           data = await projectApi.create(name, spec);
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('[importProject]', err);
           const { toast } = await import('react-hot-toast');
-          toast.error(`Failed to import project: ${err?.message ?? 'Unknown error'}`);
+          toast.error(`Failed to import project: ${getErrorMessage(err, 'Unknown error')}`);
           return false;
         }
 
@@ -263,9 +264,9 @@ export const useApiSpecStore = create<ApiSpecStore>()(
           let current;
           try {
             current = await projectApi.get(activeProjectId);
-          } catch (err: any) {
+          } catch (err: unknown) {
             const { toast } = await import('react-hot-toast');
-            toast.error(`Failed to save: ${err?.message ?? 'Unknown error'}`);
+            toast.error(`Failed to save: ${getErrorMessage(err, 'Unknown error')}`);
             return;
           }
 
@@ -285,10 +286,10 @@ export const useApiSpecStore = create<ApiSpecStore>()(
             name: spec.info.title,
             specData: spec,
           });
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('[saveProject]', err);
           const { toast } = await import('react-hot-toast');
-          toast.error(`Failed to save project: ${err?.message ?? 'Unknown error'}`);
+          toast.error(`Failed to save project: ${getErrorMessage(err, 'Unknown error')}`);
           return;
         }
 
@@ -300,10 +301,10 @@ export const useApiSpecStore = create<ApiSpecStore>()(
       deleteProject: async (id: string): Promise<boolean> => {
         try {
           await projectApi.remove(id);
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('[deleteProject]', err);
           const { toast } = await import('react-hot-toast');
-          toast.error(`Failed to delete project: ${err?.message ?? 'Unknown error'}`);
+          toast.error(`Failed to delete project: ${getErrorMessage(err, 'Unknown error')}`);
           return false;
         }
 
@@ -320,10 +321,10 @@ export const useApiSpecStore = create<ApiSpecStore>()(
 
         try {
           await projectApi.update(id, { name: trimmed });
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('[renameProject]', err);
           const { toast } = await import('react-hot-toast');
-          toast.error(`Failed to rename project: ${err?.message ?? 'Unknown error'}`);
+          toast.error(`Failed to rename project: ${getErrorMessage(err, 'Unknown error')}`);
           return false;
         }
 
@@ -393,7 +394,7 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         get().pushHistory();
         const ep = get().spec.endpoints.find((e) => e.id === id);
         if (!ep) return;
-        const newEp = { ...cloneSpec(ep as unknown as ApiSpec) as unknown as Endpoint, id: uuidv4(), operationId: undefined };
+        const newEp: Endpoint = { ...deepClone(ep), id: uuidv4(), operationId: undefined };
         set((s) => ({
           spec: { ...s.spec, endpoints: [...s.spec.endpoints, newEp] },
           activeEndpointId: newEp.id,

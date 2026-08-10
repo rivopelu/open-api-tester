@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import toast from 'react-hot-toast';
-import MonacoEditor, { type OnMount } from '@monaco-editor/react';
+import MonacoEditor, { type BeforeMount, type OnMount } from '@monaco-editor/react';
 import { useApiSpecStore } from '../../store/useApiSpecStore';
 import { apiSpecToOpenApi3 } from '@modern-api-studio/utils';
 import SwaggerUI from 'swagger-ui-react';
@@ -13,9 +13,11 @@ interface Props {
   minHeight?: number;
 }
 
+type EditorInstance = Parameters<OnMount>[0];
+
 export function JsonEditor({ value, onChange, minHeight = 150 }: Props) {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<EditorInstance | null>(null);
   
   // Get live spec for Swagger UI in fullscreen mode
   const spec = useApiSpecStore(s => s.spec);
@@ -24,13 +26,13 @@ export function JsonEditor({ value, onChange, minHeight = 150 }: Props) {
   if (isFullscreen) {
     try {
       swaggerSpecJson = JSON.parse(apiSpecToOpenApi3(spec, 'json'));
-    } catch (e) {
+    } catch {
       // fallback if error
     }
   }
 
   // Configure Monaco to treat this as standard JSON but IGNORE comment errors
-  const handleBeforeMount = (monaco: any) => {
+  const handleBeforeMount: BeforeMount = (monaco) => {
     monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
       validate: true,
       allowComments: true, // This allows JSONC comments without red squiggles!
@@ -46,7 +48,7 @@ export function JsonEditor({ value, onChange, minHeight = 150 }: Props) {
     if (!value.trim()) return;
     try {
       if (editorRef.current) {
-        editorRef.current.getAction('editor.action.formatDocument').run();
+        editorRef.current.getAction('editor.action.formatDocument')?.run();
         toast.success('JSON Beautified');
       }
     } catch {

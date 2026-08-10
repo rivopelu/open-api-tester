@@ -7,7 +7,17 @@ export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const completeGoogleSignIn = useAuthStore((state) => state.completeGoogleSignIn);
   const started = useRef(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // The URL hash is a one-time input at mount, so derive the initial error
+  // during the first render instead of calling setState inside an effect.
+  const [error, setError] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    const token = params.get('token');
+    const oauthError = params.get('error');
+    if (oauthError) return oauthError;
+    if (!token) return 'Google did not return a valid session.';
+    return null;
+  });
 
   useEffect(() => {
     if (started.current) return;
@@ -18,10 +28,7 @@ export default function AuthCallbackPage() {
     const oauthError = params.get('error');
     window.history.replaceState(null, '', '/auth');
 
-    if (oauthError || !token) {
-      setError(oauthError || 'Google did not return a valid session.');
-      return;
-    }
+    if (oauthError || !token) return; // error already surfaced via lazy init
 
     void completeGoogleSignIn(token)
       .then(() => navigate('/', { replace: true }))

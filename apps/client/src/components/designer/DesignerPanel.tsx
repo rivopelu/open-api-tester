@@ -1,13 +1,15 @@
+import { useState } from 'react';
+import toast from 'react-hot-toast';
+import { Copy, MousePointerClick } from 'lucide-react';
 import { useApiSpecStore } from '../../store/useApiSpecStore';
 import { useUiStore } from '../../store/useUiStore';
 import { EndpointDetail } from './EndpointDetail';
 // ApiInfoForm moved to home tab
 import { apiSpecToOpenApi3 } from '@modern-api-studio/utils';
 import MonacoEditor from '@monaco-editor/react';
-import toast from 'react-hot-toast';
-import { useState } from 'react';
 import SwaggerUI from 'swagger-ui-react';
 import 'swagger-ui-react/swagger-ui.css';
+import { Button, Typography } from '../ui';
 
 export function DesignerPanel() {
   const { spec, activeEndpointId } = useApiSpecStore();
@@ -19,32 +21,36 @@ export function DesignerPanel() {
   const jsonOutput = apiSpecToOpenApi3(spec, 'json');
 
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+    <div className="flex h-full min-w-0 overflow-hidden">
       {/* Left: Visual editor */}
-      <div style={{ flex: '0 0 55%', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid var(--border)' }}>
+      <div className="flex min-w-0 flex-[0_0_55%] flex-col overflow-hidden border-r border-border">
         {/* Mode tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', flexShrink: 0 }}>
+        <div className="flex shrink-0 items-center gap-2 border-b border-border bg-surface px-4 py-2">
           <div className="tabs">
-            <button className={`tab ${editorMode === 'visual' ? 'active' : ''}`} onClick={() => setEditorMode('visual')}>Visual</button>
-            <button className={`tab ${editorMode === 'yaml' ? 'active' : ''}`} onClick={() => setEditorMode('yaml')}>YAML</button>
-            <button className={`tab ${editorMode === 'json' ? 'active' : ''}`} onClick={() => setEditorMode('json')}>JSON</button>
+            <button type="button" className={`tab ${editorMode === 'visual' ? 'active' : ''}`} onClick={() => setEditorMode('visual')}>Visual</button>
+            <button type="button" className={`tab ${editorMode === 'yaml' ? 'active' : ''}`} onClick={() => setEditorMode('yaml')}>YAML</button>
+            <button type="button" className={`tab ${editorMode === 'json' ? 'active' : ''}`} onClick={() => setEditorMode('json')}>JSON</button>
           </div>
           {activeEndpoint && editorMode === 'visual' && (
-            <div style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="ml-2 flex min-w-0 items-center gap-2">
               <span className={`method-badge badge-${activeEndpoint.method.toLowerCase()}`}>{activeEndpoint.method}</span>
-              <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: 'var(--text-secondary)' }}>{activeEndpoint.path}</span>
+              <span className="truncate font-mono text-xs text-text-secondary">{activeEndpoint.path}</span>
             </div>
           )}
         </div>
 
-        <div style={{ flex: 1, overflow: 'hidden' }}>
+        <div className="min-h-0 flex-1 overflow-hidden">
           {editorMode === 'visual' ? (
-            <div className="scroll-y" style={{ height: '100%', padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="scroll-y flex h-full flex-col gap-4 p-4">
               {!activeEndpoint ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ fontSize: 48, opacity: 0.5 }}>✦</div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-secondary)' }}>No Endpoint Selected</div>
-                  <div style={{ fontSize: 13, textAlign: 'center', maxWidth: 300 }}>Select an endpoint from the sidebar or click "+ Add Endpoint" to start designing.</div>
+                <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+                  <span className="grid h-16 w-16 place-items-center rounded-2xl border border-border bg-surface">
+                    <MousePointerClick className="h-7 w-7 text-primary" aria-hidden="true" />
+                  </span>
+                  <Typography variant="heading-sm" tone="secondary">No Endpoint Selected</Typography>
+                  <Typography variant="body-sm" tone="muted" className="max-w-[300px]">
+                    Select an endpoint from the sidebar or click “+ Add Endpoint” to start designing.
+                  </Typography>
                 </div>
               ) : (
                 <EndpointDetail endpoint={activeEndpoint} />
@@ -59,7 +65,7 @@ export function DesignerPanel() {
               options={{
                 minimap: { enabled: true },
                 fontSize: 12,
-                fontFamily: 'JetBrains Mono, monospace',
+                fontFamily: 'var(--font-mono)',
                 lineNumbers: 'on',
                 wordWrap: 'on',
                 scrollBeyondLastLine: false,
@@ -73,22 +79,20 @@ export function DesignerPanel() {
       </div>
 
       {/* Right: Live Output */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div className="tabs" style={{ marginBottom: 0 }}>
-            <button className={`tab ${liveView === 'code' ? 'active' : ''}`} onClick={() => setLiveView('code')}>Code Output</button>
-            <button className={`tab ${liveView === 'swagger' ? 'active' : ''}`} onClick={() => setLiveView('swagger')}>Swagger Preview</button>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 py-2">
+          <div className="tabs">
+            <button type="button" className={`tab ${liveView === 'code' ? 'active' : ''}`} onClick={() => setLiveView('code')}>Code Output</button>
+            <button type="button" className={`tab ${liveView === 'swagger' ? 'active' : ''}`} onClick={() => setLiveView('swagger')}>Swagger Preview</button>
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {liveView === 'code' && (
-              <>
-                <CopyButton text={yamlOutput} label="YAML" />
-                <CopyButton text={jsonOutput} label="JSON" />
-              </>
-            )}
-          </div>
+          {liveView === 'code' && (
+            <div className="flex gap-1.5">
+              <CopyButton text={yamlOutput} label="YAML" />
+              <CopyButton text={jsonOutput} label="JSON" />
+            </div>
+          )}
         </div>
-        
+
         {liveView === 'code' ? (
           <MonacoEditor
             height="100%"
@@ -99,7 +103,7 @@ export function DesignerPanel() {
               readOnly: true,
               minimap: { enabled: false },
               fontSize: 12,
-              fontFamily: 'JetBrains Mono, monospace',
+              fontFamily: 'var(--font-mono)',
               lineNumbers: 'on',
               scrollBeyondLastLine: false,
               automaticLayout: true,
@@ -107,7 +111,9 @@ export function DesignerPanel() {
             }}
           />
         ) : (
-          <div className="scroll-y" style={{ height: '100%', background: '#fff' }}>
+          // SwaggerUI bundles its own light theme, so it intentionally renders on
+          // a white canvas instead of the app's dark palette.
+          <div className="scroll-y h-full bg-white">
             <SwaggerUI spec={JSON.parse(jsonOutput)} />
           </div>
         )}
@@ -117,11 +123,18 @@ export function DesignerPanel() {
 }
 
 function CopyButton({ text, label }: { text: string; label: string }) {
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    toast.success(`${label} copied!`);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copied!`);
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
   };
   return (
-    <button className="btn btn-ghost btn-sm" onClick={handleCopy}>⎘ {label}</button>
+    <Button variant="ghost" size="sm" onClick={handleCopy} aria-label={`Copy ${label} output`}>
+      <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+      {label}
+    </Button>
   );
 }

@@ -15,11 +15,12 @@
     "db:migrate": "node scripts/migrate.mjs",
     "db:studio": "drizzle-kit studio"
   },
-  "dependencies": {
+"dependencies": {
+    "@hono/node-server": "^1.19.9",
+    "@modern-api-studio/types": "workspace:*",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
     "handlebars": "^4.7.9",
-    "@hono/node-server": "^1.19.9",
     "hono": "^4.12.30",
     "jose": "^6.2.3",
     "pg": "^8.22.0",

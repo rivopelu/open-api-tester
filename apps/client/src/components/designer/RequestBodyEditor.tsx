@@ -41,7 +41,7 @@ export function RequestBodyEditor({ endpoint, update }: Props) {
       };
       setBody({ examples: [...(body.examples || []), newEx] });
       toast.success('Example generated');
-    } catch (e) {
+    } catch {
       toast.error('Failed to generate mock');
     }
   };

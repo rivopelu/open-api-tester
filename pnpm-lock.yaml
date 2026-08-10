@@ -147,6 +147,9 @@ importers:
       '@hono/node-server':
         specifier: ^1.19.9
         version: 1.19.17(hono@4.13.1)
+      '@modern-api-studio/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
