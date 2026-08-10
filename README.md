@@ -33,7 +33,7 @@ Modern API Studio is a powerful OpenAPI and Swagger designer built in the browse
 OpenAPI/
 ├── apps/
 │   ├── client/          # React application (Vite)
-│   └── server/          # Optional backend proxy
+│   └── server/          # Hono backend (Bun + Drizzle)
 ├── packages/
 │   ├── types/           # Shared TypeScript definitions
 │   └── utils/           # Schema inference, spec conversion logic
@@ -49,6 +49,7 @@ OpenAPI/
 
 - Node.js v20+
 - pnpm v10 (run `corepack enable` if pnpm is unavailable)
+- Bun v1.3+
 - A [Supabase](https://supabase.com) project (free tier works)
 
 ### 1. Install dependencies
@@ -96,7 +97,17 @@ This creates the `projects`, `project_members`, `project_invites`, and `workspac
 pnpm dev
 ```
 
-App runs at **http://localhost:5173**
+Client runs at **http://localhost:5173** and the API at **http://localhost:8888/api**.
+
+Use `pnpm dev:client` or `pnpm dev:server` to run one application only.
+
+### 5. Manage backend migrations
+
+```bash
+pnpm db:generate
+pnpm db:migrate
+pnpm db:studio
+```
 
 ## 🗄 Database Schema
 

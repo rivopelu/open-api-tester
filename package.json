@@ -7,11 +7,16 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm --filter @modern-api-studio/client dev",
+    "dev": "pnpm -r --parallel --filter './apps/*' dev",
+    "dev:client": "pnpm --filter @modern-api-studio/client dev",
+    "dev:server": "pnpm --filter @modern-api-studio/server dev",
     "build": "pnpm -r --if-present build",
     "lint": "pnpm -r --if-present lint",
     "test": "pnpm -r --if-present test",
-    "migrate": "node scripts/migrate.js && node scripts/migrate_002.js"
+    "migrate": "node scripts/migrate.js && node scripts/migrate_002.js",
+    "db:generate": "pnpm --filter @modern-api-studio/server db:generate",
+    "db:migrate": "pnpm --filter @modern-api-studio/server db:migrate",
+    "db:studio": "pnpm --filter @modern-api-studio/server db:studio"
   },
   "devDependencies": {
     "dotenv": "^17.4.2",

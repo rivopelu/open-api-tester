@@ -1,0 +1,8 @@
+{
+  "app.subtitle": "API Service",
+  "app.health": "All systems operational",
+  "app.env": "Environment",
+  "app.port": "Port",
+  "app.server_time": "Server time",
+  "app.status": "Status"
+}

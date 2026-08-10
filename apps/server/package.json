@@ -1,0 +1,41 @@
+{
+  "name": "@modern-api-studio/server",
+  "private": true,
+  "scripts": {
+    "dev": "bun --env-file=../../.env run --hot src/index.ts",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --check src/",
+    "format:fix": "prettier --write src/",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "db:generate": "bun --env-file=../../.env x drizzle-kit generate",
+    "db:migrate": "bun --env-file=../../.env x drizzle-kit migrate",
+    "db:studio": "bun --env-file=../../.env x drizzle-kit studio"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "drizzle-orm": "^0.45.2",
+    "handlebars": "^4.7.9",
+    "hono": "^4.12.30",
+    "jose": "^6.2.3",
+    "pg": "^8.22.0",
+    "winston": "^3.19.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "latest",
+    "@types/pg": "^8.20.0",
+    "@typescript-eslint/eslint-plugin": "^8.64.0",
+    "@typescript-eslint/parser": "^8.64.0",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "prettier": "^3.9.5",
+    "typescript": "~5.7.0",
+    "typescript-eslint": "^8.64.0"
+  }
+}

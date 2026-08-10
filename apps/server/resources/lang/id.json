@@ -1,0 +1,8 @@
+{
+  "app.subtitle": "Layanan API",
+  "app.health": "Semua sistem berjalan normal",
+  "app.env": "Lingkungan",
+  "app.port": "Port",
+  "app.server_time": "Waktu server",
+  "app.status": "Status"
+}
