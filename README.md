@@ -33,7 +33,7 @@ Modern API Studio is a powerful OpenAPI and Swagger designer built in the browse
 OpenAPI/
 ├── apps/
 │   ├── client/          # React application (Vite)
-│   └── server/          # Hono backend (Bun + Drizzle)
+│   └── server/          # Hono backend (Node.js + Drizzle)
 ├── packages/
 │   ├── types/           # Shared TypeScript definitions
 │   └── utils/           # Schema inference, spec conversion logic
@@ -49,7 +49,6 @@ OpenAPI/
 
 - Node.js v20+
 - pnpm v10 (run `corepack enable` if pnpm is unavailable)
-- Bun v1.3+
 - A [Supabase](https://supabase.com) project (free tier works)
 
 ### 1. Install dependencies
@@ -148,6 +147,21 @@ pnpm build
 ```
 
 Static assets are output to `apps/client/dist/`.
+
+### Deploy to Vercel
+
+Import the repository as one Vercel project and keep the project Root Directory at the repository root. `vercel.json` builds the React client, serves it as an SPA, and exposes the Hono backend under `/api/*` on the same domain.
+
+Add the backend variables from `.env.example` to the Vercel project's Environment Variables. Use a pooled PostgreSQL connection for production and run migrations separately with `pnpm db:migrate`; migrations are not executed during deployment.
+
+For Google sign-in, register these Authorized redirect URIs in Google Cloud:
+
+```text
+http://localhost:8888/api/auth/google/callback
+https://<your-vercel-domain>/api/auth/google/callback
+```
+
+Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `ALLOWED_EMAIL_DOMAINS` in Vercel. Accounts from an allowed domain are created automatically on their first successful Google sign-in.
 
 ## 🤝 Contributing
 

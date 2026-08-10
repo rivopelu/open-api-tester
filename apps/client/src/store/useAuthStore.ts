@@ -7,6 +7,7 @@ interface AuthState {
   init: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (name: string, email: string, password: string) => Promise<boolean>;
+  completeGoogleSignIn: (token: string) => Promise<void>;
   signOut: () => void;
 }
 
@@ -41,6 +42,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     setToken(result.access_token);
     set({ user: result.account });
     return true;
+  },
+
+  completeGoogleSignIn: async (token) => {
+    setToken(token);
+    try {
+      const account = await authApi.me();
+      set({ user: account, initializing: false });
+    } catch (error) {
+      setToken(null);
+      throw error;
+    }
   },
 
   signOut: () => {

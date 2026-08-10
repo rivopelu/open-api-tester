@@ -17,6 +17,10 @@ export const envSchema = z.object({
   BCRYPT_ROUNDS: z.coerce.number().default(10),
   JWT_ISSUER: z.string().default('reel-cut'),
   ALLOWED_ORIGINS: z.string().default('*'),
+  ALLOWED_EMAIL_DOMAINS: z.string().default(''),
+  GOOGLE_CLIENT_ID: z.string().default(process.env.VITE_GOOGLE_CLIENT_ID ?? ''),
+  GOOGLE_CLIENT_SECRET: z.string().default(''),
+  GOOGLE_REDIRECT_URI: z.string().optional(),
 })
 
 export function validateEnv() {

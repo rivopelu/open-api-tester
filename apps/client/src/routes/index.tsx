@@ -11,11 +11,16 @@ import InputLabPage from '../pages/lab/input-lab-page';
 import AvatarLabPage from '../pages/lab/avatar-lab-page';
 import SpinnerLabPage from '../pages/lab/spinner-lab-page';
 import ShowcaseLabPage from '../pages/lab/showcase-lab-page';
+import AuthCallbackPage from '../pages/auth-callback-page';
 
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <App />,
+  },
+  {
+    path: '/auth',
+    element: <AuthCallbackPage />,
   },
   {
     path: '/lab',

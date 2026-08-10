@@ -1,6 +1,7 @@
-import { describe, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import { AuthService } from '../auth.service'
 import type { Account } from '../../../account/entity/account.entity'
+import { env } from '../../../../configs/env'
 
 // Mock jose SignJWT
 vi.mock('jose', () => ({
@@ -30,6 +31,10 @@ vi.mock('bcryptjs', () => ({
 }))
 
 describe('AuthService', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    env.ALLOWED_EMAIL_DOMAINS = ''
+  })
   const mockAccount: Account = {
     id: 'acc-1',
     email: 'test@example.com',
@@ -57,6 +62,57 @@ describe('AuthService', () => {
     } as any
     return new AuthService(mockAccountService)
   }
+
+  describe('signInWithGoogle', () => {
+    test('creates an allowed Google account on first sign-in', async () => {
+      env.ALLOWED_EMAIL_DOMAINS = 'maxxiagri.id'
+      const create = vi.fn(async (data: any) => ({ ...mockAccount, ...data }))
+      const service = createAuthService({ findByEmail: async () => null, create })
+      vi.stubGlobal(
+        'fetch',
+        vi.fn()
+          .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'google-token' }), { status: 200 }))
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                email: 'user@maxxiagri.id',
+                email_verified: true,
+                name: 'Google User',
+                picture: 'https://example.com/user.jpg',
+              }),
+              { status: 200 },
+            ),
+          ),
+      )
+
+      const result = await service.signInWithGoogle('code', 'http://localhost/callback')
+
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ email: 'user@maxxiagri.id', name: 'Google User' }),
+      )
+      expect(result.access_token).toBe('mocked-jwt')
+    })
+
+    test('rejects Google accounts outside allowed domains', async () => {
+      env.ALLOWED_EMAIL_DOMAINS = 'maxxiagri.id'
+      const service = createAuthService({ findByEmail: async () => null })
+      vi.stubGlobal(
+        'fetch',
+        vi.fn()
+          .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: 'google-token' }), { status: 200 }))
+          .mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({ email: 'user@example.com', email_verified: true, name: 'User' }),
+              { status: 200 },
+            ),
+          ),
+      )
+
+      await expect(service.signInWithGoogle('code', 'http://localhost/callback')).rejects.toThrow(
+        'email domain is not allowed',
+      )
+    })
+  })
 
   describe('signUp', () => {
     test('creates account and returns token', async () => {

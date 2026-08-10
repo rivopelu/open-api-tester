@@ -15,4 +15,12 @@ export class AuthBffService {
   async getProfile(id: string) {
     return this.authService.getProfile(id)
   }
+
+  getGoogleAuthorizationUrl(state: string, redirectUri: string) {
+    return this.authService.getGoogleAuthorizationUrl(state, redirectUri)
+  }
+
+  signInWithGoogle(code: string, redirectUri: string) {
+    return this.authService.signInWithGoogle(code, redirectUri)
+  }
 }

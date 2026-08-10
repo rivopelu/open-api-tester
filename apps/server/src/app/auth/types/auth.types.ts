@@ -15,3 +15,9 @@ export interface AuthResult {
   access_token: string
   account: Pick<Account, 'id' | 'email' | 'name' | 'profile_picture'>
 }
+
+export interface GoogleProfile {
+  email: string
+  name: string
+  picture?: string
+}
