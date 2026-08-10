@@ -10,9 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
-    "db:generate": "bun --env-file=../../.env x drizzle-kit generate",
-    "db:migrate": "bun --env-file=../../.env x drizzle-kit migrate",
-    "db:studio": "bun --env-file=../../.env x drizzle-kit studio"
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
