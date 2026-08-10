@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import type { SignUpInput, SignInInput, AuthResult } from '../auth.types'
 
 describe('Auth types', () => {

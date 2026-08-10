@@ -1,4 +1,4 @@
-import { describe, expect, test, mock } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 import { AccountService } from '../account.service'
 import type { Account } from '../../entity/account.entity'
 
@@ -58,7 +58,7 @@ describe('AccountService', () => {
   })
 
   test('create inserts a new account', async () => {
-    const insert = mock(async (input: any) => ({ ...mockAccount, ...input }))
+    const insert = vi.fn(async (input: any) => ({ ...mockAccount, ...input }))
     const service = createService({ insert })
     const result = await service.create({
       email: 'new@example.com',

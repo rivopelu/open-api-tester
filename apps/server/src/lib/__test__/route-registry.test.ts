@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import { Hono } from 'hono'
 import { Controller, Get, Post } from '../decorators'
 import { registerControllers, setBasePath, registerRoute } from '../route-registry'

@@ -1,4 +1,4 @@
-import { describe, expect, test, mock } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 import { ProjectService } from '../project.service'
 import { NotFoundError, BadRequestError } from '../../../../configs/exception'
 import type { Project } from '../../entity/project.entity'
@@ -63,7 +63,7 @@ describe('ProjectService', () => {
   })
 
   test('create inserts trimmed name and default spec data', async () => {
-    const insert = mock(async (input: any) => ({ ...mockRow, ...input }))
+    const insert = vi.fn(async (input: any) => ({ ...mockRow, ...input }))
     const service = createService({ insert })
     const item = await service.create({ name: '  New API  ', created_by: 'user-1' })
     expect(item.name).toBe('New API')
@@ -76,7 +76,7 @@ describe('ProjectService', () => {
   })
 
   test('update trims name and passes patch', async () => {
-    const update = mock(async (id: string, input: any) => ({ ...mockRow, ...input }))
+    const update = vi.fn(async (id: string, input: any) => ({ ...mockRow, ...input }))
     const service = createService({ findActiveById: async () => mockRow, update })
     const item = await service.update('proj-1', { name: '  Renamed  ' })
     expect(item.name).toBe('Renamed')
@@ -85,7 +85,7 @@ describe('ProjectService', () => {
   })
 
   test('update passes spec_data patch', async () => {
-    const update = mock(async (id: string, input: any) => ({ ...mockRow, ...input }))
+    const update = vi.fn(async (id: string, input: any) => ({ ...mockRow, ...input }))
     const service = createService({ findActiveById: async () => mockRow, update })
     const item = await service.update('proj-1', { spec_data: { id: 'new-spec' } })
     expect(item.specData).toEqual({ id: 'new-spec' })
@@ -102,7 +102,7 @@ describe('ProjectService', () => {
   })
 
   test('delete soft deletes existing project', async () => {
-    const softDelete = mock(async (id: string, deletedBy?: string) => mockRow)
+    const softDelete = vi.fn(async (id: string, deletedBy?: string) => mockRow)
     const service = createService({ findActiveById: async () => mockRow, softDelete })
     await service.delete('proj-1', 'user-1')
     expect(softDelete).toHaveBeenCalledWith('proj-1', 'user-1')

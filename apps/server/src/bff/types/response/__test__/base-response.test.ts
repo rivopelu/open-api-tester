@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import type { BaseResponse, IPaginationDataResponse } from '../base-response'
 
 describe('BaseResponse type', () => {

@@ -1,4 +1,4 @@
-import { describe, expect, test, mock } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 import { envSchema, validateEnv } from '../env'
 
 describe('env schema', () => {
@@ -44,7 +44,7 @@ describe('env schema', () => {
   })
 
   test('validateEnv throws on invalid APP_ENV', () => {
-    const exitMock = mock((_code?: number) => {
+    const exitMock = vi.fn((_code?: number) => {
       throw new Error('exit')
     })
     const origExit = process.exit

@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 
 describe('base.entity', () => {
   test('generateEntityId returns a 32-char hex string', async () => {

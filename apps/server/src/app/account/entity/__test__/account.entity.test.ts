@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import { AccountEntity } from '../account.entity'
 import type { Account, NewAccount } from '../account.entity'
 

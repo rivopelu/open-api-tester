@@ -1,9 +1,9 @@
-import { describe, expect, test, mock } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 import { AuthService } from '../auth.service'
 import type { Account } from '../../../account/entity/account.entity'
 
 // Mock jose SignJWT
-mock.module('jose', () => ({
+vi.mock('jose', () => ({
   SignJWT: class {
     setProtectedHeader() {
       return this
@@ -24,7 +24,7 @@ mock.module('jose', () => ({
 }))
 
 // Mock bcryptjs
-mock.module('bcryptjs', () => ({
+vi.mock('bcryptjs', () => ({
   hash: () => Promise.resolve('hashed-password'),
   compare: () => Promise.resolve(true),
 }))
@@ -60,7 +60,7 @@ describe('AuthService', () => {
 
   describe('signUp', () => {
     test('creates account and returns token', async () => {
-      const create = mock(async (data: any) => ({ ...mockAccount, ...data }))
+      const create = vi.fn(async (data: any) => ({ ...mockAccount, ...data }))
       const service = createAuthService({ findByEmail: async () => null, create })
       const result = await service.signUp({
         email: 'new@example.com',

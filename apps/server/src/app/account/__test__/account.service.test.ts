@@ -1,4 +1,4 @@
-import { describe, expect, test, mock } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 import { AccountService } from '../service/account.service'
 import type { AccountRepository } from '../repository/account.repository'
 
@@ -6,7 +6,7 @@ describe('AccountService', () => {
   test('list delegates to repository.findAll', async () => {
     const expected = { items: [], total: 0 }
     const mockRepo = {
-      findAll: mock(() => Promise.resolve(expected)),
+      findAll: vi.fn(() => Promise.resolve(expected)),
     } as unknown as AccountRepository
 
     const service = new AccountService(mockRepo)
@@ -18,7 +18,7 @@ describe('AccountService', () => {
 
   test('list passes search query to repository', async () => {
     const mockRepo = {
-      findAll: mock(() => Promise.resolve({ items: [], total: 0 })),
+      findAll: vi.fn(() => Promise.resolve({ items: [], total: 0 })),
     } as unknown as AccountRepository
 
     const service = new AccountService(mockRepo)

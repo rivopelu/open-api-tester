@@ -3,8 +3,7 @@ import dotenv from 'dotenv'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// `bun x` does not reliably forward `--env-file` vars to the drizzle-kit
-// subprocess on Windows, so load the root .env here instead.
+// Drizzle runs from this workspace, so load the monorepo root environment explicitly.
 dotenv.config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../.env') })
 
 const host = process.env.DB_HOST ?? 'localhost'

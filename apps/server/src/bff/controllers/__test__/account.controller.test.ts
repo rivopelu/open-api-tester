@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeAll } from 'bun:test'
+import { describe, expect, test, vi, beforeAll } from 'vitest'
 import { Hono } from 'hono'
 import { SignJWT } from 'jose'
 import { registerControllers } from '../../../lib/decorators'
@@ -21,7 +21,7 @@ let token: string
 beforeAll(async () => {
   token = await createToken()
 
-  const mockList = mock(() => Promise.resolve({ items: [], total: 0 }))
+  const mockList = vi.fn(() => Promise.resolve({ items: [], total: 0 }))
   const controller = new AccountController({ list: mockList } as any)
 
   app = new Hono()

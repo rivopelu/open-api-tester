@@ -1,4 +1,4 @@
-import { describe, expect, test, mock } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 
 describe('logger', () => {
   test('exports logger instance', async () => {
@@ -22,7 +22,7 @@ describe('logger', () => {
 
   test('LoggerStream.write logs http message', async () => {
     const { LoggerStream, logger } = await import('../logger')
-    const spy = mock(() => {})
+    const spy = vi.fn(() => {})
     const orig = logger.http
     logger.http = spy as any
     const stream = new LoggerStream()

@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, test } from 'vitest'
 import { t, detectLocale, loadLocale, clearCache, isSupported } from '../i18n'
 
 describe('i18n', () => {

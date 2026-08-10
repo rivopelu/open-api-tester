@@ -1,4 +1,4 @@
-import { describe, expect, test, mock } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 import { AccountBffService } from '../account-bff.service'
 import type { AccountService } from '../../../app/account/service/account.service'
 
@@ -6,7 +6,7 @@ describe('AccountBffService', () => {
   test('list delegates to accountService.list', async () => {
     const expected = { items: [], total: 0 }
     const mockService = {
-      list: mock(() => Promise.resolve(expected)),
+      list: vi.fn(() => Promise.resolve(expected)),
     } as unknown as AccountService
 
     const bff = new AccountBffService(mockService)

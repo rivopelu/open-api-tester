@@ -1,4 +1,4 @@
-import { describe, expect, test, mock } from 'bun:test'
+import { describe, expect, test, vi } from 'vitest'
 import { Hono } from 'hono'
 import { SignJWT } from 'jose'
 import { createProjectsController } from '../projects.controller'
@@ -19,12 +19,12 @@ const item: ProjectItem = {
 
 function fakeService(): ProjectService {
   return {
-    list: mock(async () => [item]),
-    get: mock(async () => item),
-    create: mock(async () => item),
-    update: mock(async () => item),
-    delete: mock(async () => undefined),
-    toItem: mock(async () => item),
+    list: vi.fn(async () => [item]),
+    get: vi.fn(async () => item),
+    create: vi.fn(async () => item),
+    update: vi.fn(async () => item),
+    delete: vi.fn(async () => undefined),
+    toItem: vi.fn(async () => item),
   } as unknown as ProjectService
 }
 
