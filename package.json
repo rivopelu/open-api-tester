@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm -r --parallel --filter './apps/*' dev",
+    "dev": "pnpm --parallel --filter @modern-api-studio/client --filter @modern-api-studio/server dev",
     "dev:client": "pnpm --filter @modern-api-studio/client dev",
     "dev:server": "pnpm --filter @modern-api-studio/server dev",
     "build": "pnpm -r --if-present build",
