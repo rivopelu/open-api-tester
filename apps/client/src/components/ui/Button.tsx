@@ -18,15 +18,15 @@ const baseClasses =
   "inline-flex items-center justify-center font-body font-semibold cursor-pointer select-none transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none";
 
 const sizeClasses = {
-  sm: "h-8 px-3 text-xs gap-1.5 rounded-lg",
-  md: "h-10 px-4 text-sm gap-2 rounded-lg",
-  lg: "h-11 px-6 text-sm gap-2.5 rounded-lg",
+  sm: "h-8 px-3 text-xs gap-1.5 rounded-md",
+  md: "h-10 px-4 text-sm gap-2 rounded-md",
+  lg: "h-11 px-6 text-sm gap-2.5 rounded-md",
 };
 
 const iconSizeClasses = {
-  sm: "h-8 w-8 p-0 rounded-lg",
-  md: "h-10 w-10 p-0 rounded-lg",
-  lg: "h-11 w-11 p-0 rounded-lg",
+  sm: "h-8 w-8 p-0 rounded-md",
+  md: "h-10 w-10 p-0 rounded-md",
+  lg: "h-11 w-11 p-0 rounded-md",
 };
 
 const variantClasses = {

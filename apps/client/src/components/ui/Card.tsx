@@ -36,7 +36,7 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
       }
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       className={cn(
-        'rounded-xl transition-colors duration-200',
+        'rounded-lg transition-colors duration-200',
         variantClasses[variant],
         paddingClasses[padding],
         interactive && 'cursor-pointer',
