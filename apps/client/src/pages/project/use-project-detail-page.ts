@@ -123,7 +123,7 @@ export function useProjectDetailPage() {
     },
   });
   const saveRequestMutation = useMutation({
-    mutationFn: ({ endpointId, path, parameters, requestBody }: { endpointId: string; path: string; parameters: Endpoint['parameters']; requestBody: Endpoint['requestBody'] }) => {
+    mutationFn: ({ endpointId, path, parameters, requestBody }: { endpointId: string; path: string; parameters: Endpoint['parameters']; requestBody?: Endpoint['requestBody'] }) => {
       const current = endpointDetailQuery.data;
       if (!current) throw new Error('Endpoint is not loaded');
       return endpointRepository.update(endpointId, {

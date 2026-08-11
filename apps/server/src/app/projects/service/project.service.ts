@@ -18,6 +18,7 @@ export class ProjectService {
       version: row.version,
       createdAt: new Date(row.created_date).toISOString(),
       updatedAt: row.updated_date ? new Date(row.updated_date).toISOString() : null,
+      createdById: row.created_by,
     }
   }
 

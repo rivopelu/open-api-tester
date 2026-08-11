@@ -6,7 +6,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { Button, GridCell, GridPanel, PageContainer, Typography } from '../../components/ui';
+import { Avatar, Button, GridCell, GridPanel, PageContainer, Typography } from '../../components/ui';
 import { DashboardTopbar } from '../../components/DashboardTopbar';
 import { ImportYamlModal } from '../../components/ImportYamlModal';
 import type { ProjectDto } from '../../lib/api';
@@ -241,14 +241,23 @@ function ProjectCard({
         )}
       </div>
 
-      {/* Updated date */}
-      <Typography variant="body-sm" tone="muted" className="mb-3.5">
-        Updated{' '}
-        {project.updatedAt ? new Date(project.updatedAt).toLocaleDateString() : '—'}
-      </Typography>
+      <div className="mb-4 flex items-center gap-3 border-y border-border py-3">
+        <Avatar
+          size="sm"
+          src={project.creator?.profilePicture}
+          alt={project.creator?.name ?? 'Unknown creator'}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-semibold text-text-primary">{project.creator?.name ?? 'Unknown creator'}</p>
+          <p className="truncate text-[11px] text-text-muted">{project.creator?.email ?? 'Creator account unavailable'}</p>
+        </div>
+      </div>
 
       {/* Footer actions */}
       <div className="flex">
+        <Typography variant="caption" tone="muted" className="self-center">
+          Updated {project.updatedAt ? new Date(project.updatedAt).toLocaleDateString() : '—'}
+        </Typography>
         <Button
           variant="danger"
           size="sm"

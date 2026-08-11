@@ -14,4 +14,10 @@ export interface ProjectItem {
   version: string | null
   createdAt: string
   updatedAt: string | null
+  createdById?: string | null
+  creator?: {
+    name: string
+    email: string
+    profilePicture: string | null
+  } | null
 }

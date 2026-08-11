@@ -7,6 +7,7 @@ import { EndpointFolderService } from '../../app/endpoint-folders/service/endpoi
 import { UnauthorizedError, BadRequestError } from '../../configs/exception'
 import { getUser } from '../../lib/get-user'
 import { CreateProjectRequestSchema, UpdateProjectRequestSchema } from '../types/request/project.request'
+import { AccountService } from '../../app/account/service/account.service'
 
 @Controller()
 export class ProjectsController {
@@ -14,13 +15,30 @@ export class ProjectsController {
     private projectService: ProjectService = new ProjectService(),
     private endpointService: EndpointService = new EndpointService(),
     private endpointFolderService: EndpointFolderService = new EndpointFolderService(),
+    private accountService: AccountService = new AccountService(),
   ) {}
 
   @Get('/projects')
   @AuthAccess()
   async list(c: Context) {
     const projects = await this.projectService.list()
-    return c.json(ResponseHelper.data(projects))
+    const creators = new Map(
+      await Promise.all([...new Set(projects.map((project) => project.createdById).filter(Boolean))].map(async (id) => {
+        const account = await this.accountService.findById(id!)
+        return [id, account] as const
+      })),
+    )
+    return c.json(ResponseHelper.data(projects.map((project) => {
+      const creator = project.createdById ? creators.get(project.createdById) : null
+      return {
+        ...project,
+        creator: creator ? {
+          name: creator.name,
+          email: creator.email,
+          profilePicture: creator.profile_picture,
+        } : null,
+      }
+    })))
   }
 
   @Get('/projects/:id')
