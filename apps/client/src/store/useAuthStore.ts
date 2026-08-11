@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { authApi, getToken, setToken, type AuthAccount } from '../lib/api';
+import { getToken, setToken, type AuthAccount } from '../lib/api';
+import { authRepository } from '../repositories';
 
 interface AuthState {
   user: AuthAccount | null;
@@ -22,7 +23,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       return;
     }
     try {
-      const account = await authApi.me();
+      const account = await authRepository.me();
       set({ user: account, initializing: false });
     } catch {
       setToken(null);
@@ -31,14 +32,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   signIn: async (email, password) => {
-    const result = await authApi.signIn(email, password);
+    const result = await authRepository.signIn(email, password);
     setToken(result.access_token);
     set({ user: result.account });
     return true;
   },
 
   signUp: async (name, email, password) => {
-    const result = await authApi.signUp(name, email, password);
+    const result = await authRepository.signUp(name, email, password);
     setToken(result.access_token);
     set({ user: result.account });
     return true;
@@ -47,7 +48,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   completeGoogleSignIn: async (token) => {
     setToken(token);
     try {
-      const account = await authApi.me();
+      const account = await authRepository.me();
       set({ user: account, initializing: false });
     } catch (error) {
       setToken(null);

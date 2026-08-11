@@ -4,7 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import type {
   ApiSpec, Endpoint, ApiTag, SchemaComponent, SecurityScheme,
 } from '@modern-api-studio/types';
-import { getErrorMessage, projectApi, SaveConflictError } from '../lib/api';
+import { getErrorMessage, SaveConflictError } from '../lib/api';
+import { endpointRepository, projectRepository } from '../repositories';
 
 const DEFAULT_SPEC: ApiSpec = {
   id: uuidv4(),
@@ -118,7 +119,7 @@ interface ApiSpecStore {
   lastSavedAt: string | null;
 
   loadProject: (id: string) => Promise<void>;
-  createNewProject: (name: string) => Promise<boolean>;
+  createNewProject: (name: string) => Promise<string | null>;
   importProject: (name: string, spec: ApiSpec) => Promise<boolean>;
   saveProject: (forceOverwrite?: boolean) => Promise<void>;
   deleteProject: (id: string) => Promise<boolean>;
@@ -194,7 +195,7 @@ export const useApiSpecStore = create<ApiSpecStore>()(
       loadProject: async (id: string) => {
         let data;
         try {
-          data = await projectApi.get(id);
+          data = await projectRepository.get(id);
         } catch {
           const { toast } = await import('react-hot-toast');
           toast.error('Failed to load project');
@@ -247,7 +248,7 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         });
       },
 
-      createNewProject: async (name: string): Promise<boolean> => {
+      createNewProject: async (name: string): Promise<string | null> => {
         const newSpec: ApiSpec = {
           ...DEFAULT_SPEC,
           id: uuidv4(),
@@ -256,12 +257,12 @@ export const useApiSpecStore = create<ApiSpecStore>()(
 
         let data;
         try {
-          data = await projectApi.create(name);
+          data = await projectRepository.create(name);
         } catch (err: unknown) {
           console.error('[createNewProject]', err);
           const { toast } = await import('react-hot-toast');
           toast.error(`Failed to create project: ${getErrorMessage(err, 'Unknown error')}`);
-          return false;
+          return null;
         }
 
         get().pushHistory();
@@ -272,13 +273,13 @@ export const useApiSpecStore = create<ApiSpecStore>()(
           localUpdatedAt: data.updatedAt ?? null,
           lastSavedAt: data.updatedAt ?? null,
         });
-        return true;
+        return data.id;
       },
 
       importProject: async (name: string, spec: ApiSpec): Promise<boolean> => {
         let data;
         try {
-          data = await projectApi.create(name);
+          data = await projectRepository.create(name);
         } catch (err: unknown) {
           console.error('[importProject]', err);
           const { toast } = await import('react-hot-toast');
@@ -287,9 +288,9 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         }
 
         // Persist each endpoint as a row (best-effort, non-blocking).
-        const { endpointApi } = await import('../lib/api');
+
         for (const ep of spec.endpoints) {
-          endpointApi
+          endpointRepository
             .create({
               projectId: data.id,
               path: ep.path,
@@ -328,7 +329,7 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         if (!forceOverwrite) {
           let current;
           try {
-            current = await projectApi.get(activeProjectId);
+            current = await projectRepository.get(activeProjectId);
           } catch (err: unknown) {
             const { toast } = await import('react-hot-toast');
             toast.error(`Failed to save: ${getErrorMessage(err, 'Unknown error')}`);
@@ -344,10 +345,10 @@ export const useApiSpecStore = create<ApiSpecStore>()(
           }
         }
 
-        // ── Save project name (spec is saved per-endpoint via endpointApi) ──
+        // ── Save project name (spec is saved per-endpoint via endpointRepository) ──
         let updated;
         try {
-          updated = await projectApi.update(activeProjectId, {
+          updated = await projectRepository.update(activeProjectId, {
             name: spec.info.title,
           });
         } catch (err: unknown) {
@@ -358,9 +359,9 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         }
 
         // ── Persist each endpoint to its own row (debounced caller handles frequency) ──
-        const { endpointApi } = await import('../lib/api');
+
         for (const ep of spec.endpoints) {
-          endpointApi
+          endpointRepository
             .update(ep.id, {
               path: ep.path,
               method: ep.method,
@@ -386,7 +387,7 @@ export const useApiSpecStore = create<ApiSpecStore>()(
 
       deleteProject: async (id: string): Promise<boolean> => {
         try {
-          await projectApi.remove(id);
+          await projectRepository.remove(id);
         } catch (err: unknown) {
           console.error('[deleteProject]', err);
           const { toast } = await import('react-hot-toast');
@@ -406,7 +407,7 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         if (!trimmed) return false;
 
         try {
-          await projectApi.update(id, { name: trimmed });
+          await projectRepository.update(id, { name: trimmed });
         } catch (err: unknown) {
           console.error('[renameProject]', err);
           const { toast } = await import('react-hot-toast');
@@ -630,8 +631,8 @@ export const useApiSpecStore = create<ApiSpecStore>()(
         const ep = get().spec.endpoints.find((e) => e.id === id);
         if (!ep || !get().activeProjectId) return;
         try {
-          const { endpointApi } = await import('../lib/api');
-          await endpointApi.update(id, {
+
+          await endpointRepository.update(id, {
             path: ep.path,
             method: ep.method,
             summary: ep.summary,

@@ -20,9 +20,7 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -32,17 +30,17 @@ export interface ApiEnvelope<T> {
   response_data?: T;
 }
 
-async function unwrap<T>(request: Promise<unknown>): Promise<T> {
-  const res = await request;
-  const body = res as { data: ApiEnvelope<T> };
+export async function unwrap<T>(request: Promise<unknown>): Promise<T> {
+  const response = await request;
+  const body = response as { data: ApiEnvelope<T> };
   const envelope = body.data;
+
   if (!envelope.success) {
     throw new Error(envelope.message ?? 'Request failed');
   }
+
   return envelope.response_data as T;
 }
-
-// ─── DTOs ────────────────────────────────────────────────────────────────────
 
 export interface AuthAccount {
   id: string;
@@ -95,93 +93,3 @@ export class SaveConflictError extends Error {
     this.serverUpdatedAt = serverUpdatedAt;
   }
 }
-
-// ─── Auth endpoints ──────────────────────────────────────────────────────────
-
-export const authApi = {
-  async signIn(email: string, password: string): Promise<AuthResult> {
-    return unwrap<AuthResult>(api.post('/auth/sign-in', { email, password }));
-  },
-
-  async signUp(name: string, email: string, password: string): Promise<AuthResult> {
-    return unwrap<AuthResult>(api.post('/auth/sign-up', { name, email, password }));
-  },
-
-  async me(): Promise<AuthAccount> {
-    return unwrap<AuthAccount>(api.get('/auth/me'));
-  },
-};
-
-// ─── Project endpoints ───────────────────────────────────────────────────────
-
-export const projectApi = {
-  async list(): Promise<ProjectDto[]> {
-    return unwrap<ProjectDto[]>(api.get('/projects'));
-  },
-
-  async get(id: string): Promise<ProjectDetailDto> {
-    return unwrap<ProjectDetailDto>(api.get(`/projects/${id}`));
-  },
-
-  async create(name: string): Promise<ProjectDto> {
-    return unwrap<ProjectDto>(api.post('/projects', { name }));
-  },
-
-  async update(
-    id: string,
-    body: { name?: string },
-  ): Promise<ProjectDto> {
-    return unwrap<ProjectDto>(
-      api.put(`/projects/${id}`, {
-        ...(body.name !== undefined ? { name: body.name } : {}),
-      }),
-    );
-  },
-
-  async remove(id: string): Promise<void> {
-    await unwrap<null>(api.delete(`/projects/${id}`));
-  },
-};
-
-// ─── Endpoint endpoints (per-endpoint CRUD) ──────────────────────────────────
-
-export const endpointApi = {
-  async listByProject(projectId: string): Promise<EndpointDto[]> {
-    return unwrap<EndpointDto[]>(api.get('/endpoints', { params: { projectId } }));
-  },
-
-  async get(id: string): Promise<EndpointDto> {
-    return unwrap<EndpointDto>(api.get(`/endpoints/${id}`));
-  },
-
-  async create(body: {
-    projectId: string;
-    path?: string;
-    method?: string;
-    summary?: string;
-    specData?: Record<string, unknown>;
-  }): Promise<EndpointDto> {
-    return unwrap<EndpointDto>(api.post('/endpoints', body));
-  },
-
-  async update(
-    id: string,
-    body: {
-      path?: string;
-      method?: string;
-      summary?: string;
-      specData?: Record<string, unknown>;
-    },
-  ): Promise<EndpointDto> {
-    return unwrap<EndpointDto>(api.put(`/endpoints/${id}`, body));
-  },
-
-  async remove(id: string): Promise<void> {
-    await unwrap<null>(api.delete(`/endpoints/${id}`));
-  },
-};
-
-// ─── Proxy endpoint (API runner) ─────────────────────────────────────────────
-
-
-

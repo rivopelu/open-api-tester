@@ -10,6 +10,7 @@ import { Button, GridCell, GridPanel, PageContainer, Typography } from '../../co
 import { DashboardTopbar } from '../../components/DashboardTopbar';
 import { ImportYamlModal } from '../../components/ImportYamlModal';
 import type { ProjectDto } from '../../lib/api';
+import { CreateProjectModal } from './create-project-modal';
 import useDashboardPage from './use-dashboard-page';
 
 export default function DashboardPage() {
@@ -96,6 +97,10 @@ export default function DashboardPage() {
       {/* Import YAML modal */}
       {page.showImport && (
         <ImportYamlModal onClose={page.closeImport} onImported={page.onImported} />
+      )}
+
+      {page.showCreate && (
+        <CreateProjectModal onClose={page.closeCreate} onCreate={page.createProject} />
       )}
       </PageContainer>
     </div>
