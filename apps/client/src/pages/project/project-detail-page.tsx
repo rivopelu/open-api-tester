@@ -101,6 +101,7 @@ export default function ProjectDetailPage() {
           ) : page.selectedEndpoint ? (
             <EndpointDetailView
               endpoint={page.selectedEndpoint}
+              onSaveContract={page.saveContract}
               className="flex-1"
             />
           ) : page.project ? (

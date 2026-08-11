@@ -103,6 +103,16 @@ export function useProjectDetailPage() {
       endpointFolderRepository.update(folderId, { parentId }),
     onSuccess: invalidateProject,
   });
+  const saveContractMutation = useMutation({
+    mutationFn: ({ endpointId, requestBody, responses }: { endpointId: string; requestBody: Endpoint['requestBody']; responses: Endpoint['responses'] }) => {
+      const current = endpointDetailQuery.data;
+      if (!current) throw new Error('Endpoint is not loaded');
+      return endpointRepository.update(endpointId, {
+        specData: { ...current.specData, requestBody, responses },
+      });
+    },
+    onSuccess: (endpoint) => queryClient.setQueryData(endpointQueryKeys.detail(endpoint.id), endpoint),
+  });
 
   const project = projectQuery.data?.project ?? null;
   const endpointDtos = useMemo(() => projectQuery.data?.endpoints ?? [], [projectQuery.data?.endpoints]);
@@ -178,5 +188,13 @@ export function useProjectDetailPage() {
       moveEndpointMutation.mutateAsync({ endpointId, folderId }),
     moveFolder: (folderId: string, parentId: string | null) =>
       moveFolderMutation.mutateAsync({ folderId, parentId }),
+    saveContract: (contract: Pick<Endpoint, 'requestBody' | 'responses'>) => {
+      if (!selectedEndpointId) return Promise.resolve();
+      return saveContractMutation.mutateAsync({
+        endpointId: selectedEndpointId,
+        requestBody: contract.requestBody,
+        responses: contract.responses,
+      }).then(() => undefined);
+    },
   };
 }

@@ -17,6 +17,7 @@ import {
 import { Button, Input } from './ui'
 import { cn } from '../lib/utils'
 import { interpolateEnvironment, useEnvironmentStore } from '../store/useEnvironmentStore'
+import { EndpointContractExamples } from './EndpointContractExamples'
 
 interface KvRow {
   id: string
@@ -25,12 +26,13 @@ interface KvRow {
   enabled: boolean
 }
 
-type RequestTab = 'params' | 'authorization' | 'headers' | 'body'
+type RequestTab = 'params' | 'authorization' | 'headers' | 'body' | 'examples'
 type ResponseTab = 'body' | 'headers'
 
 interface EndpointDetailViewProps {
   endpoint: Endpoint
   className?: string
+  onSaveContract?: (contract: Pick<Endpoint, 'requestBody' | 'responses'>) => Promise<void>
 }
 
 const requestTabs: { id: RequestTab; label: string }[] = [
@@ -38,6 +40,7 @@ const requestTabs: { id: RequestTab; label: string }[] = [
   { id: 'authorization', label: 'Authorization' },
   { id: 'headers', label: 'Headers' },
   { id: 'body', label: 'Body' },
+  { id: 'examples', label: 'Examples' },
 ]
 
 function rawUrl(path: string): string {
@@ -165,7 +168,7 @@ function KeyValueEditor({
   )
 }
 
-export default function EndpointDetailView({ endpoint, className }: EndpointDetailViewProps) {
+export default function EndpointDetailView({ endpoint, className, onSaveContract }: EndpointDetailViewProps) {
   const environments = useEnvironmentStore((state) => state.environments)
   const activeEnvironmentId = useEnvironmentStore((state) => state.activeEnvironmentId)
   const variables = environments.find((environment) => environment.id === activeEnvironmentId)?.variables ?? {}
@@ -348,6 +351,7 @@ export default function EndpointDetailView({ endpoint, className }: EndpointDeta
     headers: headerRows.length,
     authorization: authType === 'none' ? 0 : 1,
     body: endpoint.requestBody ? 1 : 0,
+    examples: (endpoint.requestBody?.examples?.length ?? 0) + endpoint.responses.reduce((total, response) => total + (response.examples?.length ?? 0), 0),
   }
   const successful = response && response.status >= 200 && response.status < 300
 
@@ -520,6 +524,13 @@ export default function EndpointDetailView({ endpoint, className }: EndpointDeta
                   className="min-h-[180px] flex-1 resize-none bg-transparent p-4 font-mono text-xs leading-6 text-text-primary outline-none placeholder:text-text-muted"
                 />
               </div>
+            )}
+
+            {activeTab === 'examples' && (
+              <EndpointContractExamples
+                endpoint={endpoint}
+                onSave={onSaveContract ?? (async () => {})}
+              />
             )}
           </div>
         </section>

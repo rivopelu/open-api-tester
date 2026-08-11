@@ -25,7 +25,7 @@ export function McpConnectionPanel() {
   const [rotating, setRotating] = useState(false)
   const [revoking, setRevoking] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
-  const endpoint = `${(import.meta.env.VITE_API_URL || window.location.origin.replace(/:\d+$/, ':8888')).replace(/\/$/, '')}/mcp`
+  const endpoint = 'https://max-api-studio.vercel.app/api/mcp'
 
   useEffect(() => {
     if (!accountId) return
