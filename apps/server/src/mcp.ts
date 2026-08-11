@@ -55,6 +55,43 @@ function createMcpServer(accountId: string) {
   )
 
   server.registerTool(
+    'list_folders',
+    {
+      description: 'List all active folders inside an API project.',
+      inputSchema: { projectId: z.string().min(1) },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ projectId }) => json(await folderService.listByProject(projectId)),
+  )
+
+  server.registerTool(
+    'update_folder',
+    {
+      description: 'Rename or move a folder. Set parentId to null to move it to the project root.',
+      inputSchema: {
+        folderId: z.string().min(1),
+        name: z.string().trim().min(1).optional(),
+        parentId: z.string().nullable().optional(),
+        sortOrder: z.number().int().min(0).optional(),
+      },
+    },
+    async ({ folderId, ...changes }) => json(await folderService.update(folderId, changes)),
+  )
+
+  server.registerTool(
+    'delete_folder',
+    {
+      description: 'Delete an active folder. Nested folders must be deleted first; contained endpoints move to the project root.',
+      inputSchema: { folderId: z.string().min(1) },
+      annotations: { destructiveHint: true },
+    },
+    async ({ folderId }) => {
+      await folderService.delete(folderId, accountId)
+      return json({ success: true })
+    },
+  )
+
+  server.registerTool(
     'create_endpoint',
     {
       description: 'Create an endpoint and optionally its complete OpenAPI contract.',
@@ -90,6 +127,18 @@ function createMcpServer(accountId: string) {
         ...(specData ? { specData: { ...current.specData, ...specData } } : {}),
       }))
     },
+  )
+
+  server.registerTool(
+    'move_endpoint',
+    {
+      description: 'Move an endpoint into a folder, or set folderId to null to move it to the project root.',
+      inputSchema: {
+        endpointId: z.string().min(1),
+        folderId: z.string().nullable(),
+      },
+    },
+    async ({ endpointId, folderId }) => json(await endpointService.update(endpointId, { folderId })),
   )
 
   server.registerTool(
