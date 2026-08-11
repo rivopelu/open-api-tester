@@ -54,6 +54,41 @@ export class EndpointsController {
     return c.json(ResponseHelper.data(endpoint, 'Endpoint created successfully'), 201)
   }
 
+  @Put('/projects/:projectId/endpoints/order')
+  @AuthAccess()
+  async replaceOrder(c: Context) {
+    let body: Record<string, unknown>
+    try {
+      body = await c.req.json()
+    } catch {
+      throw new BadRequestError('Invalid JSON body')
+    }
+
+    if (!Array.isArray(body.groups) || body.groups.length === 0) {
+      throw new BadRequestError('groups must be a non-empty array')
+    }
+
+    const groups = body.groups.map((value) => {
+      if (typeof value !== 'object' || value === null) {
+        throw new BadRequestError('Each endpoint group must be an object')
+      }
+      const group = value as Record<string, unknown>
+      if (group.folderId !== null && typeof group.folderId !== 'string') {
+        throw new BadRequestError('folderId must be a string or null')
+      }
+      if (!Array.isArray(group.endpointIds) || group.endpointIds.some((id) => typeof id !== 'string')) {
+        throw new BadRequestError('endpointIds must be an array of strings')
+      }
+      return {
+        folderId: group.folderId as string | null,
+        endpointIds: group.endpointIds as string[],
+      }
+    })
+
+    const endpoints = await this.endpointService.replaceOrder(c.req.param('projectId')!, groups)
+    return c.json(ResponseHelper.data(endpoints, 'Endpoint order updated successfully'))
+  }
+
   @Put('/endpoints/:id')
   @AuthAccess()
   async update(c: Context) {

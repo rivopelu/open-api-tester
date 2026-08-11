@@ -92,6 +92,7 @@ export interface EndpointDto {
   path: string;
   method: string;
   summary: string | null;
+  sortOrder: number;
   specData: Record<string, unknown>;
   createdAt: string;
   updatedAt: string | null;

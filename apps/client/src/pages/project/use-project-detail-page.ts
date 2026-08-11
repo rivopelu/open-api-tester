@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'react-router-dom';
 import type { Endpoint, HttpMethod } from '@modern-api-studio/types';
-import type { EndpointDto, EndpointSummaryDto } from '../../lib/api';
+import type { EndpointDto, EndpointSummaryDto, ProjectDetailDto } from '../../lib/api';
 import { endpointQueryKeys, projectQueryKeys } from '../../queries/project.queries';
 import { endpointFolderRepository, endpointRepository, projectRepository } from '../../repositories';
+import type { EndpointOrderGroup } from '../../repositories';
 import type { ProjectItemDialogState } from './project-item-modal';
 
 function toEndpoint(dto: EndpointDto | EndpointSummaryDto): Endpoint {
@@ -93,13 +94,42 @@ export function useProjectDetailPage() {
       await invalidateProject();
     },
   });
-  const moveEndpointMutation = useMutation({
-    mutationFn: ({ endpointId, folderId }: { endpointId: string; folderId: string | null }) =>
-      endpointRepository.update(endpointId, { folderId }),
-    onSuccess: async (endpoint) => {
-      queryClient.setQueryData(endpointQueryKeys.detail(endpoint.id), endpoint);
-      await invalidateProject();
+  const reorderEndpointsMutation = useMutation({
+    mutationFn: (groups: EndpointOrderGroup[]) =>
+      endpointRepository.reorder(id as string, groups),
+    onMutate: async (groups) => {
+      if (!id) return undefined;
+      const queryKey = projectQueryKeys.detail(id);
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<ProjectDetailDto>(queryKey);
+      const placement = new Map<string, { folderId: string | null; sortOrder: number }>();
+      for (const group of groups) {
+        group.endpointIds.forEach((endpointId, sortOrder) => {
+          placement.set(endpointId, { folderId: group.folderId, sortOrder });
+        });
+      }
+      queryClient.setQueryData<ProjectDetailDto>(queryKey, (current) => current ? {
+        ...current,
+        endpoints: current.endpoints.map((endpoint) => {
+          const next = placement.get(endpoint.id);
+          return next ? { ...endpoint, ...next } : endpoint;
+        }),
+      } : current);
+      return { previous };
     },
+    onError: (_error, _groups, context) => {
+      if (id && context?.previous) {
+        queryClient.setQueryData(projectQueryKeys.detail(id), context.previous);
+      }
+    },
+    onSuccess: (endpoints) => {
+      if (!id) return;
+      queryClient.setQueryData<ProjectDetailDto>(projectQueryKeys.detail(id), (current) => current ? {
+        ...current,
+        endpoints,
+      } : current);
+    },
+    onSettled: invalidateProject,
   });
   const moveFolderMutation = useMutation({
     mutationFn: ({ folderId, parentId }: { folderId: string; parentId: string | null }) =>
@@ -241,8 +271,8 @@ export function useProjectDetailPage() {
       if (!selectedEndpointId) return Promise.resolve();
       return renameEndpointMutation.mutateAsync({ endpointId: selectedEndpointId, name }).then(() => undefined);
     },
-    moveEndpoint: (endpointId: string, folderId: string | null) =>
-      moveEndpointMutation.mutateAsync({ endpointId, folderId }),
+    reorderEndpoints: (groups: EndpointOrderGroup[]) =>
+      reorderEndpointsMutation.mutateAsync(groups),
     moveFolder: (folderId: string, parentId: string | null) =>
       moveFolderMutation.mutateAsync({ folderId, parentId }),
     changeMethod: (method: HttpMethod) => {

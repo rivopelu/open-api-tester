@@ -69,7 +69,7 @@ export default function ProjectDetailPage() {
           onRenameFolder={page.renameFolder}
           onDeleteFolder={page.deleteFolder}
           onRenameEndpoint={page.renameEndpoint}
-          onMoveEndpoint={page.moveEndpoint}
+          onReorderEndpoints={page.reorderEndpoints}
           onMoveFolder={page.moveFolder}
         />
 

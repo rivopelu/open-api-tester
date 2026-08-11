@@ -161,6 +161,7 @@ describe('ProjectsController', () => {
       path: '/customers',
       method: 'GET',
       summary: 'List customers',
+      sortOrder: 0,
       createdAt: new Date(1000).toISOString(),
       updatedAt: null,
     }])

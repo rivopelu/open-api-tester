@@ -1,4 +1,4 @@
-import { and, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, asc, eq, ilike, isNull, or, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { db as defaultDb } from '../../../configs/database.config'
 import { EndpointsEntity, type EndpointRecord, type NewEndpointRecord } from '../entity/endpoint.entity'
@@ -11,7 +11,11 @@ export class EndpointRepository {
       .select()
       .from(EndpointsEntity)
       .where(and(eq(EndpointsEntity.project_id, projectId), eq(EndpointsEntity.active, true)))
-      .orderBy(EndpointsEntity.sort_order)
+      .orderBy(
+        asc(EndpointsEntity.sort_order),
+        asc(EndpointsEntity.created_date),
+        asc(EndpointsEntity.id),
+      )
   }
 
   async findByProjectFiltered(input: {
@@ -32,7 +36,11 @@ export class EndpointRepository {
       .select()
       .from(EndpointsEntity)
       .where(and(...conditions))
-      .orderBy(EndpointsEntity.sort_order)
+      .orderBy(
+        asc(EndpointsEntity.sort_order),
+        asc(EndpointsEntity.created_date),
+        asc(EndpointsEntity.id),
+      )
       .limit(Math.min(200, Math.max(1, input.limit ?? 50)))
   }
 
@@ -43,6 +51,55 @@ export class EndpointRepository {
       .where(and(eq(EndpointsEntity.id, id), eq(EndpointsEntity.active, true)))
       .limit(1)
     return result[0] ?? null
+  }
+
+  async findByScope(projectId: string, folderId: string | null): Promise<EndpointRecord[]> {
+    const folderCondition = folderId === null
+      ? isNull(EndpointsEntity.folder_id)
+      : eq(EndpointsEntity.folder_id, folderId)
+
+    return this.database
+      .select()
+      .from(EndpointsEntity)
+      .where(and(
+        eq(EndpointsEntity.project_id, projectId),
+        folderCondition,
+        eq(EndpointsEntity.active, true),
+      ))
+      .orderBy(
+        asc(EndpointsEntity.sort_order),
+        asc(EndpointsEntity.created_date),
+        asc(EndpointsEntity.id),
+      )
+  }
+
+  async nextSortOrder(projectId: string, folderId: string | null): Promise<number> {
+    const rows = await this.findByScope(projectId, folderId)
+    return rows.reduce((maximum, row) => Math.max(maximum, row.sort_order), -1) + 1
+  }
+
+  async replaceOrder(
+    projectId: string,
+    groups: Array<{ folderId: string | null; endpointIds: string[] }>,
+  ): Promise<void> {
+    await this.database.transaction(async (transaction) => {
+      for (const group of groups) {
+        for (const [sortOrder, endpointId] of group.endpointIds.entries()) {
+          await transaction
+            .update(EndpointsEntity)
+            .set({
+              folder_id: group.folderId,
+              sort_order: sortOrder,
+              updated_date: Date.now(),
+            })
+            .where(and(
+              eq(EndpointsEntity.id, endpointId),
+              eq(EndpointsEntity.project_id, projectId),
+              eq(EndpointsEntity.active, true),
+            ))
+        }
+      }
+    })
   }
 
   async insert(input: NewEndpointRecord): Promise<EndpointRecord> {

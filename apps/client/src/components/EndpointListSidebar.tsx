@@ -11,9 +11,15 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import type { Endpoint } from '@modern-api-studio/types';
 import type { EndpointDto } from '../lib/api';
 import type { EndpointFolderDto } from '../lib/api';
+import type { EndpointOrderGroup } from '../repositories';
 import {
   AlertTriangle,
   ChevronRight,
@@ -21,6 +27,8 @@ import {
   Folder,
   FolderPlus,
   GripVertical,
+  ArrowUp,
+  ArrowDown,
   Lock,
   Pencil,
   Search,
@@ -42,7 +50,7 @@ export interface EndpointListSidebarProps {
   onRenameFolder: (folderId: string, currentName: string) => void;
   onDeleteFolder: (folderId: string, currentName: string) => void;
   onRenameEndpoint: (endpointId: string, currentName: string) => void;
-  onMoveEndpoint: (endpointId: string, folderId: string | null) => void;
+  onReorderEndpoints: (groups: EndpointOrderGroup[]) => void;
   onMoveFolder: (folderId: string, parentId: string | null) => void;
   className?: string;
 }
@@ -74,17 +82,23 @@ interface EndpointRowProps {
   onSelect: () => void;
   onSelectExamples: (exampleId?: string) => void;
   onContextMenu: (event: MouseEvent) => void;
+  sortingDisabled: boolean;
 }
 
-function EndpointRow({ endpoint, folderId, depth, active, onSelect, onSelectExamples, onContextMenu }: EndpointRowProps) {
+function EndpointRow({ endpoint, folderId, depth, active, onSelect, onSelectExamples, onContextMenu, sortingDisabled }: EndpointRowProps) {
   const [expanded, setExpanded] = useState(false);
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `endpoint:${endpoint.id}`,
     data: { type: 'endpoint', id: endpoint.id, folderId } satisfies DragItem,
+    disabled: sortingDisabled,
   });
 
   return (
-    <div ref={setNodeRef} style={getDragStyle(transform, isDragging)} className={cn(isDragging && 'opacity-30')}>
+    <div
+      ref={setNodeRef}
+      style={{ ...getDragStyle(transform, isDragging), transition }}
+      className={cn(isDragging && 'opacity-30')}
+    >
     <div
       onContextMenu={onContextMenu}
       className={cn('sidebar-item group cursor-pointer', active && 'active', isDragging && 'opacity-30')}
@@ -96,8 +110,13 @@ function EndpointRow({ endpoint, folderId, depth, active, onSelect, onSelectExam
       </button>
       <span
         {...listeners}
-        className="-ml-1 flex h-5 w-3 shrink-0 cursor-grab touch-none items-center justify-center text-text-muted opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
-        aria-label={`Drag ${endpoint.summary || endpoint.path}`}
+        className={cn(
+          '-ml-1 flex h-5 w-3 shrink-0 touch-none items-center justify-center text-text-muted opacity-0 transition-opacity group-hover:opacity-100',
+          sortingDisabled ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing',
+        )}
+        aria-label={sortingDisabled
+          ? 'Clear search to reorder endpoints'
+          : `Drag ${endpoint.summary || endpoint.path}`}
       >
         <GripVertical className="h-3.5 w-3.5" />
       </span>
@@ -190,6 +209,40 @@ function RootDropZone({ visible }: { visible: boolean }) {
   );
 }
 
+interface EndpointGroupDropZoneProps {
+  folderId: string | null;
+  empty: boolean;
+  visible: boolean;
+  children: ReactNode;
+}
+
+function EndpointGroupDropZone({ folderId, empty, visible, children }: EndpointGroupDropZoneProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: folderId === null
+      ? 'drop-endpoint-group:root'
+      : `drop-endpoint-group:folder:${folderId}`,
+    data: { folderId },
+    disabled: !visible,
+  });
+
+  return (
+    <div>
+      {children}
+      {visible && (
+        <div
+          ref={setNodeRef}
+          className={cn(
+            'mx-2 border border-dashed border-transparent transition-colors',
+            empty ? 'my-1 min-h-8' : 'h-2',
+            isOver && 'border-primary bg-primary/10',
+          )}
+          aria-label={folderId ? 'Move endpoint to folder' : 'Move endpoint to project root'}
+        />
+      )}
+    </div>
+  );
+}
+
 export function EndpointListSidebar({
   endpoints,
   endpointDtos,
@@ -202,7 +255,7 @@ export function EndpointListSidebar({
   onRenameFolder,
   onDeleteFolder,
   onRenameEndpoint,
-  onMoveEndpoint,
+  onReorderEndpoints,
   onMoveFolder,
   className,
 }: EndpointListSidebarProps) {
@@ -248,9 +301,25 @@ export function EndpointListSidebar({
     return map;
   }, [folders]);
 
+  const orderedEndpointDtos = useMemo(() => [...endpointDtos].sort((a, b) =>
+    a.sortOrder - b.sortOrder
+    || a.createdAt.localeCompare(b.createdAt)
+    || a.id.localeCompare(b.id)
+  ), [endpointDtos]);
+
+  const endpointIdsByFolder = useMemo(() => {
+    const map = new Map<string | null, string[]>();
+    for (const dto of orderedEndpointDtos) {
+      const siblings = map.get(dto.folderId) ?? [];
+      siblings.push(dto.id);
+      map.set(dto.folderId, siblings);
+    }
+    return map;
+  }, [orderedEndpointDtos]);
+
   const endpointsByFolder = useMemo(() => {
     const map = new Map<string | null, Endpoint[]>();
-    for (const dto of endpointDtos) {
+    for (const dto of orderedEndpointDtos) {
       const endpoint = endpointById.get(dto.id);
       const matches = endpoint && (
         !query ||
@@ -265,7 +334,7 @@ export function EndpointListSidebar({
       map.set(dto.folderId, siblings);
     }
     return map;
-  }, [endpointById, endpointDtos, query]);
+  }, [endpointById, orderedEndpointDtos, query]);
 
   const openMenu = (
     event: MouseEvent,
@@ -298,14 +367,76 @@ export function EndpointListSidebar({
     setMenu(null);
   };
 
+  const placeEndpoint = (
+    endpointId: string,
+    targetFolderId: string | null,
+    targetIndex?: number,
+  ) => {
+    if (query) return;
+    const sourceDto = endpointDtos.find((endpoint) => endpoint.id === endpointId);
+    if (!sourceDto) return;
+
+    const sourceIds = [...(endpointIdsByFolder.get(sourceDto.folderId) ?? [])];
+    const destinationIds = sourceDto.folderId === targetFolderId
+      ? sourceIds
+      : [...(endpointIdsByFolder.get(targetFolderId) ?? [])];
+    const sourceIndex = sourceIds.indexOf(endpointId);
+    if (sourceIndex < 0) return;
+
+    if (sourceDto.folderId === targetFolderId) {
+      const nextIds = sourceIds.filter((id) => id !== endpointId);
+      const nextIndex = Math.max(0, Math.min(targetIndex ?? nextIds.length, nextIds.length));
+      nextIds.splice(nextIndex, 0, endpointId);
+      if (nextIds.every((id, index) => id === sourceIds[index])) return;
+      onReorderEndpoints([{ folderId: targetFolderId, endpointIds: nextIds }]);
+      return;
+    }
+
+    const nextSourceIds = sourceIds.filter((id) => id !== endpointId);
+    const nextDestinationIds = destinationIds.filter((id) => id !== endpointId);
+    const nextIndex = Math.max(
+      0,
+      Math.min(targetIndex ?? nextDestinationIds.length, nextDestinationIds.length),
+    );
+    nextDestinationIds.splice(nextIndex, 0, endpointId);
+    onReorderEndpoints([
+      { folderId: sourceDto.folderId, endpointIds: nextSourceIds },
+      { folderId: targetFolderId, endpointIds: nextDestinationIds },
+    ]);
+    if (targetFolderId) {
+      setExpandedFolders((current) => new Set(current).add(targetFolderId));
+    }
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const item = event.active.data.current as DragItem | undefined;
-    const targetFolderId = event.over?.data.current?.folderId as string | null | undefined;
+    const overData = event.over?.data.current as Record<string, unknown> | undefined;
+    const targetFolderId = overData?.folderId as string | null | undefined;
     setActiveDrag(null);
 
     if (!item || targetFolderId === undefined) return;
     if (item.type === 'endpoint') {
-      if (item.folderId !== targetFolderId) onMoveEndpoint(item.id, targetFolderId);
+      if (query) return;
+      if (overData?.type === 'endpoint' && typeof overData.id === 'string') {
+        const targetIds = endpointIdsByFolder.get(targetFolderId) ?? [];
+        const overIndex = targetIds.indexOf(overData.id);
+        if (overIndex < 0) return;
+        const activeTop = event.active.rect.current.translated?.top;
+        const overMiddle = event.over
+          ? event.over.rect.top + event.over.rect.height / 2
+          : undefined;
+        const insertAfter = activeTop !== undefined
+          && overMiddle !== undefined
+          && activeTop > overMiddle;
+        let targetIndex = overIndex + (insertAfter ? 1 : 0);
+        if (item.folderId === targetFolderId) {
+          const sourceIndex = targetIds.indexOf(item.id);
+          if (sourceIndex >= 0 && sourceIndex < targetIndex) targetIndex -= 1;
+        }
+        placeEndpoint(item.id, targetFolderId, targetIndex);
+      } else {
+        placeEndpoint(item.id, targetFolderId);
+      }
       return;
     }
 
@@ -327,7 +458,27 @@ export function EndpointListSidebar({
       onSelect={() => onSelectEndpoint(endpoint.id)}
       onSelectExamples={(exampleId) => onSelectExamples(endpoint.id, exampleId)}
       onContextMenu={(event) => openMenu(event, { type: 'endpoint', id: endpoint.id })}
+      sortingDisabled={Boolean(query)}
     />
+  );
+
+  const renderEndpointGroup = (
+    groupEndpoints: Endpoint[],
+    folderId: string | null,
+    depth: number,
+  ) => (
+    <EndpointGroupDropZone
+      folderId={folderId}
+      empty={groupEndpoints.length === 0}
+      visible={activeDrag?.type === 'endpoint'}
+    >
+      <SortableContext
+        items={groupEndpoints.map((endpoint) => `endpoint:${endpoint.id}`)}
+        strategy={verticalListSortingStrategy}
+      >
+        {groupEndpoints.map((endpoint) => renderEndpoint(endpoint, folderId, depth))}
+      </SortableContext>
+    </EndpointGroupDropZone>
   );
 
   const renderFolder = (folder: EndpointFolderDto, depth: number): ReactNode => {
@@ -346,7 +497,7 @@ export function EndpointListSidebar({
         {expanded && (
           <div>
             {children.map((child) => renderFolder(child, depth + 1))}
-            {ownEndpoints.map((endpoint) => renderEndpoint(endpoint, folder.id, depth + 1))}
+            {renderEndpointGroup(ownEndpoints, folder.id, depth + 1)}
           </div>
         )}
       </div>
@@ -358,6 +509,15 @@ export function EndpointListSidebar({
   const hasResults = rootEndpoints.length > 0 || rootFolders.length > 0;
   const selectedMenuFolder = menu?.type === 'folder' ? folderById.get(menu.id) : null;
   const selectedMenuEndpoint = menu?.type === 'endpoint' ? endpointById.get(menu.id) : null;
+  const selectedMenuEndpointDto = menu?.type === 'endpoint'
+    ? endpointDtos.find((endpoint) => endpoint.id === menu.id)
+    : undefined;
+  const selectedMenuEndpointIds = selectedMenuEndpointDto
+    ? endpointIdsByFolder.get(selectedMenuEndpointDto.folderId) ?? []
+    : [];
+  const selectedMenuEndpointIndex = selectedMenuEndpointDto
+    ? selectedMenuEndpointIds.indexOf(selectedMenuEndpointDto.id)
+    : -1;
 
   return (
     <DndContext
@@ -375,7 +535,7 @@ export function EndpointListSidebar({
         <RootDropZone visible={activeDrag !== null} />
         {!hasResults && <p className="px-3 py-2 text-xs text-text-muted">No endpoints or folders found</p>}
         {rootFolders.map((folder) => renderFolder(folder, 0))}
-        {rootEndpoints.map((endpoint) => renderEndpoint(endpoint, null, 0))}
+        {renderEndpointGroup(rootEndpoints, null, 0)}
       </div>
 
       {menu && (
@@ -408,14 +568,51 @@ export function EndpointListSidebar({
               </button>
             </>
           )}
-          {selectedMenuEndpoint && (
+          {selectedMenuEndpoint && selectedMenuEndpointDto && (
             <>
               <button className="sidebar-item" role="menuitem" onClick={() => action(() => onRenameEndpoint(selectedMenuEndpoint.id, selectedMenuEndpoint.summary || selectedMenuEndpoint.path))}>
                 <Pencil className="h-3.5 w-3.5" /> Rename endpoint
               </button>
-              <button className="sidebar-item" role="menuitem" onClick={() => action(() => onMoveEndpoint(selectedMenuEndpoint.id, null))}>Move to root</button>
+              <button
+                className="sidebar-item disabled:cursor-not-allowed disabled:opacity-40"
+                role="menuitem"
+                disabled={Boolean(query) || selectedMenuEndpointIndex <= 0}
+                onClick={() => action(() => placeEndpoint(
+                  selectedMenuEndpoint.id,
+                  selectedMenuEndpointDto.folderId,
+                  selectedMenuEndpointIndex - 1,
+                ))}
+              >
+                <ArrowUp className="h-3.5 w-3.5" /> Move up
+              </button>
+              <button
+                className="sidebar-item disabled:cursor-not-allowed disabled:opacity-40"
+                role="menuitem"
+                disabled={Boolean(query) || selectedMenuEndpointIndex < 0 || selectedMenuEndpointIndex >= selectedMenuEndpointIds.length - 1}
+                onClick={() => action(() => placeEndpoint(
+                  selectedMenuEndpoint.id,
+                  selectedMenuEndpointDto.folderId,
+                  selectedMenuEndpointIndex + 1,
+                ))}
+              >
+                <ArrowDown className="h-3.5 w-3.5" /> Move down
+              </button>
+              <button
+                className="sidebar-item disabled:cursor-not-allowed disabled:opacity-40"
+                role="menuitem"
+                disabled={Boolean(query) || selectedMenuEndpointDto.folderId === null}
+                onClick={() => action(() => placeEndpoint(selectedMenuEndpoint.id, null))}
+              >
+                Move to root
+              </button>
               {folders.map((folder) => (
-                <button key={folder.id} className="sidebar-item" role="menuitem" onClick={() => action(() => onMoveEndpoint(selectedMenuEndpoint.id, folder.id))}>
+                <button
+                  key={folder.id}
+                  className="sidebar-item disabled:cursor-not-allowed disabled:opacity-40"
+                  role="menuitem"
+                  disabled={Boolean(query) || selectedMenuEndpointDto.folderId === folder.id}
+                  onClick={() => action(() => placeEndpoint(selectedMenuEndpoint.id, folder.id))}
+                >
                   <Folder className="h-3.5 w-3.5" /> Move to {folder.name}
                 </button>
               ))}
@@ -426,14 +623,14 @@ export function EndpointListSidebar({
     </aside>
     <DragOverlay dropAnimation={null}>
       {activeDrag?.type === 'endpoint' ? (
-        <div className="flex min-w-[220px] items-center gap-2 border border-primary/50 bg-card px-3 py-2 text-xs text-text-primary shadow-lg">
+        <div className="flex min-w-55 items-center gap-2 border border-primary/50 bg-card px-3 py-2 text-xs text-text-primary shadow-lg">
           <span className={cn('method-badge', `badge-${endpointById.get(activeDrag.id)?.method.toLowerCase()}`)}>
             {endpointById.get(activeDrag.id)?.method}
           </span>
           <span className="truncate font-semibold">{endpointById.get(activeDrag.id)?.summary || endpointById.get(activeDrag.id)?.path}</span>
         </div>
       ) : activeDrag?.type === 'folder' ? (
-        <div className="flex min-w-[200px] items-center gap-2 border border-primary/50 bg-card px-3 py-2 text-xs text-text-primary shadow-lg">
+        <div className="flex min-w-50 items-center gap-2 border border-primary/50 bg-card px-3 py-2 text-xs text-text-primary shadow-lg">
           <Folder className="h-3.5 w-3.5 text-purple" /> {folderById.get(activeDrag.id)?.name}
         </div>
       ) : null}
