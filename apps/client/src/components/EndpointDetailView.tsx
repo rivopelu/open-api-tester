@@ -13,8 +13,9 @@ import {
   Send,
   ShieldCheck,
   Trash2,
+  ChevronDown,
 } from 'lucide-react'
-import { Button, Input } from './ui'
+import { Button, Input, Popover } from './ui'
 import { cn } from '../lib/utils'
 import { interpolateEnvironment, useEnvironmentStore } from '../store/useEnvironmentStore'
 import { EndpointContractExamples } from './EndpointContractExamples'
@@ -382,23 +383,50 @@ export default function EndpointDetailView({ endpoint, className, onMethodChange
 
       <div className="shrink-0 border-b border-border bg-overlay px-5 py-4">
         <div className="flex h-10 min-w-0 border border-border bg-base focus-within:border-primary">
-          <select
-            value={endpoint.method}
-            disabled={methodSaving}
-            onChange={async (event) => {
-              if (!onMethodChange) return
-              setMethodSaving(true)
-              try {
-                await onMethodChange(event.target.value as HttpMethod)
-              } finally {
-                setMethodSaving(false)
-              }
-            }}
-            aria-label="HTTP method"
-            className={cn('w-[92px] shrink-0 border-0 border-r border-border px-3 font-mono text-xs font-bold outline-none focus:ring-2 focus:ring-inset focus:ring-primary disabled:opacity-60', `badge-${method}`)}
+          <Popover
+            align="start"
+            triggerClassName="w-[92px] shrink-0"
+            className="mt-1 w-[132px] min-w-0 p-1"
+            trigger={({ open }) => (
+              <button
+                type="button"
+                disabled={methodSaving}
+                aria-label="HTTP method"
+                className={cn(
+                  'flex h-full w-full items-center justify-between border-r border-border px-3 font-mono text-xs font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary disabled:opacity-60',
+                  `badge-${method}`,
+                  open && 'ring-2 ring-inset ring-primary',
+                )}
+              >
+                {endpoint.method}<ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
+              </button>
+            )}
           >
-            {httpMethods.map((httpMethod) => <option key={httpMethod} value={httpMethod}>{httpMethod}</option>)}
-          </select>
+            {({ close }) => httpMethods.map((httpMethod) => (
+              <button
+                key={httpMethod}
+                type="button"
+                role="menuitemradio"
+                aria-checked={endpoint.method === httpMethod}
+                onClick={async () => {
+                  close()
+                  if (!onMethodChange || httpMethod === endpoint.method) return
+                  setMethodSaving(true)
+                  try {
+                    await onMethodChange(httpMethod)
+                  } finally {
+                    setMethodSaving(false)
+                  }
+                }}
+                className={cn(
+                  'flex w-full items-center px-3 py-2 font-mono text-xs font-bold transition-colors hover:bg-overlay focus-visible:bg-overlay focus-visible:outline-none',
+                  endpoint.method === httpMethod ? `badge-${httpMethod.toLowerCase()}` : 'text-text-secondary',
+                )}
+              >
+                {httpMethod}
+              </button>
+            ))}
+          </Popover>
           <input
             value={urlText}
             onChange={(event) => onUrlChange(event.target.value)}

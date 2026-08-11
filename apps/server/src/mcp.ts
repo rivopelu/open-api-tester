@@ -15,6 +15,16 @@ function createMcpServer() {
   const server = new McpServer({ name: 'modern-api-studio', version: '1.0.0' })
 
   server.registerTool(
+    'list_projects',
+    {
+      description: 'List all active API projects.',
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
+    },
+    async () => json(await projectRepository.findActive()),
+  )
+
+  server.registerTool(
     'get_project',
     {
       description: 'Read one active API project by its ID.',
@@ -47,7 +57,10 @@ export const mcpApp = new Hono()
 
 mcpApp.all('/', async (c) => {
   const authorization = c.req.header('Authorization')
-  if (!authorization?.startsWith('Bearer ') || !(await accountService.authenticateMcpToken(authorization.slice(7)))) {
+  const account = authorization?.startsWith('Bearer ')
+    ? await accountService.authenticateMcpToken(authorization.slice(7))
+    : null
+  if (!account) {
     return c.json({ error: 'Invalid MCP token' }, 401)
   }
 
