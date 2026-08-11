@@ -9,6 +9,7 @@ describe('AccountService', () => {
     name: 'Test User',
     password: 'hashed',
     profile_picture: null,
+    mcp_token_hash: null,
     active: true,
     created_date: 1000,
     created_by: null,

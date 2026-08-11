@@ -33,6 +33,7 @@ function fakeService(): ProjectService {
 
 function fakeEndpointService(): EndpointService {
   return {
+    listSummaryByProject: vi.fn(async () => []),
     listByProject: vi.fn(async () => []),
     get: vi.fn(async () => undefined),
     create: vi.fn(async () => undefined),
@@ -149,6 +150,30 @@ describe('ProjectsController', () => {
     expect(body.response_data.project.id).toBe('proj-1')
     expect(body.response_data.endpoints).toEqual([])
     expect(body.response_data.folders).toEqual([])
+  })
+
+  test('GET /api/projects/:id excludes specData from endpoint summaries', async () => {
+    const endpointService = fakeEndpointService()
+    vi.mocked(endpointService.listSummaryByProject).mockResolvedValue([{
+      id: 'endpoint-1',
+      projectId: 'proj-1',
+      folderId: null,
+      path: '/customers',
+      method: 'GET',
+      summary: 'List customers',
+      createdAt: new Date(1000).toISOString(),
+      updatedAt: null,
+    }])
+    const app = buildApp(undefined, endpointService)
+    const token = await makeToken()
+    const res = await app.request('/api/projects/proj-1', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.response_data.endpoints[0]).not.toHaveProperty('specData')
+    expect(endpointService.listSummaryByProject).toHaveBeenCalledWith('proj-1')
   })
 
   test('PUT /api/projects/:id updates project', async () => {

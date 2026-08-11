@@ -2,13 +2,13 @@ import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import type { Endpoint } from '@modern-api-studio/types';
-import type { EndpointDto } from '../../lib/api';
-import { projectQueryKeys } from '../../queries/project.queries';
+import type { EndpointDto, EndpointSummaryDto } from '../../lib/api';
+import { endpointQueryKeys, projectQueryKeys } from '../../queries/project.queries';
 import { endpointFolderRepository, endpointRepository, projectRepository } from '../../repositories';
 import type { ProjectItemDialogState } from './project-item-modal';
 
-function toEndpoint(dto: EndpointDto): Endpoint {
-  const spec = dto.specData ?? {};
+function toEndpoint(dto: EndpointDto | EndpointSummaryDto): Endpoint {
+  const spec = 'specData' in dto ? dto.specData ?? {} : {};
   return {
     id: dto.id,
     path: dto.path,
@@ -37,6 +37,12 @@ export function useProjectDetailPage() {
     enabled: Boolean(id),
   });
 
+  const endpointDetailQuery = useQuery({
+    queryKey: endpointQueryKeys.detail(selectedEndpointId ?? ''),
+    queryFn: () => endpointRepository.get(selectedEndpointId as string),
+    enabled: Boolean(selectedEndpointId),
+  });
+
   const invalidateProject = useCallback(async () => {
     if (id) await queryClient.invalidateQueries({ queryKey: projectQueryKeys.detail(id) });
   }, [id, queryClient]);
@@ -63,6 +69,7 @@ export function useProjectDetailPage() {
       }),
     onSuccess: async (endpoint) => {
       setSelectedEndpointId(endpoint.id);
+      queryClient.setQueryData(endpointQueryKeys.detail(endpoint.id), endpoint);
       await invalidateProject();
     },
   });
@@ -78,11 +85,22 @@ export function useProjectDetailPage() {
   const renameEndpointMutation = useMutation({
     mutationFn: ({ endpointId, name }: { endpointId: string; name: string }) =>
       endpointRepository.update(endpointId, { summary: name }),
-    onSuccess: invalidateProject,
+    onSuccess: async (endpoint) => {
+      queryClient.setQueryData(endpointQueryKeys.detail(endpoint.id), endpoint);
+      await invalidateProject();
+    },
   });
   const moveEndpointMutation = useMutation({
     mutationFn: ({ endpointId, folderId }: { endpointId: string; folderId: string | null }) =>
       endpointRepository.update(endpointId, { folderId }),
+    onSuccess: async (endpoint) => {
+      queryClient.setQueryData(endpointQueryKeys.detail(endpoint.id), endpoint);
+      await invalidateProject();
+    },
+  });
+  const moveFolderMutation = useMutation({
+    mutationFn: ({ folderId, parentId }: { folderId: string; parentId: string | null }) =>
+      endpointFolderRepository.update(folderId, { parentId }),
     onSuccess: invalidateProject,
   });
 
@@ -109,8 +127,8 @@ export function useProjectDetailPage() {
   }, [endpoints]);
 
   const selectedEndpoint = useMemo(
-    () => endpoints.find((endpoint) => endpoint.id === selectedEndpointId) ?? null,
-    [endpoints, selectedEndpointId],
+    () => endpointDetailQuery.data ? toEndpoint(endpointDetailQuery.data) : null,
+    [endpointDetailQuery.data],
   );
 
   const handleSelectEndpoint = useCallback((endpointId: string) => setSelectedEndpointId(endpointId), []);
@@ -140,6 +158,8 @@ export function useProjectDetailPage() {
     tags,
     loading: projectQuery.isPending,
     error: projectQuery.error instanceof Error ? projectQuery.error.message : null,
+    endpointLoading: Boolean(selectedEndpointId) && endpointDetailQuery.isPending,
+    endpointError: endpointDetailQuery.error instanceof Error ? endpointDetailQuery.error.message : null,
     selectedEndpoint,
     selectedEndpointId,
     handleSelectEndpoint,
@@ -156,5 +176,7 @@ export function useProjectDetailPage() {
       setItemDialog({ type: 'rename-endpoint', endpointId, currentName }),
     moveEndpoint: (endpointId: string, folderId: string | null) =>
       moveEndpointMutation.mutateAsync({ endpointId, folderId }),
+    moveFolder: (folderId: string, parentId: string | null) =>
+      moveFolderMutation.mutateAsync({ folderId, parentId }),
   };
 }

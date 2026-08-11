@@ -5,6 +5,7 @@ import type {
   AccountListQuery,
   AccountListResult,
 } from '../types/account.types'
+import { createHash, randomBytes } from 'node:crypto'
 
 export class AccountService {
   constructor(private repository: AccountRepository = new AccountRepository()) {}
@@ -33,5 +34,23 @@ export class AccountService {
 
   async updateProfilePicture(id: string, picture: string): Promise<Account> {
     return this.repository.update(id, { profile_picture: picture })
+  }
+
+  async authenticateMcpToken(token: string): Promise<Account | null> {
+    return this.repository.findActiveByMcpTokenHash(this.hashMcpToken(token))
+  }
+
+  async rotateMcpToken(id: string): Promise<string> {
+    const token = `mas_${randomBytes(32).toString('base64url')}`
+    await this.repository.update(id, { mcp_token_hash: this.hashMcpToken(token) })
+    return token
+  }
+
+  async revokeMcpToken(id: string): Promise<void> {
+    await this.repository.update(id, { mcp_token_hash: null })
+  }
+
+  private hashMcpToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex')
   }
 }

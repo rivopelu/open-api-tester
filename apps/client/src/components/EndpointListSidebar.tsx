@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
+import {
+  DndContext,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import type { Endpoint } from '@modern-api-studio/types';
 import type { EndpointDto, EndpointFolderDto } from '../lib/api';
 import {
@@ -27,6 +35,7 @@ export interface EndpointListSidebarProps {
   onDeleteFolder: (folderId: string, currentName: string) => void;
   onRenameEndpoint: (endpointId: string, currentName: string) => void;
   onMoveEndpoint: (endpointId: string, folderId: string | null) => void;
+  onMoveFolder: (folderId: string, parentId: string | null) => void;
   className?: string;
 }
 
@@ -35,6 +44,112 @@ type MenuState =
   | { type: 'endpoint'; id: string; x: number; y: number }
   | { type: 'root'; x: number; y: number }
   | null;
+
+type DragItem =
+  | { type: 'endpoint'; id: string; folderId: string | null }
+  | { type: 'folder'; id: string; parentId: string | null };
+
+function getDragStyle(transform: { x: number; y: number } | null, isDragging: boolean): CSSProperties {
+  return {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    opacity: isDragging ? 0.55 : undefined,
+    position: 'relative',
+    zIndex: isDragging ? 50 : undefined,
+  };
+}
+
+interface EndpointRowProps {
+  endpoint: Endpoint;
+  folderId: string | null;
+  depth: number;
+  active: boolean;
+  onSelect: () => void;
+  onContextMenu: (event: MouseEvent) => void;
+}
+
+function EndpointRow({ endpoint, folderId, depth, active, onSelect, onContextMenu }: EndpointRowProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `endpoint:${endpoint.id}`,
+    data: { type: 'endpoint', id: endpoint.id, folderId } satisfies DragItem,
+  });
+
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={onSelect}
+      onContextMenu={onContextMenu}
+      className={cn('sidebar-item cursor-grab touch-none active:cursor-grabbing', active && 'active')}
+      style={{ ...getDragStyle(transform, isDragging), paddingLeft: 20 + depth * 14 }}
+      {...listeners}
+      {...attributes}
+    >
+      <span className={cn('method-badge', `badge-${endpoint.method.toLowerCase()}`)}>{endpoint.method}</span>
+      <span className={cn('min-w-0 flex-1 truncate text-xs font-semibold', !endpoint.summary && 'font-mono font-normal')}>
+        {endpoint.summary || endpoint.path}
+      </span>
+      {endpoint.security && endpoint.security.length > 0 && <Lock className="h-3 w-3 shrink-0 text-warning" />}
+      {endpoint.deprecated && <AlertTriangle className="h-3 w-3 shrink-0 text-warning" />}
+    </button>
+  );
+}
+
+interface FolderRowProps {
+  folder: EndpointFolderDto;
+  depth: number;
+  expanded: boolean;
+  onToggle: () => void;
+  onContextMenu: (event: MouseEvent) => void;
+}
+
+function FolderRow({ folder, depth, expanded, onToggle, onContextMenu }: FolderRowProps) {
+  const draggable = useDraggable({
+    id: `folder:${folder.id}`,
+    data: { type: 'folder', id: folder.id, parentId: folder.parentId } satisfies DragItem,
+  });
+  const droppable = useDroppable({ id: `drop-folder:${folder.id}`, data: { folderId: folder.id } });
+  const setNodeRef = (node: HTMLButtonElement | null) => {
+    draggable.setNodeRef(node);
+    droppable.setNodeRef(node);
+  };
+
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={onToggle}
+      onContextMenu={onContextMenu}
+      className={cn(
+        'flex w-full touch-none items-center gap-1.5 py-1.5 pr-3 text-xs font-semibold text-text-secondary hover:bg-overlay',
+        'cursor-grab active:cursor-grabbing',
+        droppable.isOver && !draggable.isDragging && 'bg-primary/15 text-primary outline outline-1 outline-inset outline-primary/50',
+      )}
+      style={{ ...getDragStyle(draggable.transform, draggable.isDragging), paddingLeft: 10 + depth * 14 }}
+      {...draggable.listeners}
+      {...draggable.attributes}
+    >
+      <ChevronRight className={cn('h-3 w-3 transition-transform', expanded && 'rotate-90')} />
+      <Folder className="h-3.5 w-3.5 text-purple" />
+      <span className="truncate">{folder.name}</span>
+    </button>
+  );
+}
+
+function RootDropZone({ visible }: { visible: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'drop-root', data: { folderId: null } });
+  if (!visible) return null;
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'mx-2 mb-2 border border-dashed border-border px-3 py-2 text-center text-xs text-text-muted',
+        isOver && 'border-primary bg-primary/10 text-primary',
+      )}
+    >
+      Move to project root
+    </div>
+  );
+}
 
 export function EndpointListSidebar({
   endpoints,
@@ -48,6 +163,7 @@ export function EndpointListSidebar({
   onDeleteFolder,
   onRenameEndpoint,
   onMoveEndpoint,
+  onMoveFolder,
   className,
 }: EndpointListSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,6 +171,7 @@ export function EndpointListSidebar({
     () => new Set(folders.map((folder) => folder.id)),
   );
   const [menu, setMenu] = useState<MenuState>(null);
+  const [activeDrag, setActiveDrag] = useState<DragItem | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -134,22 +251,41 @@ export function EndpointListSidebar({
     return next;
   });
 
-  const renderEndpoint = (endpoint: Endpoint, depth: number) => (
-    <button
+  const handleDragStart = (event: DragStartEvent) => {
+    const item = event.active.data.current as DragItem | undefined;
+    setActiveDrag(item ?? null);
+    setMenu(null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const item = event.active.data.current as DragItem | undefined;
+    const targetFolderId = event.over?.data.current?.folderId as string | null | undefined;
+    setActiveDrag(null);
+
+    if (!item || targetFolderId === undefined) return;
+    if (item.type === 'endpoint') {
+      if (item.folderId !== targetFolderId) onMoveEndpoint(item.id, targetFolderId);
+      return;
+    }
+
+    if (item.id !== targetFolderId && item.parentId !== targetFolderId) {
+      onMoveFolder(item.id, targetFolderId);
+      if (targetFolderId) {
+        setExpandedFolders((current) => new Set(current).add(targetFolderId));
+      }
+    }
+  };
+
+  const renderEndpoint = (endpoint: Endpoint, folderId: string | null, depth: number) => (
+    <EndpointRow
       key={endpoint.id}
-      type="button"
-      onClick={() => onSelectEndpoint(endpoint.id)}
+      endpoint={endpoint}
+      folderId={folderId}
+      depth={depth}
+      active={activeEndpointId === endpoint.id}
+      onSelect={() => onSelectEndpoint(endpoint.id)}
       onContextMenu={(event) => openMenu(event, { type: 'endpoint', id: endpoint.id })}
-      className={cn('sidebar-item', activeEndpointId === endpoint.id && 'active')}
-      style={{ paddingLeft: 20 + depth * 14 }}
-    >
-      <span className={cn('method-badge', `badge-${endpoint.method.toLowerCase()}`)}>{endpoint.method}</span>
-      <span className={cn('min-w-0 flex-1 truncate text-xs font-semibold', !endpoint.summary && 'font-mono font-normal')}>
-        {endpoint.summary || endpoint.path}
-      </span>
-      {endpoint.security && endpoint.security.length > 0 && <Lock className="h-3 w-3 shrink-0 text-warning" />}
-      {endpoint.deprecated && <AlertTriangle className="h-3 w-3 shrink-0 text-warning" />}
-    </button>
+    />
   );
 
   const renderFolder = (folder: EndpointFolderDto, depth: number): ReactNode => {
@@ -158,17 +294,13 @@ export function EndpointListSidebar({
     const expanded = expandedFolders.has(folder.id) || Boolean(query);
     return (
       <div key={folder.id}>
-        <button
-          type="button"
-          onClick={() => toggleFolder(folder.id)}
+        <FolderRow
+          folder={folder}
+          depth={depth}
+          expanded={expanded}
+          onToggle={() => toggleFolder(folder.id)}
           onContextMenu={(event) => openMenu(event, { type: 'folder', id: folder.id })}
-          className="flex w-full items-center gap-1.5 py-1.5 pr-3 text-xs font-semibold text-text-secondary hover:bg-overlay"
-          style={{ paddingLeft: 10 + depth * 14 }}
-        >
-          <ChevronRight className={cn('h-3 w-3 transition-transform', expanded && 'rotate-90')} />
-          <Folder className="h-3.5 w-3.5 text-purple" />
-          <span className="truncate">{folder.name}</span>
-        </button>
+        />
         {expanded && (
           <div>
             {children.map((child) => renderFolder(child, depth + 1))}
@@ -186,11 +318,18 @@ export function EndpointListSidebar({
   const selectedMenuEndpoint = menu?.type === 'endpoint' ? endpointById.get(menu.id) : null;
 
   return (
+    <DndContext
+      collisionDetection={pointerWithin}
+      onDragStart={handleDragStart}
+      onDragCancel={() => setActiveDrag(null)}
+      onDragEnd={handleDragEnd}
+    >
     <aside className={cn('flex w-[280px] shrink-0 flex-col border-r border-border bg-surface', className)}>
       <div className="border-b border-border p-2.5">
         <Input size="sm" leadingIcon={<Search className="h-3.5 w-3.5" />} placeholder="Search endpoints..." value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
       </div>
       <div className="scroll-y flex-1 py-2" onContextMenu={(event) => openMenu(event, { type: 'root' })}>
+        <RootDropZone visible={activeDrag !== null} />
         {!hasResults && <p className="px-3 py-2 text-xs text-text-muted">No endpoints or folders found</p>}
         {rootFolders.map((folder) => renderFolder(folder, 0))}
         {rootEndpoints.map((endpoint) => renderEndpoint(endpoint, 0))}
@@ -242,5 +381,6 @@ export function EndpointListSidebar({
         </div>
       )}
     </aside>
+    </DndContext>
   );
 }

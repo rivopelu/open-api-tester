@@ -1,8 +1,10 @@
 import { Context } from 'hono'
-import { Controller, Get, AuthAccess } from '../../lib/decorators'
+import { Controller, Get, Post, Delete, AuthAccess } from '../../lib/decorators'
 import { ResponseHelper } from '../../lib/response-helper'
 import { getPagination } from '../../lib/get-pagination'
 import { AccountBffService } from '../services/account-bff.service'
+import { getUser } from '../../lib/get-user'
+import { UnauthorizedError } from '../../configs/exception'
 
 @Controller()
 @AuthAccess()
@@ -16,6 +18,22 @@ export class AccountController {
     const result = await this.accountBffService.list({ page, size, q, sort, order })
 
     return c.json(ResponseHelper.paginated(result.items, { page, size, totalData: result.total }))
+  }
+
+  @Post('/account/mcp-token')
+  async rotateMcpToken(c: Context) {
+    const user = getUser(c)
+    if (!user) throw new UnauthorizedError()
+    const token = await this.accountBffService.rotateMcpToken(user.sub)
+    return c.json(ResponseHelper.data({ token }, 'MCP token rotated successfully'))
+  }
+
+  @Delete('/account/mcp-token')
+  async revokeMcpToken(c: Context) {
+    const user = getUser(c)
+    if (!user) throw new UnauthorizedError()
+    await this.accountBffService.revokeMcpToken(user.sub)
+    return c.json(ResponseHelper.success('MCP token revoked successfully'))
   }
 }
 

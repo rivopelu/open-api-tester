@@ -28,7 +28,7 @@ export class ProjectsController {
   async get(c: Context) {
     const id = c.req.param('id')!
     const project = await this.projectService.get(id)
-    const endpoints = await this.endpointService.listByProject(id)
+    const endpoints = await this.endpointService.listSummaryByProject(id)
     const folders = await this.endpointFolderService.listByProject(id)
     return c.json(ResponseHelper.data({ project, endpoints, folders }))
   }

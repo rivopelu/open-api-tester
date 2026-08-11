@@ -25,6 +25,15 @@ export class AccountRepository {
     return result[0] ?? null
   }
 
+  async findActiveByMcpTokenHash(hash: string): Promise<Account | null> {
+    const result = await this.database
+      .select()
+      .from(AccountEntity)
+      .where(and(eq(AccountEntity.mcp_token_hash, hash), eq(AccountEntity.active, true)))
+      .limit(1)
+    return result[0] ?? null
+  }
+
   async findAll(query: AccountListQuery): Promise<AccountListResult> {
     const page = Math.max(0, query.page ?? 0)
     const size = Math.min(100, Math.max(1, query.size ?? 20))

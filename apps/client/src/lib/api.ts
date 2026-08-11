@@ -65,7 +65,7 @@ export interface ProjectDto {
 
 export interface ProjectDetailDto {
   project: ProjectDto;
-  endpoints: EndpointDto[];
+  endpoints: EndpointSummaryDto[];
   folders: EndpointFolderDto[];
 }
 
@@ -90,6 +90,8 @@ export interface EndpointDto {
   createdAt: string;
   updatedAt: string | null;
 }
+
+export type EndpointSummaryDto = Omit<EndpointDto, 'specData'>;
 
 export function getErrorMessage(err: unknown, fallback = 'Request failed'): string {
   const data = err as { response?: { data?: { message?: string } }; message?: string };

@@ -16,6 +16,7 @@ export const AccountEntity = pgTable('account', {
   name: varchar('name', { length: 255 }).notNull(),
   password: varchar('password', { length: 255 }).notNull(),
   profile_picture: varchar('profile_picture', { length: 500 }),
+  mcp_token_hash: varchar('mcp_token_hash', { length: 64 }).unique(),
   active: boolean('active').default(true).notNull(),
   created_date: bigint('created_date', { mode: 'number' }).$defaultFn(nowTimestamp).notNull(),
   created_by: varchar('created_by', { length: 256 }),

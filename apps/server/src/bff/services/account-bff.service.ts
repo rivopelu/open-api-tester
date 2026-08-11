@@ -7,4 +7,12 @@ export class AccountBffService {
   async list(query: AccountListQuery): Promise<AccountListResult> {
     return this.accountService.list(query)
   }
+
+  async rotateMcpToken(accountId: string): Promise<string> {
+    return this.accountService.rotateMcpToken(accountId)
+  }
+
+  async revokeMcpToken(accountId: string): Promise<void> {
+    return this.accountService.revokeMcpToken(accountId)
+  }
 }

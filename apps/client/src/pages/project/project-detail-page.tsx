@@ -50,7 +50,7 @@ export default function ProjectDetailPage() {
           endpoints={page.endpoints}
           endpointDtos={page.endpointDtos}
           folders={page.folders}
-          activeEndpointId={page.selectedEndpoint?.id ?? null}
+          activeEndpointId={page.selectedEndpointId}
           onSelectEndpoint={page.handleSelectEndpoint}
           onCreateEndpoint={page.createEndpoint}
           onCreateFolder={page.createFolder}
@@ -58,6 +58,7 @@ export default function ProjectDetailPage() {
           onDeleteFolder={page.deleteFolder}
           onRenameEndpoint={page.renameEndpoint}
           onMoveEndpoint={page.moveEndpoint}
+          onMoveFolder={page.moveFolder}
         />
 
         {/* Main area: overview OR endpoint detail */}
@@ -74,6 +75,17 @@ export default function ProjectDetailPage() {
               <Typography tone="muted" variant="body-sm">
                 {page.error}
               </Typography>
+            </div>
+          ) : page.endpointLoading ? (
+            <div className="flex flex-1 items-center justify-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />
+            </div>
+          ) : page.endpointError ? (
+            <div className="flex flex-1 flex-col items-center justify-center text-center">
+              <Typography tone="danger" variant="heading-sm" className="mb-2">
+                Failed to load endpoint
+              </Typography>
+              <Typography tone="muted" variant="body-sm">{page.endpointError}</Typography>
             </div>
           ) : page.selectedEndpoint ? (
             <EndpointDetailView

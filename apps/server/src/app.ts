@@ -12,12 +12,14 @@ import { env } from './configs/env'
 import { errorHandler } from './configs/error-handler'
 import { registerControllers } from './lib/decorators'
 import { requestLogger } from './middlewares/request-logger'
+import { mcpApp } from './mcp'
 
 const app = new Hono()
 
 app.use('*', cors(corsConfig))
 app.use('*', requestLogger())
 app.use('*', secureHeaders())
+app.route('/mcp', mcpApp)
 registerControllers(
   app,
   [

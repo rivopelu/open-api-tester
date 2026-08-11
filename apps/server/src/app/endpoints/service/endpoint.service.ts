@@ -17,6 +17,8 @@ export interface EndpointItem {
   updatedAt: string | null
 }
 
+export type EndpointSummaryItem = Omit<EndpointItem, 'specData'>
+
 export interface SaveEndpointInput {
   projectId?: string
   folderId?: string | null
@@ -45,6 +47,25 @@ export class EndpointService {
       createdAt: new Date(row.created_date).toISOString(),
       updatedAt: row.updated_date ? new Date(row.updated_date).toISOString() : null,
     }
+  }
+
+  toSummaryItem(row: EndpointRecord): EndpointSummaryItem {
+    const item = this.toItem(row)
+    return {
+      id: item.id,
+      projectId: item.projectId,
+      folderId: item.folderId,
+      path: item.path,
+      method: item.method,
+      summary: item.summary,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }
+  }
+
+  async listSummaryByProject(projectId: string): Promise<EndpointSummaryItem[]> {
+    const rows = await this.repository.findByProject(projectId)
+    return rows.map((row) => this.toSummaryItem(row))
   }
 
   async listByProject(projectId: string): Promise<EndpointItem[]> {
