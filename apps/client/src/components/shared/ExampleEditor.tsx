@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { EndpointExample } from '@modern-api-studio/types';
 import { v4 as uuidv4 } from 'uuid';
+import { Braces, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { Button, Typography } from '../ui';
 import { JsonEditor } from './JsonEditor';
 
 interface Props {
@@ -11,6 +13,7 @@ interface Props {
 
 export function ExampleEditor({ examples = [], onChange, onGenerateFromSchema }: Props) {
   const [activeTab, setActiveTab] = useState<string | null>(examples.length > 0 ? examples[0].id : null);
+  const activeExample = examples.find((example) => example.id === activeTab) ?? examples[0];
 
   const addExample = () => {
     const newEx: EndpointExample = {
@@ -28,7 +31,7 @@ export function ExampleEditor({ examples = [], onChange, onGenerateFromSchema }:
     e.stopPropagation();
     const newExamples = examples.filter((ex) => ex.id !== id);
     onChange(newExamples);
-    if (activeTab === id) {
+    if (activeExample?.id === id) {
       setActiveTab(newExamples.length > 0 ? newExamples[0].id : null);
     }
   };
@@ -38,86 +41,111 @@ export function ExampleEditor({ examples = [], onChange, onGenerateFromSchema }:
   };
 
   return (
-    <div className="card" style={{ padding: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Multiple Examples</div>
-        <div style={{ display: 'flex', gap: 6 }}>
+    <div className="flex min-h-0 flex-col bg-base">
+      <div className="flex min-h-12 flex-col gap-3 border-b border-border bg-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div>
+            <Typography variant="label" as="h3">Examples</Typography>
+            <Typography variant="caption" tone="muted" as="p" className="mt-0.5">
+              Define named JSON payloads for documentation and testing.
+            </Typography>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
           {onGenerateFromSchema && (
-            <button className="btn btn-ghost btn-sm" onClick={onGenerateFromSchema}>🪄 Generate from Schema</button>
+            <Button type="button" variant="outline" size="sm" onClick={onGenerateFromSchema}>
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              Generate from schema
+            </Button>
           )}
-          <button className="btn btn-ghost btn-sm" onClick={addExample}>+ Add Example</button>
+          <Button type="button" variant="secondary" size="sm" onClick={addExample}>
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            Add example
+          </Button>
         </div>
       </div>
 
       {examples.length === 0 ? (
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, padding: 16 }}>
-          No examples defined. Click "+ Add Example" to simulate payloads.
+        <div className="flex min-h-48 flex-col items-center justify-center px-6 py-10 text-center">
+          <span className="mb-3 flex h-10 w-10 items-center justify-center border border-border bg-overlay text-text-muted">
+            <Braces className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <Typography variant="label" as="p" className="mb-1">No examples yet</Typography>
+          <Typography variant="body-sm" tone="muted" className="mb-4 max-w-sm">
+            Add a payload manually or generate one from the current schema.
+          </Typography>
+          <Button type="button" variant="primary" size="sm" onClick={addExample}>
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            Add first example
+          </Button>
         </div>
       ) : (
-        <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-          {/* Tabs */}
-          <div style={{ display: 'flex', background: 'var(--bg-overlay)', overflowX: 'auto', borderBottom: '1px solid var(--border)' }}>
+        <div>
+          <div className="flex overflow-x-auto border-b border-border bg-overlay" role="tablist" aria-label="Payload examples">
             {examples.map((ex) => (
-              <div 
-                key={ex.id} 
-                onClick={() => setActiveTab(ex.id)}
-                style={{
-                  padding: '8px 12px',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  borderBottom: activeTab === ex.id ? '2px solid var(--accent-purple)' : '2px solid transparent',
-                  background: activeTab === ex.id ? 'var(--bg-surface)' : 'transparent',
-                  color: activeTab === ex.id ? 'var(--text-primary)' : 'var(--text-muted)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {ex.name || 'Unnamed'}
-                <button 
-                  onClick={(e) => removeExample(ex.id, e)} 
-                  style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: 10, padding: '2px 4px', borderRadius: 4 }}
-                  className="hover-bg"
-                >✕</button>
+              <div key={ex.id} className={`flex shrink-0 items-center border-r border-border ${activeExample?.id === ex.id ? 'bg-surface text-text-primary' : 'text-text-muted'}`}>
+                <button
+                  type="button"
+                  role="tab"
+                  id={`example-tab-${ex.id}`}
+                  aria-controls={`example-panel-${ex.id}`}
+                  aria-selected={activeExample?.id === ex.id}
+                  onClick={() => setActiveTab(ex.id)}
+                  className={`h-10 max-w-48 truncate border-b-2 px-3 font-mono text-xs font-semibold transition-colors ${activeExample?.id === ex.id ? 'border-primary text-primary' : 'border-transparent hover:bg-card hover:text-text-primary'}`}
+                >
+                  {ex.name || 'Unnamed example'}
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => removeExample(ex.id, e)}
+                  className="mr-1 flex h-7 w-7 items-center justify-center text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
+                  aria-label={`Delete example ${ex.name || 'Unnamed example'}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
               </div>
             ))}
           </div>
 
-          {/* Active Content */}
-          {activeTab && (
-            <div style={{ padding: 12, background: 'var(--bg-surface)' }}>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-                <div className="form-group" style={{ flex: 1 }}>
-                  <label className="label">Example Name (Key)</label>
-                  <input 
-                    className="input input-mono" 
-                    style={{ fontSize: 12 }} 
-                    value={examples.find(e => e.id === activeTab)?.name || ''} 
-                    onChange={(e) => updateExample(activeTab, { name: e.target.value.replace(/\s+/g, '_') })} 
-                    placeholder="Success_200" 
+          {activeExample && (
+            <div
+              role="tabpanel"
+              id={`example-panel-${activeExample.id}`}
+              aria-labelledby={`example-tab-${activeExample.id}`}
+              className="min-w-0 bg-base"
+            >
+              <div className="grid border-b border-border md:grid-cols-[minmax(160px,0.8fr)_minmax(240px,1.2fr)]">
+                <label className="min-w-0 border-b border-border bg-surface p-3 md:border-b-0 md:border-r">
+                  <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">Example name</span>
+                  <input
+                    value={activeExample.name || ''}
+                    onChange={(e) => updateExample(activeExample.id, { name: e.target.value.replace(/\s+/g, '_') })}
+                    placeholder="success_200"
+                    className="h-9 w-full border border-border bg-base px-3 font-mono text-xs text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-primary"
                   />
-                </div>
-                <div className="form-group" style={{ flex: 2 }}>
-                  <label className="label">Summary (Optional)</label>
-                  <input 
-                    className="input" 
-                    style={{ fontSize: 12 }} 
-                    value={examples.find(e => e.id === activeTab)?.summary || ''} 
-                    onChange={(e) => updateExample(activeTab, { summary: e.target.value })} 
-                    placeholder="Brief description of this example" 
+                </label>
+                <label className="min-w-0 bg-surface p-3">
+                  <span className="mb-2 block text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">Summary <span className="font-normal normal-case tracking-normal">(optional)</span></span>
+                  <input
+                    value={activeExample.summary || ''}
+                    onChange={(e) => updateExample(activeExample.id, { summary: e.target.value })}
+                    placeholder="Successful response payload"
+                    className="h-9 w-full border border-border bg-base px-3 text-xs text-text-primary outline-none transition-colors placeholder:text-text-muted focus:border-primary"
                   />
-                </div>
+                </label>
               </div>
-              
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="label">Payload Value (JSON)</label>
-                <div style={{ border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-                  <JsonEditor 
-                    value={examples.find(e => e.id === activeTab)?.value || ''} 
-                    onChange={(v) => updateExample(activeTab, { value: v })} 
-                    placeholder='{\n  "key": "value"\n}'
-                    minHeight={150}
+
+              <div className="min-w-0">
+                <div className="flex h-10 items-center justify-between gap-3 border-b border-border bg-surface px-4">
+                  <Typography variant="label" as="span">JSON payload</Typography>
+                  <Typography variant="caption" tone="muted">JSONC comments supported</Typography>
+                </div>
+                <div className="p-3">
+                  <JsonEditor
+                    value={activeExample.value || ''}
+                    onChange={(value) => updateExample(activeExample.id, { value })}
+                    placeholder={'{\n  "key": "value"\n}'}
+                    minHeight={180}
                   />
                 </div>
               </div>

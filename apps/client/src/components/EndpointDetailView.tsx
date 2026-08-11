@@ -649,7 +649,7 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
             ))}
           </nav>
 
-          <div className="scroll-y flex-1">
+          <div className={cn('min-h-0 flex-1', activeTab === 'examples' ? 'overflow-hidden' : 'scroll-y')}>
             {activeTab === 'params' && (
               <div className="grid h-full min-h-0 grid-cols-1 bg-base xl:grid-cols-2">
                 <section className="flex min-h-0 min-w-0 flex-col bg-base">
