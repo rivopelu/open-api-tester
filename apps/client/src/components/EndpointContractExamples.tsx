@@ -157,7 +157,12 @@ export function EndpointContractExamples({ endpoint, initialExampleId, onSave, o
       <aside className="border-r border-border bg-overlay/50">
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
           <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">Contract examples</span>
-          {dirty && <span className="h-2 w-2 bg-warning" title="Unsaved changes" aria-label="Unsaved changes" />}
+          {dirty && (
+            <span className="relative flex h-2.5 w-2.5" title="Unsaved changes" aria-label="Unsaved changes">
+              <span className="absolute inset-0 animate-ping rounded-full bg-warning/40 motion-reduce:animate-none" />
+              <span className="relative m-0.5 h-1.5 w-1.5 rounded-full bg-warning shadow-[0_0_6px_rgba(249,226,175,0.45)]" />
+            </span>
+          )}
           <Button variant="ghost" size="sm" iconOnly onClick={() => void save()} loading={saving} aria-label="Save contract examples">
             {saved ? <Check className="h-3.5 w-3.5 text-success" /> : <Save className="h-3.5 w-3.5" />}
           </Button>

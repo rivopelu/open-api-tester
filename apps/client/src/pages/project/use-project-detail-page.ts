@@ -122,6 +122,20 @@ export function useProjectDetailPage() {
       await invalidateProject();
     },
   });
+  const saveRequestMutation = useMutation({
+    mutationFn: ({ endpointId, path, parameters, requestBody }: { endpointId: string; path: string; parameters: Endpoint['parameters']; requestBody: Endpoint['requestBody'] }) => {
+      const current = endpointDetailQuery.data;
+      if (!current) throw new Error('Endpoint is not loaded');
+      return endpointRepository.update(endpointId, {
+        path,
+        specData: { ...current.specData, parameters, requestBody },
+      });
+    },
+    onSuccess: async (endpoint) => {
+      queryClient.setQueryData(endpointQueryKeys.detail(endpoint.id), endpoint);
+      await invalidateProject();
+    },
+  });
 
   const project = projectQuery.data?.project ?? null;
   const endpointDtos = useMemo(() => projectQuery.data?.endpoints ?? [], [projectQuery.data?.endpoints]);
@@ -224,6 +238,10 @@ export function useProjectDetailPage() {
         requestBody: contract.requestBody,
         responses: contract.responses,
       }).then(() => undefined);
+    },
+    saveRequest: (request: Pick<Endpoint, 'path' | 'parameters' | 'requestBody'>) => {
+      if (!selectedEndpointId) return Promise.resolve();
+      return saveRequestMutation.mutateAsync({ endpointId: selectedEndpointId, ...request }).then(() => undefined);
     },
   };
 }

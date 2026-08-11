@@ -40,6 +40,7 @@ interface EndpointDetailViewProps {
   onMethodChange?: (method: HttpMethod) => Promise<void>
   onRename?: (name: string) => Promise<void>
   onSaveContract?: (contract: Pick<Endpoint, 'requestBody' | 'responses'>) => Promise<void>
+  onSaveRequest?: (request: Pick<Endpoint, 'path' | 'parameters' | 'requestBody'>) => Promise<void>
 }
 
 const httpMethods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'TRACE']
@@ -209,7 +210,7 @@ function KeyValueEditor({
   )
 }
 
-export default function EndpointDetailView({ endpoint, className, initialTab = 'params', initialExampleId, onMethodChange, onRename, onSaveContract }: EndpointDetailViewProps) {
+export default function EndpointDetailView({ endpoint, className, initialTab = 'params', initialExampleId, onMethodChange, onRename, onSaveContract, onSaveRequest }: EndpointDetailViewProps) {
   const environments = useEnvironmentStore((state) => state.environments)
   const activeEnvironmentId = useEnvironmentStore((state) => state.activeEnvironmentId)
   const variables = environments.find((environment) => environment.id === activeEnvironmentId)?.variables ?? {}
@@ -237,6 +238,7 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
   const [loading, setLoading] = useState(false)
   const [methodSaving, setMethodSaving] = useState(false)
   const [examplesDirty, setExamplesDirty] = useState(false)
+  const [requestSaving, setRequestSaving] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameText, setNameText] = useState(endpoint.summary || '')
   const [error, setError] = useState<string | null>(null)
@@ -260,23 +262,78 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
     setQueryRows(parsed.queryRows.length ? parsed.queryRows : rowsFrom(parameters, 'query'))
     setHeaderRows(rowsFrom(parameters, 'header'))
     setBodyText(initialBody(endpoint.requestBody))
-    setActiveTab(initialTab)
     setResponse(null)
     setError(null)
     setElapsedMs(null)
     setNameText(endpoint.summary || '')
-  }, [endpoint, initialTab])
+  }, [endpoint])
+
+  useEffect(() => {
+    setActiveTab(initialTab)
+  }, [endpoint.id, initialTab])
+
+  const requestParameters = useMemo<EndpointParameter[]>(() => [
+    ...pathRows.filter((row) => row.key).map((row) => ({
+      id: row.id,
+      name: row.key,
+      in: 'path' as const,
+      required: row.enabled,
+      schema: { type: 'string' as const, example: row.value },
+    })),
+    ...queryRows.filter((row) => row.key).map((row) => ({
+      id: row.id,
+      name: row.key,
+      in: 'query' as const,
+      required: row.enabled,
+      schema: { type: 'string' as const, example: row.value },
+    })),
+    ...headerRows.filter((row) => row.key).map((row) => ({
+      id: row.id,
+      name: row.key,
+      in: 'header' as const,
+      required: row.enabled,
+      schema: { type: 'string' as const, example: row.value },
+    })),
+  ], [headerRows, pathRows, queryRows])
+
+  const requestDirty = rawUrl(urlText) !== endpoint.path
+    || JSON.stringify(requestParameters) !== JSON.stringify(endpoint.parameters ?? [])
+    || bodyText !== initialBody(endpoint.requestBody)
+  const endpointDirty = requestDirty || examplesDirty
+
+  const saveRequest = useCallback(async () => {
+    if (!requestDirty || !onSaveRequest) return
+    setRequestSaving(true)
+    try {
+      await onSaveRequest({
+        path: rawUrl(urlText),
+        parameters: requestParameters,
+        requestBody: bodyText.trim()
+          ? {
+              required: endpoint.requestBody?.required ?? false,
+              contentType: endpoint.requestBody?.contentType ?? 'application/json',
+              schema: endpoint.requestBody?.schema ?? [],
+              ...endpoint.requestBody,
+              rawJson: bodyText,
+            }
+          : endpoint.requestBody,
+      })
+    } finally {
+      setRequestSaving(false)
+    }
+  }, [bodyText, endpoint.requestBody, onSaveRequest, requestDirty, requestParameters, urlText])
 
   useEffect(() => {
     const saveShortcut = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault()
+        void saveRequest()
         window.dispatchEvent(new CustomEvent('api-studio:save'))
       }
     }
     window.addEventListener('keydown', saveShortcut, true)
     return () => window.removeEventListener('keydown', saveShortcut, true)
-  }, [])
+  }, [saveRequest])
 
   const onUrlChange = (value: string) => {
     const parsed = parseRequestUrl(value)
@@ -448,7 +505,13 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
                   <Pencil className="h-3 w-3 shrink-0 text-text-muted opacity-0 transition-opacity group-hover/name:opacity-100" />
                 </button>
               )}
-              {examplesDirty && <span className="h-2 w-2 shrink-0 bg-warning" title="Unsaved endpoint changes" aria-label="Unsaved endpoint changes" />}
+              {endpointDirty && (
+                <span className="relative flex h-2.5 w-2.5 shrink-0" title="Unsaved endpoint changes" aria-label="Unsaved endpoint changes">
+                  <span className="absolute inset-0 animate-ping rounded-full bg-warning/40 motion-reduce:animate-none" />
+                  <span className="relative m-0.5 h-1.5 w-1.5 rounded-full bg-warning shadow-[0_0_6px_rgba(249,226,175,0.45)]" />
+                </span>
+              )}
+              {requestSaving && <span className="text-[10px] text-text-muted">Saving…</span>}
             </div>
             <p className="mt-0.5 truncate font-mono text-[11px] text-text-muted">
               {endpoint.operationId || endpoint.path}

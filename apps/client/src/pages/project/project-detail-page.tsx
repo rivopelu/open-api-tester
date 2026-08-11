@@ -107,6 +107,7 @@ export default function ProjectDetailPage() {
               onMethodChange={page.changeMethod}
               onRename={page.renameSelectedEndpoint}
               onSaveContract={page.saveContract}
+              onSaveRequest={page.saveRequest}
               className="flex-1"
             />
           ) : page.project ? (
