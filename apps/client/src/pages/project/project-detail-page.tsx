@@ -105,6 +105,7 @@ export default function ProjectDetailPage() {
               initialTab={page.selectedEndpointTab}
               initialExampleId={page.selectedExampleId}
               onMethodChange={page.changeMethod}
+              onRename={page.renameSelectedEndpoint}
               onSaveContract={page.saveContract}
               className="flex-1"
             />

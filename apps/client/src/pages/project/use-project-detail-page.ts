@@ -205,6 +205,10 @@ export function useProjectDetailPage() {
       setItemDialog({ type: 'delete-folder', folderId, currentName }),
     renameEndpoint: (endpointId: string, currentName: string) =>
       setItemDialog({ type: 'rename-endpoint', endpointId, currentName }),
+    renameSelectedEndpoint: (name: string) => {
+      if (!selectedEndpointId) return Promise.resolve();
+      return renameEndpointMutation.mutateAsync({ endpointId: selectedEndpointId, name }).then(() => undefined);
+    },
     moveEndpoint: (endpointId: string, folderId: string | null) =>
       moveEndpointMutation.mutateAsync({ endpointId, folderId }),
     moveFolder: (folderId: string, parentId: string | null) =>

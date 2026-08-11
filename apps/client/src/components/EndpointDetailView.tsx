@@ -15,8 +15,9 @@ import {
   Trash2,
   ChevronDown,
   Pencil,
+  X,
 } from 'lucide-react'
-import { Button, Input, Popover, Tooltip } from './ui'
+import { Button, CodeEditor, Input, Popover, Tooltip } from './ui'
 import { cn } from '../lib/utils'
 import { interpolateEnvironment, useEnvironmentStore } from '../store/useEnvironmentStore'
 import { EndpointContractExamples } from './EndpointContractExamples'
@@ -37,6 +38,7 @@ interface EndpointDetailViewProps {
   initialTab?: 'params' | 'examples'
   initialExampleId?: string
   onMethodChange?: (method: HttpMethod) => Promise<void>
+  onRename?: (name: string) => Promise<void>
   onSaveContract?: (contract: Pick<Endpoint, 'requestBody' | 'responses'>) => Promise<void>
 }
 
@@ -137,30 +139,33 @@ function KeyValueEditor({
   rows,
   onChange,
   emptyMessage,
+  embedded = false,
 }: {
   rows: KvRow[]
   onChange: (rows: KvRow[]) => void
   emptyMessage: string
+  embedded?: boolean
 }) {
   const update = (index: number, patch: Partial<KvRow>) =>
     onChange(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)))
 
   return (
-    <div className="border border-border bg-base">
+    <div className={cn('flex min-h-0 flex-col bg-base', embedded && 'h-full', !embedded && 'border border-border')}>
       <div className="grid grid-cols-[42px_minmax(140px,1fr)_minmax(180px,1.6fr)_38px] border-b border-border bg-overlay px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
         <span className="py-2 text-center">Use</span>
         <span className="border-l border-border px-3 py-2">Key</span>
         <span className="border-l border-border px-3 py-2">Value</span>
         <span />
       </div>
-      {rows.length === 0 && (
-        <div className="px-4 py-8 text-center text-xs text-text-muted">{emptyMessage}</div>
-      )}
-      {rows.map((row, index) => (
-        <div
-          key={row.id}
-          className="group grid grid-cols-[42px_minmax(140px,1fr)_minmax(180px,1.6fr)_38px] border-b border-border last:border-b-0"
-        >
+      <div className="scroll-y min-h-0 flex-1">
+        {rows.length === 0 && (
+          <div className="flex min-h-24 items-center justify-center px-4 py-6 text-center text-xs text-text-muted">{emptyMessage}</div>
+        )}
+        {rows.map((row, index) => (
+          <div
+            key={row.id}
+            className="group grid grid-cols-[42px_minmax(140px,1fr)_minmax(180px,1.6fr)_38px] border-b border-border"
+          >
           <label className="flex items-center justify-center">
             <input
               type="checkbox"
@@ -190,8 +195,9 @@ function KeyValueEditor({
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
-        </div>
-      ))}
+          </div>
+        ))}
+      </div>
       <button
         type="button"
         onClick={() => onChange([...rows, emptyRow()])}
@@ -203,12 +209,13 @@ function KeyValueEditor({
   )
 }
 
-export default function EndpointDetailView({ endpoint, className, initialTab = 'params', initialExampleId, onMethodChange, onSaveContract }: EndpointDetailViewProps) {
+export default function EndpointDetailView({ endpoint, className, initialTab = 'params', initialExampleId, onMethodChange, onRename, onSaveContract }: EndpointDetailViewProps) {
   const environments = useEnvironmentStore((state) => state.environments)
   const activeEnvironmentId = useEnvironmentStore((state) => state.activeEnvironmentId)
   const variables = environments.find((environment) => environment.id === activeEnvironmentId)?.variables ?? {}
   const [activeTab, setActiveTab] = useState<RequestTab>('params')
   const [responseTab, setResponseTab] = useState<ResponseTab>('body')
+  const [responseOpen, setResponseOpen] = useState(true)
   const [urlText, setUrlText] = useState('')
   const [editingUrl, setEditingUrl] = useState(false)
   const [pathRows, setPathRows] = useState<KvRow[]>([])
@@ -229,6 +236,9 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
   const [elapsedMs, setElapsedMs] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [methodSaving, setMethodSaving] = useState(false)
+  const [examplesDirty, setExamplesDirty] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [nameText, setNameText] = useState(endpoint.summary || '')
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -254,7 +264,19 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
     setResponse(null)
     setError(null)
     setElapsedMs(null)
+    setNameText(endpoint.summary || '')
   }, [endpoint, initialTab])
+
+  useEffect(() => {
+    const saveShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        window.dispatchEvent(new CustomEvent('api-studio:save'))
+      }
+    }
+    window.addEventListener('keydown', saveShortcut, true)
+    return () => window.removeEventListener('keydown', saveShortcut, true)
+  }, [])
 
   const onUrlChange = (value: string) => {
     const parsed = parseRequestUrl(value)
@@ -333,6 +355,7 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
   }, [])
 
   const send = useCallback(async () => {
+    setResponseOpen(true)
     setLoading(true)
     setError(null)
     setResponse(null)
@@ -400,9 +423,33 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
         <div className="flex min-w-0 items-center gap-3">
           <span className={cn('method-badge shrink-0', `badge-${method}`)}>{endpoint.method}</span>
           <div className="min-w-0">
-            <h2 className="truncate font-heading text-sm font-semibold text-text-primary">
-              {endpoint.summary || 'Untitled request'}
-            </h2>
+            <div className="flex min-w-0 items-center gap-2">
+              {editingName ? (
+                <input
+                  autoFocus
+                  value={nameText}
+                  onChange={(event) => setNameText(event.target.value)}
+                  onBlur={async () => {
+                    const next = nameText.trim()
+                    setEditingName(false)
+                    if (next && next !== endpoint.summary) await onRename?.(next)
+                    else setNameText(endpoint.summary || '')
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') event.currentTarget.blur()
+                    if (event.key === 'Escape') { setNameText(endpoint.summary || ''); setEditingName(false) }
+                  }}
+                  className="min-w-40 border-b border-primary bg-transparent font-heading text-sm font-semibold text-text-primary outline-none"
+                  aria-label="Endpoint name"
+                />
+              ) : (
+                <button type="button" onClick={() => setEditingName(true)} className="group/name flex min-w-0 items-center gap-2 text-left">
+                  <h2 className="truncate font-heading text-sm font-semibold text-text-primary">{endpoint.summary || 'Untitled request'}</h2>
+                  <Pencil className="h-3 w-3 shrink-0 text-text-muted opacity-0 transition-opacity group-hover/name:opacity-100" />
+                </button>
+              )}
+              {examplesDirty && <span className="h-2 w-2 shrink-0 bg-warning" title="Unsaved endpoint changes" aria-label="Unsaved endpoint changes" />}
+            </div>
             <p className="mt-0.5 truncate font-mono text-[11px] text-text-muted">
               {endpoint.operationId || endpoint.path}
             </p>
@@ -535,32 +582,41 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
             ))}
           </nav>
 
-          <div className="scroll-y flex-1 p-5">
+          <div className="scroll-y flex-1">
             {activeTab === 'params' && (
-              <div className="space-y-5">
-                {pathRows.length > 0 && (
-                  <section>
-                    <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-xs font-bold text-text-secondary">Path variables</h3>
-                      <span className="font-mono text-[10px] text-text-muted">{pathRows.length} defined</span>
+              <div className="grid h-full min-h-0 grid-cols-1 bg-base xl:grid-cols-2">
+                <section className="flex min-h-0 min-w-0 flex-col bg-base">
+                  <div className="flex h-11 items-center justify-between border-b border-border bg-surface px-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-text-primary">Path variables</h3>
+                      <p className="mt-0.5 text-[10px] text-text-muted">Values inserted into the request path</p>
                     </div>
-                    <KeyValueEditor rows={pathRows} onChange={onPathRowsChange} emptyMessage="No path variables" />
-                  </section>
-                )}
-                <section>
-                  <div className="mb-2 flex items-center justify-between">
-                    <h3 className="text-xs font-bold text-text-secondary">Query parameters</h3>
-                    <span className="font-mono text-[10px] text-text-muted">{queryRows.length} defined</span>
+                    <span className="bg-overlay px-2 py-1 font-mono text-[10px] text-text-secondary">{pathRows.length}</span>
                   </div>
-                  <KeyValueEditor rows={queryRows} onChange={setQueryRows} emptyMessage="This request has no query parameters." />
+                  <div className="min-h-0 flex-1"><KeyValueEditor rows={pathRows} onChange={onPathRowsChange} emptyMessage="No path variables in this URL." embedded /></div>
+                </section>
+                <section className="flex min-h-0 min-w-0 flex-col border-t border-border bg-base xl:border-l xl:border-t-0">
+                  <div className="flex h-11 items-center justify-between border-b border-border bg-surface px-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-text-primary">Query parameters</h3>
+                      <p className="mt-0.5 text-[10px] text-text-muted">Key-value pairs appended to the URL</p>
+                    </div>
+                    <span className="bg-overlay px-2 py-1 font-mono text-[10px] text-text-secondary">{queryRows.length}</span>
+                  </div>
+                  <div className="min-h-0 flex-1"><KeyValueEditor rows={queryRows} onChange={setQueryRows} emptyMessage="No query parameters for this request." embedded /></div>
                 </section>
               </div>
             )}
 
             {activeTab === 'authorization' && (
-              <div className="grid max-w-3xl gap-6 md:grid-cols-[220px_1fr]">
-                <div>
-                  <label className="mb-2 block text-xs font-bold text-text-secondary">Auth type</label>
+              <div className="grid h-full min-h-0 grid-cols-1 bg-base md:grid-cols-[260px_minmax(0,1fr)]">
+                <aside className="min-w-0 border-b border-border bg-surface md:border-b-0 md:border-r">
+                  <div className="border-b border-border px-4 py-3">
+                    <h3 className="text-xs font-bold text-text-primary">Authentication</h3>
+                    <p className="mt-1 text-[10px] text-text-muted">Choose how this request proves its identity</p>
+                  </div>
+                  <div className="p-4">
+                  <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">Auth type</label>
                   <Popover
                     align="start"
                     triggerClassName="w-full"
@@ -598,12 +654,14 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
                       </button>
                     ))}
                   </Popover>
-                </div>
-                <div className="border-l border-border pl-6">
-                  <div className="mb-4 flex items-center gap-2 text-xs font-bold text-text-secondary">
+                  </div>
+                </aside>
+                <section className="min-w-0 bg-base">
+                  <div className="flex h-12 items-center gap-2 border-b border-border bg-surface px-4 text-xs font-bold text-text-secondary">
                     <ShieldCheck className="h-4 w-4 text-primary" /> Authentication details
                   </div>
-                  {authType === 'none' && <p className="text-xs text-text-muted">This request does not send authentication credentials.</p>}
+                  <div className="p-5">
+                  {authType === 'none' && <div className="flex min-h-32 items-center justify-center text-center text-xs text-text-muted">This request does not send authentication credentials.</div>}
                   {authType === 'bearer' && (
                     <div>
                       <label className="mb-2 block text-xs text-text-secondary">Token</label>
@@ -667,55 +725,50 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
                     </div>
                   )}
                   {authType === 'basic' && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Input size="sm" value={basicUser} onChange={(event) => setBasicUser(event.target.value)} placeholder="Username" />
-                      <Input type="password" size="sm" value={basicPass} onChange={(event) => setBasicPass(event.target.value)} placeholder="Password" />
+                    <div className="grid max-w-3xl gap-4 sm:grid-cols-2">
+                      <div><label className="mb-2 block text-xs text-text-secondary">Username</label><Input size="sm" value={basicUser} onChange={(event) => setBasicUser(event.target.value)} placeholder="Username or {{variable}}" /></div>
+                      <div><label className="mb-2 block text-xs text-text-secondary">Password</label><Input size="sm" value={basicPass} onChange={(event) => setBasicPass(event.target.value)} placeholder="Password or {{variable}}" /></div>
                     </div>
                   )}
-                </div>
+                  </div>
+                </section>
               </div>
             )}
 
             {activeTab === 'headers' && (
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-text-secondary">Request headers</h3>
-                  <span className="font-mono text-[10px] text-text-muted">{headerRows.length} defined</span>
+              <div className="flex h-full min-h-0 flex-col bg-base">
+                <div className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
+                  <div>
+                    <h3 className="text-xs font-bold text-text-primary">Request headers</h3>
+                    <p className="mt-0.5 text-[10px] text-text-muted">Custom metadata sent with this request</p>
+                  </div>
+                  <span className="bg-overlay px-2 py-1 font-mono text-[10px] text-text-secondary">{headerRows.length}</span>
                 </div>
-                <KeyValueEditor rows={headerRows} onChange={setHeaderRows} emptyMessage="This request has no custom headers." />
+                <div className="min-h-0 flex-1"><KeyValueEditor rows={headerRows} onChange={setHeaderRows} emptyMessage="This request has no custom headers." embedded /></div>
               </div>
             )}
 
             {activeTab === 'body' && (
-              <div className="flex h-full min-h-[190px] flex-col border border-border bg-base">
-                <div className="flex h-9 shrink-0 items-center border-b border-border bg-overlay px-3">
-                  <Braces className="mr-2 h-3.5 w-3.5 text-primary" />
-                  <span className="font-mono text-[11px] text-text-secondary">
-                    {endpoint.requestBody?.contentType || 'application/json'}
-                  </span>
-                  {!endpoint.requestBody && <span className="ml-auto text-[10px] text-text-muted">No body defined in the specification</span>}
-                </div>
-                <textarea
-                  value={bodyText}
-                  onChange={(event) => setBodyText(event.target.value)}
-                  spellCheck={false}
-                  placeholder={'{\n  "key": "value"\n}'}
-                  className="min-h-[180px] flex-1 resize-none bg-transparent p-4 font-mono text-xs leading-6 text-text-primary outline-none placeholder:text-text-muted"
-                />
-              </div>
+              <CodeEditor
+                value={bodyText}
+                onChange={setBodyText}
+                label={endpoint.requestBody?.contentType || 'application/json'}
+                className="h-full min-h-[240px]"
+              />
             )}
 
             {activeTab === 'examples' && (
               <EndpointContractExamples
                 endpoint={endpoint}
                 initialExampleId={initialExampleId}
+                onDirtyChange={setExamplesDirty}
                 onSave={onSaveContract ?? (async () => {})}
               />
             )}
           </div>
         </section>
 
-        <section className="flex min-h-[250px] flex-1 flex-col bg-overlay/30">
+        <section className={cn('flex flex-col bg-overlay/30', responseOpen ? 'min-h-[250px] flex-1' : 'shrink-0')}>
           <div className="flex h-10 shrink-0 items-center border-b border-border bg-surface px-5">
             <div className="flex h-full items-center gap-2">
               <Code2 className="h-3.5 w-3.5 text-text-muted" />
@@ -731,8 +784,19 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
                 <span className="text-text-muted">{new Blob([response.body]).size} B</span>
               </div>
             )}
+            <button
+              type="button"
+              onClick={() => setResponseOpen((open) => !open)}
+              className={cn('ml-3 p-1.5 text-text-muted hover:text-text-primary', !responseOpen && 'ml-auto')}
+              aria-label={responseOpen ? 'Close response panel' : 'Open response panel'}
+              aria-expanded={responseOpen}
+            >
+              {responseOpen ? <X className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5 rotate-180" />}
+            </button>
           </div>
 
+          {responseOpen && (
+          <>
           <div className="flex h-9 shrink-0 items-center border-b border-border px-4">
             {(['body', 'headers'] as ResponseTab[]).map((tab) => (
               <button
@@ -792,6 +856,8 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
               </div>
             )}
           </div>
+          </>
+          )}
         </section>
       </div>
     </div>
