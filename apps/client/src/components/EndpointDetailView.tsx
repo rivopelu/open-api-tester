@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { Endpoint, EndpointParameter, RequestBodyDefinition } from '@modern-api-studio/types'
+import type { Endpoint, EndpointParameter, HttpMethod, RequestBodyDefinition } from '@modern-api-studio/types'
 import {
   AlertCircle,
   Braces,
@@ -32,8 +32,11 @@ type ResponseTab = 'body' | 'headers'
 interface EndpointDetailViewProps {
   endpoint: Endpoint
   className?: string
+  onMethodChange?: (method: HttpMethod) => Promise<void>
   onSaveContract?: (contract: Pick<Endpoint, 'requestBody' | 'responses'>) => Promise<void>
 }
+
+const httpMethods: HttpMethod[] = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'TRACE']
 
 const requestTabs: { id: RequestTab; label: string }[] = [
   { id: 'params', label: 'Params' },
@@ -168,7 +171,7 @@ function KeyValueEditor({
   )
 }
 
-export default function EndpointDetailView({ endpoint, className, onSaveContract }: EndpointDetailViewProps) {
+export default function EndpointDetailView({ endpoint, className, onMethodChange, onSaveContract }: EndpointDetailViewProps) {
   const environments = useEnvironmentStore((state) => state.environments)
   const activeEnvironmentId = useEnvironmentStore((state) => state.activeEnvironmentId)
   const variables = environments.find((environment) => environment.id === activeEnvironmentId)?.variables ?? {}
@@ -191,6 +194,7 @@ export default function EndpointDetailView({ endpoint, className, onSaveContract
   } | null>(null)
   const [elapsedMs, setElapsedMs] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+  const [methodSaving, setMethodSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
@@ -378,9 +382,23 @@ export default function EndpointDetailView({ endpoint, className, onSaveContract
 
       <div className="shrink-0 border-b border-border bg-overlay px-5 py-4">
         <div className="flex h-10 min-w-0 border border-border bg-base focus-within:border-primary">
-          <div className={cn('flex w-[92px] shrink-0 items-center justify-center border-r border-border font-mono text-xs font-bold', `badge-${method}`)}>
-            {endpoint.method}
-          </div>
+          <select
+            value={endpoint.method}
+            disabled={methodSaving}
+            onChange={async (event) => {
+              if (!onMethodChange) return
+              setMethodSaving(true)
+              try {
+                await onMethodChange(event.target.value as HttpMethod)
+              } finally {
+                setMethodSaving(false)
+              }
+            }}
+            aria-label="HTTP method"
+            className={cn('w-[92px] shrink-0 border-0 border-r border-border px-3 font-mono text-xs font-bold outline-none focus:ring-2 focus:ring-inset focus:ring-primary disabled:opacity-60', `badge-${method}`)}
+          >
+            {httpMethods.map((httpMethod) => <option key={httpMethod} value={httpMethod}>{httpMethod}</option>)}
+          </select>
           <input
             value={urlText}
             onChange={(event) => onUrlChange(event.target.value)}

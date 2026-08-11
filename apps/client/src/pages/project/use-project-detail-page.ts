@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
-import type { Endpoint } from '@modern-api-studio/types';
+import type { Endpoint, HttpMethod } from '@modern-api-studio/types';
 import type { EndpointDto, EndpointSummaryDto } from '../../lib/api';
 import { endpointQueryKeys, projectQueryKeys } from '../../queries/project.queries';
 import { endpointFolderRepository, endpointRepository, projectRepository } from '../../repositories';
@@ -103,6 +103,14 @@ export function useProjectDetailPage() {
       endpointFolderRepository.update(folderId, { parentId }),
     onSuccess: invalidateProject,
   });
+  const changeMethodMutation = useMutation({
+    mutationFn: ({ endpointId, method }: { endpointId: string; method: HttpMethod }) =>
+      endpointRepository.update(endpointId, { method }),
+    onSuccess: async (endpoint) => {
+      queryClient.setQueryData(endpointQueryKeys.detail(endpoint.id), endpoint);
+      await invalidateProject();
+    },
+  });
   const saveContractMutation = useMutation({
     mutationFn: ({ endpointId, requestBody, responses }: { endpointId: string; requestBody: Endpoint['requestBody']; responses: Endpoint['responses'] }) => {
       const current = endpointDetailQuery.data;
@@ -188,6 +196,10 @@ export function useProjectDetailPage() {
       moveEndpointMutation.mutateAsync({ endpointId, folderId }),
     moveFolder: (folderId: string, parentId: string | null) =>
       moveFolderMutation.mutateAsync({ folderId, parentId }),
+    changeMethod: (method: HttpMethod) => {
+      if (!selectedEndpointId) return Promise.resolve();
+      return changeMethodMutation.mutateAsync({ endpointId: selectedEndpointId, method }).then(() => undefined);
+    },
     saveContract: (contract: Pick<Endpoint, 'requestBody' | 'responses'>) => {
       if (!selectedEndpointId) return Promise.resolve();
       return saveContractMutation.mutateAsync({
