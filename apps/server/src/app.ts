@@ -19,7 +19,7 @@ const app = new Hono()
 app.use('*', cors(corsConfig))
 app.use('*', requestLogger())
 app.use('*', secureHeaders())
-app.route('/mcp', mcpApp)
+app.route(`${env.API_PREFIX}/mcp`, mcpApp)
 registerControllers(
   app,
   [
