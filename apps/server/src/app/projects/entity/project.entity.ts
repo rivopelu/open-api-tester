@@ -12,7 +12,6 @@ export const ProjectEntity = pgTable('projects', {
     .$type<OpenApiVersion>()
     .default('openapi3'),
   global_security: jsonb('global_security').$type<string[]>().default([]),
-  spec_data: jsonb('spec_data').notNull().default({}).$type<Record<string, unknown>>(),
   ...baseEntity,
 })
 

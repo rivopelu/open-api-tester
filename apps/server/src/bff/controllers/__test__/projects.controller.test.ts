@@ -7,12 +7,14 @@ import { errorHandler } from '../../../configs/error-handler'
 import { authMiddleware } from '../../../middlewares/auth'
 import { env } from '../../../configs/env'
 import type { ProjectService } from '../../../app/projects/service/project.service'
+import type { EndpointService } from '../../../app/endpoints/service/endpoint.service'
 import type { ProjectItem } from '../../../app/projects/types/project.types'
 
 const item: ProjectItem = {
   id: 'proj-1',
   name: 'My API',
-  specData: { id: 'spec-1' },
+  description: null,
+  version: '1.0.0',
   createdAt: new Date(1000).toISOString(),
   updatedAt: new Date(2000).toISOString(),
 }
@@ -28,6 +30,17 @@ function fakeService(): ProjectService {
   } as unknown as ProjectService
 }
 
+function fakeEndpointService(): EndpointService {
+  return {
+    listByProject: vi.fn(async () => []),
+    get: vi.fn(async () => undefined),
+    create: vi.fn(async () => undefined),
+    update: vi.fn(async () => undefined),
+    delete: vi.fn(async () => undefined),
+    toItem: vi.fn(async () => undefined),
+  } as unknown as EndpointService
+}
+
 async function makeToken(): Promise<string> {
   const secret = new TextEncoder().encode(env.JWT_SECRET)
   return new SignJWT({ sub: 'user-1', email: 'user@example.com' })
@@ -38,11 +51,15 @@ async function makeToken(): Promise<string> {
     .sign(secret)
 }
 
-function buildApp(service?: ProjectService) {
+function buildApp(service?: ProjectService, endpointService?: EndpointService) {
   const app = new Hono()
   app.onError(errorHandler)
   app.use('/api/*', authMiddleware())
-  registerControllers(app, [createProjectsController(service ?? fakeService())], '/api')
+  registerControllers(
+    app,
+    [createProjectsController(service ?? fakeService(), endpointService ?? fakeEndpointService())],
+    '/api',
+  )
   return app
 }
 
@@ -106,7 +123,7 @@ describe('ProjectsController', () => {
     expect(body.response_data[0].name).toBe('My API')
   })
 
-  test('GET /api/projects/:id returns project', async () => {
+  test('GET /api/projects/:id returns project with endpoints', async () => {
     const app = buildApp()
     const token = await makeToken()
     const res = await app.request('/api/projects/proj-1', {
@@ -114,7 +131,8 @@ describe('ProjectsController', () => {
     })
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.response_data.id).toBe('proj-1')
+    expect(body.response_data.project.id).toBe('proj-1')
+    expect(body.response_data.endpoints).toEqual([])
   })
 
   test('PUT /api/projects/:id updates project', async () => {
@@ -124,12 +142,12 @@ describe('ProjectsController', () => {
     const res = await app.request('/api/projects/proj-1', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ name: 'Renamed', spec_data: { id: 'spec-2' } }),
+      body: JSON.stringify({ name: 'Renamed' }),
     })
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.response_data.name).toBe('My API')
-    expect(service.update).toHaveBeenCalledWith('proj-1', { name: 'Renamed', spec_data: { id: 'spec-2' } })
+    expect(service.update).toHaveBeenCalledWith('proj-1', { name: 'Renamed' })
   })
 
   test('PUT /api/projects/:id returns 400 for invalid JSON', async () => {

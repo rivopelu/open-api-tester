@@ -10,7 +10,6 @@ const mockRow: Project = {
   version: '1.0.0',
   openapi_version: 'openapi3',
   global_security: [],
-  spec_data: { id: 'spec-1' },
   active: true,
   created_date: 1000,
   created_by: 'user-1',
@@ -45,7 +44,6 @@ describe('ProjectService', () => {
     const items = await service.list()
     expect(items).toHaveLength(1)
     expect(items[0].id).toBe('proj-1')
-    expect(items[0].specData).toEqual({ id: 'spec-1' })
     expect(items[0].updatedAt).toBe(new Date(2000).toISOString())
   })
 
@@ -66,7 +64,7 @@ describe('ProjectService', () => {
     expect(service.get('missing')).rejects.toThrow(NotFoundError)
   })
 
-  test('create inserts trimmed name and default spec data', async () => {
+  test('create inserts trimmed name', async () => {
     const insert = vi.fn(async (input: any) => ({ ...mockRow, ...input }))
     const service = createService({ insert })
     const item = await service.create({ name: '  New API  ', created_by: 'user-1' })
@@ -84,15 +82,7 @@ describe('ProjectService', () => {
     const service = createService({ findActiveById: async () => mockRow, update })
     const item = await service.update('proj-1', { name: '  Renamed  ' })
     expect(item.name).toBe('Renamed')
-    expect(item.specData).toEqual({ id: 'spec-1' })
     expect(update).toHaveBeenCalledTimes(1)
-  })
-
-  test('update passes spec_data patch', async () => {
-    const update = vi.fn(async (id: string, input: any) => ({ ...mockRow, ...input }))
-    const service = createService({ findActiveById: async () => mockRow, update })
-    const item = await service.update('proj-1', { spec_data: { id: 'new-spec' } })
-    expect(item.specData).toEqual({ id: 'new-spec' })
   })
 
   test('update throws NotFoundError when project missing', async () => {
@@ -121,14 +111,5 @@ describe('ProjectService', () => {
     const service = createService({})
     const item = service.toItem({ ...mockRow, updated_date: null })
     expect(item.updatedAt).toBeNull()
-  })
-
-  test('toItem falls back to empty object when spec_data is null', () => {
-    const service = createService({})
-    const item = service.toItem({
-      ...mockRow,
-      spec_data: null as unknown as Record<string, unknown>,
-    })
-    expect(item.specData).toEqual({})
   })
 })

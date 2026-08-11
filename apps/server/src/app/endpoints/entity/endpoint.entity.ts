@@ -1,4 +1,4 @@
-import { boolean, integer, pgTable, text, varchar } from 'drizzle-orm/pg-core'
+import { boolean, integer, jsonb, pgTable, text, varchar } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import type { HttpMethod } from '@modern-api-studio/types'
 import { baseEntity, entityId } from '../../../lib/base.entity'
@@ -12,10 +12,10 @@ export const EndpointsEntity = pgTable('endpoints', {
   path: text('path').notNull(),
   method: varchar('method', { length: 12 }).$type<HttpMethod>().notNull(),
   summary: text('summary').notNull().default(''),
-  description: text('description'),
-  operation_id: text('operation_id'),
-  deprecated: boolean('deprecated').notNull().default(false),
   sort_order: integer('sort_order').notNull().default(0),
+  // Full OpenAPI endpoint definition (parameters, requestBody, responses,
+  // security, tags, description, operationId…). Single JSONB source of truth.
+  spec_data: jsonb('spec_data').notNull().default({}).$type<Record<string, unknown>>(),
   ...baseEntity,
 })
 

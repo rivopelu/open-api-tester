@@ -14,7 +14,6 @@ pnpm monorepo (`pnpm-workspace.yaml`: `apps/*`, `packages/*`). No CI. No existin
 pnpm dev          # parallel client (5173) + server (8888/api)
 pnpm dev:client   # vite only
 pnpm dev:server   # bun --env-file=../../.env run --hot src/index.ts
-pnpm migrate      # node scripts/migrate*.js -> Supabase
 pnpm db:generate|db:migrate|db:studio   # drizzle-kit, from apps/server
 ```
 
@@ -39,7 +38,7 @@ Single server test: `bun test src/lib/__test__/i18n.test.ts`. Client "build" inc
 
 - Single root `.env` (copy `.env.example`). Server loads it via `--env-file=../../.env`; Vite only reads `VITE_*` vars. Never commit `.env`.
 - **`env.ts` / `drizzle.config.ts` ship stale boilerplate defaults** (`reel_cut`, `reel-cut`, `hono-boilerplate`) — set real values in `.env`, don't trust the fallbacks.
-- `pnpm migrate` runs raw SQL from `supabase/migrations/` against `DATABASE_URL` (SSL with `rejectUnauthorized: false`). This is the schema source of truth: RLS policies + SECURITY DEFINER RPC functions that bypass the `project_members` self-query recursion.
+- Schema is managed entirely by **drizzle-kit** (`apps/server/drizzle/` migrations). No Supabase, no raw SQL migration scripts.
 
 ## Server architecture (the part that's easy to get wrong)
 
@@ -50,10 +49,16 @@ Single server test: `bun test src/lib/__test__/i18n.test.ts`. Client "build" inc
 ## UI conventions
 
 - `DESIGN.md` is the required design system: Catppuccin-style dark palette, Sora/Manrope/JetBrains Mono fonts, 4px spacing base, 8/12px radii, 150-220ms motion. Reference it for any client UI work.
-- Client: Zustand for state (local spec persisted to storage), Supabase client-side auth/realtime collaboration, Tailwind v4 + framer-motion.
+- Client: Zustand for state (local spec persisted to storage), Tailwind v4 + framer-motion. Auth via backend JWT (Hono), no Supabase client-side auth.
 
 ### Layout components
 
 - Pages follow the `use-<name>-page` hook pattern + `<PageContainer>`: route via `src/routes.ts` accessor (`router.X`), no inline path strings.
 - Grid panels use the `GridPanel` + `GridCell` pair (see `DESIGN.md > Grid Panels` for the seamless-border technique).
 - Cards: standard surface (`#1e1e2e`) with `border-border`, 0-radius (flat) per this project's design language. Elevated variant uses `#24273a` raised surface.
+
+## Build & verification rules
+
+- **Do NOT run `pnpm run build` automatically.** User verifies builds directly.
+- Do not restart dev servers or open browser after edits without being asked.
+- Run only when user explicitly requests, or when command output is genuinely needed to answer a question.

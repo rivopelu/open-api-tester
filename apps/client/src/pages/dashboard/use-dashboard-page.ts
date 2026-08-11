@@ -18,8 +18,7 @@ export type DashboardStat = {
  */
 export default function useDashboardPage() {
   const navigate = useNavigate()
-  const { loadProject, createNewProject, deleteProject, renameProject } =
-    useApiSpecStore()
+  const { createNewProject, deleteProject, renameProject } = useApiSpecStore()
   const { user, signOut } = useAuthStore()
   const [projects, setProjects] = useState<ProjectDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,10 +44,9 @@ export default function useDashboardPage() {
 
   const selectProject = useCallback(
     async (id: string) => {
-      await loadProject(id)
-      navigate(router.editor.base())
+      navigate(router.project.detail(id))
     },
-    [loadProject, navigate],
+    [navigate],
   )
 
   const createProject = useCallback(

@@ -2,13 +2,17 @@ import { Context } from 'hono'
 import { Controller, Get, Post, Put, Delete, AuthAccess } from '../../lib/decorators'
 import { ResponseHelper } from '../../lib/response-helper'
 import { ProjectService } from '../../app/projects/service/project.service'
+import { EndpointService } from '../../app/endpoints/service/endpoint.service'
 import { UnauthorizedError, BadRequestError } from '../../configs/exception'
 import { getUser } from '../../lib/get-user'
 import { CreateProjectRequestSchema, UpdateProjectRequestSchema } from '../types/request/project.request'
 
 @Controller()
 export class ProjectsController {
-  constructor(private projectService: ProjectService = new ProjectService()) {}
+  constructor(
+    private projectService: ProjectService = new ProjectService(),
+    private endpointService: EndpointService = new EndpointService(),
+  ) {}
 
   @Get('/projects')
   @AuthAccess()
@@ -20,8 +24,10 @@ export class ProjectsController {
   @Get('/projects/:id')
   @AuthAccess()
   async get(c: Context) {
-    const projects = await this.projectService.get(c.req.param('id')!)
-    return c.json(ResponseHelper.data(projects))
+    const id = c.req.param('id')!
+    const project = await this.projectService.get(id)
+    const endpoints = await this.endpointService.listByProject(id)
+    return c.json(ResponseHelper.data({ project, endpoints }))
   }
 
   @Post('/projects')
@@ -71,6 +77,9 @@ export class ProjectsController {
 
 export const projectsController = new ProjectsController()
 
-export function createProjectsController(service?: ProjectService) {
-  return new ProjectsController(service)
+export function createProjectsController(
+  service?: ProjectService,
+  endpointService?: EndpointService,
+) {
+  return new ProjectsController(service, endpointService)
 }

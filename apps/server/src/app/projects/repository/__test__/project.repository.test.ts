@@ -4,7 +4,6 @@ import { ProjectRepository } from '../project.repository'
 const mockRow = {
   id: 'proj-1',
   name: 'My API',
-  spec_data: { id: 'spec-1' },
   active: true,
   created_date: 1000,
   created_by: 'user-1',
@@ -75,7 +74,7 @@ describe('ProjectRepository', () => {
 
   test('insert returns created row', async () => {
     const repo = new ProjectRepository(insertMock(mockRow) as any)
-    const row = await repo.insert({ name: 'My API', spec_data: {}, created_by: 'user-1' })
+    const row = await repo.insert({ name: 'My API', created_by: 'user-1' })
     expect(row.id).toBe('proj-1')
   })
 

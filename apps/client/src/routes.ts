@@ -35,7 +35,11 @@ export const router = {
    * for project-scoped URLs — wire the matching `/projects/:id/*` route here
    * when project-scoped routing lands.
    */
-  project: (id: string) => `/projects/${id}`,
+  project: {
+    detail: (id: string) => `/projects/${id}`,
+    /** Project editor — opens the API spec designer for a project. */
+    editor: (id: string) => `/projects/${id}/editor`,
+  },
   lab: {
     base: () => '/lab',
     button: () => '/lab/button',

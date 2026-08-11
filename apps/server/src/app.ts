@@ -3,6 +3,7 @@ import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
 import { accountController } from './bff/controllers/account.controller'
 import { authController } from './bff/controllers/auth.controller'
+import { endpointsController } from './bff/controllers/endpoints.controller'
 import { projectsController } from './bff/controllers/projects.controller'
 import { systemController } from './bff/controllers/system.controller'
 import { corsConfig } from './configs/cors'
@@ -18,7 +19,13 @@ app.use('*', requestLogger())
 app.use('*', secureHeaders())
 registerControllers(
   app,
-  [systemController, authController, accountController, projectsController],
+  [
+    systemController,
+    authController,
+    accountController,
+    projectsController,
+    endpointsController,
+  ],
   env.API_PREFIX,
 )
 app.onError(errorHandler)

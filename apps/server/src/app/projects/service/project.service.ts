@@ -14,7 +14,8 @@ export class ProjectService {
     return {
       id: row.id,
       name: row.name,
-      specData: (row.spec_data ?? {}) as Record<string, unknown>,
+      description: row.description,
+      version: row.version,
       createdAt: new Date(row.created_date).toISOString(),
       updatedAt: row.updated_date ? new Date(row.updated_date).toISOString() : null,
     }
@@ -36,7 +37,6 @@ export class ProjectService {
     if (!name) throw new BadRequestError('Project name is required')
     const row = await this.repository.insert({
       name,
-      spec_data: input.spec_data ?? {},
       created_by: input.created_by,
     })
     return this.toItem(row)
@@ -52,7 +52,6 @@ export class ProjectService {
       if (!name) throw new BadRequestError('Project name is required')
       patch.name = name
     }
-    if (input.spec_data !== undefined) patch.spec_data = input.spec_data
 
     const row = await this.repository.update(id, patch)
     return this.toItem(row)

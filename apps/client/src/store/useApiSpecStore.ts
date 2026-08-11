@@ -166,10 +166,17 @@ interface ApiSpecStore {
   // Import full spec
   importSpec: (spec: ApiSpec) => void;
   resetSpec: () => void;
+
+  // Per-endpoint auto-save (debounced)
+  scheduleEndpointSave: (id: string) => void;
+  flushEndpointSave: (id: string) => Promise<void>;
 }
 
 const deepClone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const cloneSpec = (s: ApiSpec): ApiSpec => deepClone(s);
+
+// Module-scope Map for per-endpoint debounce timers (keyed by endpoint id).
+const pendingEndpointSaves = new Map<string, ReturnType<typeof setTimeout>>();
 
 export const useApiSpecStore = create<ApiSpecStore>()(
   persist(
@@ -194,14 +201,49 @@ export const useApiSpecStore = create<ApiSpecStore>()(
           return;
         }
 
-        const spec = data.specData;
+        // Reconstruct a local ApiSpec from project metadata + endpoint rows.
+        // Each endpoint stores its detail in spec_data JSONB.
+        const endpoints: ApiSpec['endpoints'] = data.endpoints.map((dto) => {
+          const sd = dto.specData ?? {};
+          return {
+            id: dto.id,
+            path: dto.path,
+            method: (dto.method as ApiSpec['endpoints'][number]['method']) ?? 'GET',
+            summary: typeof sd.summary === 'string' ? sd.summary : undefined,
+            description: typeof sd.description === 'string' ? sd.description : undefined,
+            operationId: typeof sd.operationId === 'string' ? sd.operationId : undefined,
+            tags: Array.isArray(sd.tags) ? (sd.tags as string[]) : [],
+            deprecated: Boolean(sd.deprecated),
+            security: Array.isArray(sd.security) ? (sd.security as string[]) : undefined,
+            parameters: Array.isArray(sd.parameters) ? (sd.parameters as ApiSpec['endpoints'][number]['parameters']) : [],
+            requestBody: sd.requestBody as ApiSpec['endpoints'][number]['requestBody'],
+            responses: Array.isArray(sd.responses) ? (sd.responses as ApiSpec['endpoints'][number]['responses']) : [],
+          };
+        });
+
+        const spec: ApiSpec = {
+          ...DEFAULT_SPEC,
+          id: data.project.id,
+          info: {
+            ...DEFAULT_SPEC.info,
+            title: data.project.name,
+            description: data.project.description ?? undefined,
+          },
+          endpoints,
+          tags: [],
+          components: { schemas: [], securitySchemes: [] },
+          globalSecurity: [],
+          servers: [],
+          openApiVersion: 'openapi3',
+        };
+
         get().pushHistory();
         set({
           spec,
           activeProjectId: id,
-          activeEndpointId: spec.endpoints[0]?.id ?? null,
-          localUpdatedAt: data.updatedAt ?? null,
-          lastSavedAt: data.updatedAt ?? null,
+          activeEndpointId: endpoints[0]?.id ?? null,
+          localUpdatedAt: data.project.updatedAt ?? null,
+          lastSavedAt: data.project.updatedAt ?? null,
         });
       },
 
@@ -214,7 +256,7 @@ export const useApiSpecStore = create<ApiSpecStore>()(
 
         let data;
         try {
-          data = await projectApi.create(name, newSpec);
+          data = await projectApi.create(name);
         } catch (err: unknown) {
           console.error('[createNewProject]', err);
           const { toast } = await import('react-hot-toast');
@@ -236,12 +278,35 @@ export const useApiSpecStore = create<ApiSpecStore>()(
       importProject: async (name: string, spec: ApiSpec): Promise<boolean> => {
         let data;
         try {
-          data = await projectApi.create(name, spec);
+          data = await projectApi.create(name);
         } catch (err: unknown) {
           console.error('[importProject]', err);
           const { toast } = await import('react-hot-toast');
           toast.error(`Failed to import project: ${getErrorMessage(err, 'Unknown error')}`);
           return false;
+        }
+
+        // Persist each endpoint as a row (best-effort, non-blocking).
+        const { endpointApi } = await import('../lib/api');
+        for (const ep of spec.endpoints) {
+          endpointApi
+            .create({
+              projectId: data.id,
+              path: ep.path,
+              method: ep.method,
+              summary: ep.summary,
+              specData: {
+                tags: ep.tags,
+                deprecated: ep.deprecated,
+                security: ep.security,
+                parameters: ep.parameters,
+                requestBody: ep.requestBody,
+                responses: ep.responses,
+                operationId: ep.operationId,
+                description: ep.description,
+              },
+            })
+            .catch((e) => console.error('[importProject] endpoint save failed', e));
         }
 
         get().pushHistory();
@@ -270,7 +335,7 @@ export const useApiSpecStore = create<ApiSpecStore>()(
             return;
           }
 
-          const serverUpdatedAt: string | null = current.updatedAt ?? null;
+          const serverUpdatedAt: string | null = current.project.updatedAt ?? null;
 
           // Timestamps may include sub-second precision; normalise to seconds.
           const toSec = (ts: string | null) => ts ? ts.slice(0, 19) : null;
@@ -279,18 +344,39 @@ export const useApiSpecStore = create<ApiSpecStore>()(
           }
         }
 
-        // ── Proceed with save ─────────────────────────────────────────────────
+        // ── Save project name (spec is saved per-endpoint via endpointApi) ──
         let updated;
         try {
           updated = await projectApi.update(activeProjectId, {
             name: spec.info.title,
-            specData: spec,
           });
         } catch (err: unknown) {
           console.error('[saveProject]', err);
           const { toast } = await import('react-hot-toast');
           toast.error(`Failed to save project: ${getErrorMessage(err, 'Unknown error')}`);
           return;
+        }
+
+        // ── Persist each endpoint to its own row (debounced caller handles frequency) ──
+        const { endpointApi } = await import('../lib/api');
+        for (const ep of spec.endpoints) {
+          endpointApi
+            .update(ep.id, {
+              path: ep.path,
+              method: ep.method,
+              summary: ep.summary,
+              specData: {
+                tags: ep.tags,
+                deprecated: ep.deprecated,
+                security: ep.security,
+                parameters: ep.parameters,
+                requestBody: ep.requestBody,
+                responses: ep.responses,
+                operationId: ep.operationId,
+                description: ep.description,
+              },
+            })
+            .catch((e) => console.error('[saveProject] endpoint save failed', e));
         }
 
         // ── Update localUpdatedAt so subsequent saves don't false-alarm ───────
@@ -388,6 +474,8 @@ export const useApiSpecStore = create<ApiSpecStore>()(
             endpoints: s.spec.endpoints.map((e) => (e.id === id ? { ...e, ...changes } : e)),
           },
         }));
+        // Schedule debounced per-endpoint save to backend
+        get().scheduleEndpointSave(id);
       },
 
       duplicateEndpoint: (id) => {
@@ -519,6 +607,48 @@ export const useApiSpecStore = create<ApiSpecStore>()(
       resetSpec: () => {
         get().pushHistory();
         set({ spec: { ...DEFAULT_SPEC, id: uuidv4() }, activeEndpointId: DEFAULT_SPEC.endpoints[0]?.id ?? null });
+      },
+
+      // ── Per-endpoint debounced auto-save (800ms idle) ────────────────────
+      scheduleEndpointSave: (id: string) => {
+        // Clear any pending save for this endpoint, set a new timer.
+        const existing = pendingEndpointSaves.get(id);
+        if (existing) clearTimeout(existing);
+        const timer = setTimeout(() => {
+          pendingEndpointSaves.delete(id);
+          void get().flushEndpointSave(id);
+        }, 800);
+        pendingEndpointSaves.set(id, timer);
+      },
+
+      flushEndpointSave: async (id: string) => {
+        const timer = pendingEndpointSaves.get(id);
+        if (timer) {
+          clearTimeout(timer);
+          pendingEndpointSaves.delete(id);
+        }
+        const ep = get().spec.endpoints.find((e) => e.id === id);
+        if (!ep || !get().activeProjectId) return;
+        try {
+          const { endpointApi } = await import('../lib/api');
+          await endpointApi.update(id, {
+            path: ep.path,
+            method: ep.method,
+            summary: ep.summary,
+            specData: {
+              tags: ep.tags,
+              deprecated: ep.deprecated,
+              security: ep.security,
+              parameters: ep.parameters,
+              requestBody: ep.requestBody,
+              responses: ep.responses,
+              operationId: ep.operationId,
+              description: ep.description,
+            },
+          });
+        } catch (err) {
+          console.error('[flushEndpointSave]', err);
+        }
       },
     }),
     {

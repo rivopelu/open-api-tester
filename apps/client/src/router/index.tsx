@@ -23,6 +23,7 @@ import SignInPage from '../pages/auth/sign-in-page';
 import EditorLayout from '../pages/editor/editor-layout';
 import EditorHomePage from '../pages/editor/editor-home-page';
 import ProfileSettingsPage from '../pages/profile-settings/profile-settings-page';
+import ProjectDetailPage from '../pages/project/project-detail-page';
 
 export const appRouter = createBrowserRouter([
   {
@@ -60,6 +61,10 @@ export const appRouter = createBrowserRouter([
       {
         path: '/dashboard',
         element: <DashboardPage />,
+      },
+      {
+        path: '/projects/:id',
+        element: <ProjectDetailPage />,
       },
       {
         path: '/settings/profile',

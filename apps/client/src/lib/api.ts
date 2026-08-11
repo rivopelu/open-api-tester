@@ -1,5 +1,4 @@
 import axios from 'axios';
-import type { ApiSpec } from '@modern-api-studio/types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_KEY = 'api-studio:token';
@@ -60,7 +59,24 @@ export interface AuthResult {
 export interface ProjectDto {
   id: string;
   name: string;
-  specData: ApiSpec;
+  description: string | null;
+  version: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface ProjectDetailDto {
+  project: ProjectDto;
+  endpoints: EndpointDto[];
+}
+
+export interface EndpointDto {
+  id: string;
+  projectId: string;
+  path: string;
+  method: string;
+  summary: string | null;
+  specData: Record<string, unknown>;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -103,22 +119,21 @@ export const projectApi = {
     return unwrap<ProjectDto[]>(api.get('/projects'));
   },
 
-  async get(id: string): Promise<ProjectDto> {
-    return unwrap<ProjectDto>(api.get(`/projects/${id}`));
+  async get(id: string): Promise<ProjectDetailDto> {
+    return unwrap<ProjectDetailDto>(api.get(`/projects/${id}`));
   },
 
-  async create(name: string, specData?: ApiSpec): Promise<ProjectDto> {
-    return unwrap<ProjectDto>(api.post('/projects', { name, ...(specData ? { spec_data: specData } : {}) }));
+  async create(name: string): Promise<ProjectDto> {
+    return unwrap<ProjectDto>(api.post('/projects', { name }));
   },
 
   async update(
     id: string,
-    body: { name?: string; specData?: ApiSpec },
+    body: { name?: string },
   ): Promise<ProjectDto> {
     return unwrap<ProjectDto>(
       api.put(`/projects/${id}`, {
         ...(body.name !== undefined ? { name: body.name } : {}),
-        ...(body.specData !== undefined ? { spec_data: body.specData } : {}),
       }),
     );
   },
@@ -127,3 +142,46 @@ export const projectApi = {
     await unwrap<null>(api.delete(`/projects/${id}`));
   },
 };
+
+// ─── Endpoint endpoints (per-endpoint CRUD) ──────────────────────────────────
+
+export const endpointApi = {
+  async listByProject(projectId: string): Promise<EndpointDto[]> {
+    return unwrap<EndpointDto[]>(api.get('/endpoints', { params: { projectId } }));
+  },
+
+  async get(id: string): Promise<EndpointDto> {
+    return unwrap<EndpointDto>(api.get(`/endpoints/${id}`));
+  },
+
+  async create(body: {
+    projectId: string;
+    path?: string;
+    method?: string;
+    summary?: string;
+    specData?: Record<string, unknown>;
+  }): Promise<EndpointDto> {
+    return unwrap<EndpointDto>(api.post('/endpoints', body));
+  },
+
+  async update(
+    id: string,
+    body: {
+      path?: string;
+      method?: string;
+      summary?: string;
+      specData?: Record<string, unknown>;
+    },
+  ): Promise<EndpointDto> {
+    return unwrap<EndpointDto>(api.put(`/endpoints/${id}`, body));
+  },
+
+  async remove(id: string): Promise<void> {
+    await unwrap<null>(api.delete(`/endpoints/${id}`));
+  },
+};
+
+// ─── Proxy endpoint (API runner) ─────────────────────────────────────────────
+
+
+
