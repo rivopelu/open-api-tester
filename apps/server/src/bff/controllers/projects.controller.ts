@@ -23,7 +23,7 @@ export class ProjectsController {
   async list(c: Context) {
     const projects = await this.projectService.list()
     const creators = new Map(
-      await Promise.all([...new Set(projects.map((project) => project.createdById).filter(Boolean))].map(async (id) => {
+      await Promise.all(Array.from(new Set(projects.map((project) => project.createdById).filter(Boolean))).map(async (id) => {
         const account = await this.accountService.findById(id!)
         return [id, account] as const
       })),
