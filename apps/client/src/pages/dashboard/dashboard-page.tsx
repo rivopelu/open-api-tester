@@ -18,12 +18,23 @@ export default function DashboardPage() {
   const page = useDashboardPage();
 
   return (
-    <div className="flex min-h-screen flex-col bg-base">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-base">
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        <div className="absolute -right-32 top-12 h-[420px] w-[620px] rotate-[-12deg] animate-[pulse_9s_ease-in-out_infinite] border border-primary/10 bg-primary/[0.025] motion-reduce:animate-none" />
+        <div className="absolute -right-12 top-48 h-[320px] w-[440px] rotate-[18deg] animate-[pulse_12s_ease-in-out_infinite] border border-purple/10 bg-purple/[0.025] motion-reduce:animate-none" />
+        <div className="absolute -left-40 top-[420px] h-[360px] w-[560px] rotate-[8deg] animate-[pulse_14s_ease-in-out_infinite] border border-teal/10 bg-teal/[0.02] motion-reduce:animate-none" />
+        <svg className="absolute right-[7%] top-24 h-[360px] w-[560px] animate-[pulse_10s_ease-in-out_infinite] opacity-25 motion-reduce:animate-none" viewBox="0 0 560 360" fill="none">
+          <path d="M24 292C112 292 108 104 218 104S322 252 418 252s84-188 126-188" stroke="#89b4fa" strokeOpacity=".22" />
+          <path d="M2 326C124 326 132 152 250 152s118 132 206 132 68-92 104-92" stroke="#94e2d5" strokeOpacity=".15" />
+          <circle className="animate-pulse motion-reduce:animate-none" cx="218" cy="104" r="4" fill="#89b4fa" fillOpacity=".45" />
+          <circle className="animate-[pulse_3s_ease-in-out_infinite] motion-reduce:animate-none" cx="418" cy="252" r="4" fill="#cba6f7" fillOpacity=".4" />
+        </svg>
+      </div>
       <DashboardTopbar
         onCreateProject={page.handleCreateClick}
         onOpenImport={page.openImport}
       />
-      <PageContainer size="lg">
+      <PageContainer size="lg" className="relative z-10">
         {/* Header */}
         <header className="mb-8">
           <Typography variant="heading-lg" as="h1">
