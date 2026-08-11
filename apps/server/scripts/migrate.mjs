@@ -1,58 +1,56 @@
+import { copyFileSync, existsSync, unlinkSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
+import process from 'node:process'
 import dotenv from 'dotenv'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { migrate } from 'drizzle-orm/node-postgres/migrator'
 import pg from 'pg'
 
-dotenv.config({ path: new URL('../../../.env', import.meta.url), quiet: true })
+const serverDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const rootEnvPath = path.resolve(serverDirectory, '../../.env')
+const serverEnvPath = path.resolve(serverDirectory, '.env')
+const migrationsDirectory = path.resolve(serverDirectory, 'drizzle')
+const logError = (...args) => process.stderr.write(`${args.join(' ')}\n`)
 
-// Connect exactly like the app (src/configs/database.config.ts): via DB_* vars.
-// DATABASE_URL is a stale legacy value (old Supabase pooler) and must NOT be used,
-// otherwise migrations apply to the wrong database.
-const pool = new pg.Pool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT) || 5432,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
-})
+if (!existsSync(rootEnvPath)) {
+  logError(`Root environment file not found: ${rootEnvPath}`)
+  process.exit(1)
+}
+
+if (existsSync(serverEnvPath)) {
+  logError(`Temporary environment file already exists: ${serverEnvPath}`)
+  logError('Remove it manually before running the migration.')
+  process.exit(1)
+}
+
+let pool
+let exitCode = 1
 
 try {
-  const projectColumns = await pool.query(
-    `SELECT column_name, data_type
-     FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = 'projects'`,
-  )
-  const hasProjects = projectColumns.rowCount > 0
-  const isLegacyProjects = hasProjects && !projectColumns.rows.some(
-    (column) => column.column_name === 'created_date' && column.data_type === 'bigint',
-  )
+  copyFileSync(rootEnvPath, serverEnvPath)
+  dotenv.config({ path: serverEnvPath, override: true, quiet: true })
 
-  if (isLegacyProjects) {
-    console.log('Dropping legacy Supabase tables...')
-    await pool.query('DROP TABLE IF EXISTS "workspace_invites" CASCADE')
-    await pool.query('DROP TABLE IF EXISTS "project_invites" CASCADE')
-    await pool.query('DROP TABLE IF EXISTS "project_members" CASCADE')
-    await pool.query('DROP TABLE IF EXISTS "projects" CASCADE')
-    console.log('Legacy tables dropped.')
+  pool = new pg.Pool({
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT) || 5432,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  })
+
+  await migrate(drizzle(pool), { migrationsFolder: migrationsDirectory })
+  process.stdout.write('Drizzle migrations applied successfully.\n')
+  exitCode = 0
+} catch (error) {
+  logError('Migration failed:', error instanceof Error ? error.message : error)
+  if (error instanceof Error && error.cause instanceof Error) {
+    logError('Cause:', error.cause.message)
   }
-
-  if (!hasProjects || isLegacyProjects) {
-    await pool.query('DROP TABLE IF EXISTS "endpoint_folders" CASCADE')
-    await pool.query('DROP TABLE IF EXISTS "endpoints" CASCADE')
-    await pool.query(`DO $$ BEGIN
-      IF to_regclass('drizzle.__drizzle_migrations') IS NOT NULL THEN
-        DELETE FROM drizzle.__drizzle_migrations;
-      END IF;
-    END $$`)
-  }
-
-  await migrate(drizzle(pool), { migrationsFolder: './drizzle' })
-  console.log('Drizzle migrations applied successfully.')
-} catch (e) {
-  console.error('Migration failed:', e.message)
-  if (e.cause) console.error('Cause:', e.cause.message)
-  process.exit(1)
 } finally {
-  await pool.end()
+  if (pool) await pool.end()
+  if (existsSync(serverEnvPath)) unlinkSync(serverEnvPath)
 }
+
+process.exit(exitCode)
