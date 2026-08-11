@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Button, Input } from './ui'
 import { cn } from '../lib/utils'
+import { interpolateEnvironment, useEnvironmentStore } from '../store/useEnvironmentStore'
 
 interface KvRow {
   id: string
@@ -72,6 +73,23 @@ function initialBody(body?: RequestBodyDefinition): string {
     null,
     2,
   )
+}
+
+function parseRequestUrl(value: string): { base: string; pathKeys: string[]; queryRows: KvRow[] } {
+  const question = value.indexOf('?')
+  const base = question >= 0 ? value.slice(0, question) : value
+  const query = question >= 0 ? value.slice(question + 1) : ''
+  const pathKeys = Array.from(base.matchAll(/(?:^|\/)\:([A-Za-z_][\w-]*)/g), (match) => match[1])
+  return {
+    base: base.replace(/(^|\/)\:([A-Za-z_][\w-]*)/g, '$1{$2}'),
+    pathKeys,
+    queryRows: Array.from(new URLSearchParams(query).entries()).map(([key, value]) => ({
+      id: crypto.randomUUID(),
+      key,
+      value,
+      enabled: true,
+    })),
+  }
 }
 
 function KeyValueEditor({
@@ -145,6 +163,9 @@ function KeyValueEditor({
 }
 
 export default function EndpointDetailView({ endpoint, className }: EndpointDetailViewProps) {
+  const environments = useEnvironmentStore((state) => state.environments)
+  const activeEnvironmentId = useEnvironmentStore((state) => state.activeEnvironmentId)
+  const variables = environments.find((environment) => environment.id === activeEnvironmentId)?.variables ?? {}
   const [activeTab, setActiveTab] = useState<RequestTab>('params')
   const [responseTab, setResponseTab] = useState<ResponseTab>('body')
   const [urlText, setUrlText] = useState('')
@@ -175,9 +196,14 @@ export default function EndpointDetailView({ endpoint, className }: EndpointDeta
       // Storage can be unavailable in privacy-restricted contexts.
     }
     const parameters = endpoint.parameters ?? []
-    setUrlText(saved || rawUrl(endpoint.path))
-    setPathRows(rowsFrom(parameters, 'path'))
-    setQueryRows(rowsFrom(parameters, 'query'))
+    const parsed = parseRequestUrl(saved || rawUrl(endpoint.path))
+    const definedPathRows = rowsFrom(parameters, 'path')
+    setUrlText(parsed.base)
+    setPathRows([
+      ...definedPathRows,
+      ...parsed.pathKeys.filter((key) => !definedPathRows.some((row) => row.key === key)).map((key) => ({ id: crypto.randomUUID(), key, value: '', enabled: true })),
+    ])
+    setQueryRows(parsed.queryRows.length ? parsed.queryRows : rowsFrom(parameters, 'query'))
     setHeaderRows(rowsFrom(parameters, 'header'))
     setBodyText(initialBody(endpoint.requestBody))
     setActiveTab('params')
@@ -187,25 +213,34 @@ export default function EndpointDetailView({ endpoint, className }: EndpointDeta
   }, [endpoint])
 
   const onUrlChange = (value: string) => {
-    setUrlText(value)
+    const parsed = parseRequestUrl(value)
+    setUrlText(parsed.base)
+    if (parsed.queryRows.length || value.includes('?')) setQueryRows(parsed.queryRows)
+    setPathRows((current) => [
+      ...current,
+      ...parsed.pathKeys.filter((key) => !current.some((row) => row.key === key)).map((key) => ({ id: crypto.randomUUID(), key, value: '', enabled: true })),
+    ])
     try {
-      localStorage.setItem(storageKey(endpoint.id), value)
+      localStorage.setItem(storageKey(endpoint.id), parsed.base)
     } catch {
       // Keep the request usable even when persistence is unavailable.
     }
   }
 
   const resolvedUrl = useMemo(() => {
-    let url = rawUrl(urlText).trim().replace(/([^:])\/{2,}/g, '$1/')
+    let url = interpolateEnvironment(rawUrl(urlText).trim(), variables).replace(/([^:])\/{2,}/g, '$1/')
     for (const row of pathRows) {
-      if (row.enabled && row.key && row.value) url = url.replace(`{${row.key}}`, row.value)
+      if (row.enabled && row.key && row.value) {
+        const value = interpolateEnvironment(row.value, variables)
+        url = url.replaceAll(`{${row.key}}`, encodeURIComponent(value)).replaceAll(`:${row.key}`, encodeURIComponent(value))
+      }
     }
     const query = queryRows
       .filter((row) => row.enabled && row.key)
-      .map((row) => `${encodeURIComponent(row.key)}=${encodeURIComponent(row.value)}`)
+      .map((row) => `${encodeURIComponent(interpolateEnvironment(row.key, variables))}=${encodeURIComponent(interpolateEnvironment(row.value, variables))}`)
       .join('&')
     return query ? `${url}${url.includes('?') ? '&' : '?'}${query}` : url
-  }, [pathRows, queryRows, urlText])
+  }, [pathRows, queryRows, urlText, variables])
 
   const clearResponse = useCallback(() => {
     setResponse(null)
@@ -220,11 +255,11 @@ export default function EndpointDetailView({ endpoint, className }: EndpointDeta
     setResponseTab('body')
 
     const headers = Object.fromEntries(
-      headerRows.filter((row) => row.enabled && row.key).map((row) => [row.key, row.value]),
+      headerRows.filter((row) => row.enabled && row.key).map((row) => [interpolateEnvironment(row.key, variables), interpolateEnvironment(row.value, variables)]),
     )
-    if (authType === 'bearer' && bearerToken) headers.Authorization = `Bearer ${bearerToken}`
+    if (authType === 'bearer' && bearerToken) headers.Authorization = `Bearer ${interpolateEnvironment(bearerToken, variables)}`
     if (authType === 'basic' && basicUser) {
-      headers.Authorization = `Basic ${btoa(`${basicUser}:${basicPass}`)}`
+      headers.Authorization = `Basic ${btoa(`${interpolateEnvironment(basicUser, variables)}:${interpolateEnvironment(basicPass, variables)}`)}`
     }
 
     const startedAt = performance.now()
@@ -233,7 +268,7 @@ export default function EndpointDetailView({ endpoint, className }: EndpointDeta
       const result = await fetch(resolvedUrl, {
         method,
         headers,
-        body: !['GET', 'HEAD'].includes(method) && bodyText.trim() ? bodyText : undefined,
+        body: !['GET', 'HEAD'].includes(method) && bodyText.trim() ? interpolateEnvironment(bodyText, variables) : undefined,
       })
       const text = await result.text()
       let formatted = text
@@ -256,7 +291,7 @@ export default function EndpointDetailView({ endpoint, className }: EndpointDeta
       setElapsedMs(Math.round(performance.now() - startedAt))
       setLoading(false)
     }
-  }, [authType, basicPass, basicUser, bearerToken, bodyText, endpoint.method, headerRows, resolvedUrl])
+  }, [authType, basicPass, basicUser, bearerToken, bodyText, endpoint.method, headerRows, resolvedUrl, variables])
 
   const copyResponse = async () => {
     if (!response) return

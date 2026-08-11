@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
 import { router } from '../routes';
 import { Avatar, Button, Popover, Typography } from './ui';
+import { EnvironmentSelector } from './EnvironmentSelector';
 
 export interface DashboardTopbarProps {
   onCreateProject: () => void;
@@ -47,6 +48,8 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      <EnvironmentSelector />
 
       {/* Profile (right) */}
       <Popover

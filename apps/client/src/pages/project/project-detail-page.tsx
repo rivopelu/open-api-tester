@@ -6,6 +6,7 @@ import { EndpointListSidebar } from '../../components/EndpointListSidebar'
 import EndpointDetailView from '../../components/EndpointDetailView'
 import { useProjectDetailPage } from './use-project-detail-page'
 import { ProjectItemModal } from './project-item-modal'
+import { EnvironmentSelector } from '../../components/EnvironmentSelector'
 
 export default function ProjectDetailPage() {
   const page = useProjectDetailPage()
@@ -20,6 +21,9 @@ export default function ProjectDetailPage() {
     <div className="flex h-screen flex-col overflow-hidden bg-base">
       {/* Topbar */}
       <div className="flex h-[56px] shrink-0 items-center border-b border-border bg-surface px-3">
+        <div className="ml-auto mr-2">
+          <EnvironmentSelector />
+        </div>
         <Button
           variant="ghost"
           size="sm"
@@ -40,7 +44,6 @@ export default function ProjectDetailPage() {
         <Button
           variant="primary"
           size="sm"
-          className="ml-auto"
           onClick={() => navigate(page.projectId ? `/editor?project=${page.projectId}` : '/editor')}
           disabled={!page.project}
         >
