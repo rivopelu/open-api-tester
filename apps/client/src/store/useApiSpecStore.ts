@@ -202,9 +202,9 @@ export const useApiSpecStore = create<ApiSpecStore>()(
           return;
         }
 
-        // Reconstruct a local ApiSpec from project metadata + endpoint rows.
-        // Each endpoint stores its detail in spec_data JSONB.
-        const endpoints: ApiSpec['endpoints'] = data.endpoints.map((dto) => {
+        // Project detail returns lightweight endpoint rows; load full specs for the editor.
+        const endpointDtos = await Promise.all(data.endpoints.map((dto) => endpointRepository.get(dto.id)));
+        const endpoints: ApiSpec['endpoints'] = endpointDtos.map((dto) => {
           const sd = dto.specData ?? {};
           return {
             id: dto.id,

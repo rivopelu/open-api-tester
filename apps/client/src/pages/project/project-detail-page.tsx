@@ -1,4 +1,4 @@
-import { ArrowLeft, PenTool, FolderOpen } from 'lucide-react'
+import { ArrowLeft, PenTool, FolderOpen, MoreHorizontal } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Endpoint } from '@modern-api-studio/types'
 import { Button, GridCell, GridPanel, PageContainer, Typography } from '../../components/ui'
@@ -19,7 +19,7 @@ export default function ProjectDetailPage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-base">
       {/* Topbar */}
-      <div className="flex h-[52px] shrink-0 items-center border-b border-border bg-surface px-4">
+      <div className="flex h-[56px] shrink-0 items-center border-b border-border bg-surface px-3">
         <Button
           variant="ghost"
           size="sm"
@@ -29,9 +29,14 @@ export default function ProjectDetailPage() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <Typography variant="heading-sm" as="h1" className="ml-2">
-          {page.project?.name ?? 'Project Detail'}
-        </Typography>
+        <div className="ml-2 min-w-0 border-l border-border pl-4">
+          <Typography variant="heading-sm" as="h1" className="truncate">
+            {page.project?.name ?? 'Project Detail'}
+          </Typography>
+          <Typography variant="caption" tone="muted" className="mt-0.5">
+            {page.endpoints.length} requests · Version {page.project?.version ?? '1.0.0'}
+          </Typography>
+        </div>
         <Button
           variant="primary"
           size="sm"
@@ -41,6 +46,9 @@ export default function ProjectDetailPage() {
         >
           <PenTool className="h-3.5 w-3.5" aria-hidden="true" />
           Open Editor
+        </Button>
+        <Button variant="ghost" size="sm" iconOnly aria-label="Project options" className="ml-2">
+          <MoreHorizontal className="h-4 w-4" />
         </Button>
       </div>
 
@@ -62,7 +70,7 @@ export default function ProjectDetailPage() {
         />
 
         {/* Main area: overview OR endpoint detail */}
-        <main className="flex flex-1 flex-col overflow-hidden animate-fadeIn">
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden animate-fadeIn">
           {page.loading ? (
             <div className="flex flex-1 items-center justify-center">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-border border-t-primary" />

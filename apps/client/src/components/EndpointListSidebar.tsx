@@ -1,20 +1,25 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import {
   DndContext,
+  DragOverlay,
+  PointerSensor,
   pointerWithin,
+  useSensor,
+  useSensors,
   useDraggable,
   useDroppable,
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
 import type { Endpoint } from '@modern-api-studio/types';
-import type { EndpointDto, EndpointFolderDto } from '../lib/api';
+import type { EndpointFolderDto, EndpointSummaryDto } from '../lib/api';
 import {
   AlertTriangle,
   ChevronRight,
   FilePlus2,
   Folder,
   FolderPlus,
+  GripVertical,
   Lock,
   Pencil,
   Search,
@@ -25,7 +30,7 @@ import { cn } from '../lib/utils';
 
 export interface EndpointListSidebarProps {
   endpoints: Endpoint[];
-  endpointDtos: EndpointDto[];
+  endpointDtos: EndpointSummaryDto[];
   folders: EndpointFolderDto[];
   activeEndpointId?: string | null;
   onSelectEndpoint: (endpointId: string) => void;
@@ -79,11 +84,17 @@ function EndpointRow({ endpoint, folderId, depth, active, onSelect, onContextMen
       type="button"
       onClick={onSelect}
       onContextMenu={onContextMenu}
-      className={cn('sidebar-item cursor-grab touch-none active:cursor-grabbing', active && 'active')}
+      className={cn('sidebar-item group cursor-pointer', active && 'active', isDragging && 'opacity-30')}
       style={{ ...getDragStyle(transform, isDragging), paddingLeft: 20 + depth * 14 }}
-      {...listeners}
       {...attributes}
     >
+      <span
+        {...listeners}
+        className="-ml-1 flex h-5 w-3 shrink-0 cursor-grab touch-none items-center justify-center text-text-muted opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
+        aria-label={`Drag ${endpoint.summary || endpoint.path}`}
+      >
+        <GripVertical className="h-3.5 w-3.5" />
+      </span>
       <span className={cn('method-badge', `badge-${endpoint.method.toLowerCase()}`)}>{endpoint.method}</span>
       <span className={cn('min-w-0 flex-1 truncate text-xs font-semibold', !endpoint.summary && 'font-mono font-normal')}>
         {endpoint.summary || endpoint.path}
@@ -173,6 +184,7 @@ export function EndpointListSidebar({
   const [menu, setMenu] = useState<MenuState>(null);
   const [activeDrag, setActiveDrag] = useState<DragItem | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   useEffect(() => {
     if (!menu) return;
@@ -304,7 +316,7 @@ export function EndpointListSidebar({
         {expanded && (
           <div>
             {children.map((child) => renderFolder(child, depth + 1))}
-            {ownEndpoints.map((endpoint) => renderEndpoint(endpoint, depth + 1))}
+            {ownEndpoints.map((endpoint) => renderEndpoint(endpoint, folder.id, depth + 1))}
           </div>
         )}
       </div>
@@ -319,6 +331,7 @@ export function EndpointListSidebar({
 
   return (
     <DndContext
+      sensors={sensors}
       collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragCancel={() => setActiveDrag(null)}
@@ -332,7 +345,7 @@ export function EndpointListSidebar({
         <RootDropZone visible={activeDrag !== null} />
         {!hasResults && <p className="px-3 py-2 text-xs text-text-muted">No endpoints or folders found</p>}
         {rootFolders.map((folder) => renderFolder(folder, 0))}
-        {rootEndpoints.map((endpoint) => renderEndpoint(endpoint, 0))}
+        {rootEndpoints.map((endpoint) => renderEndpoint(endpoint, null, 0))}
       </div>
 
       {menu && (
@@ -381,6 +394,20 @@ export function EndpointListSidebar({
         </div>
       )}
     </aside>
+    <DragOverlay dropAnimation={null}>
+      {activeDrag?.type === 'endpoint' ? (
+        <div className="flex min-w-[220px] items-center gap-2 border border-primary/50 bg-card px-3 py-2 text-xs text-text-primary shadow-lg">
+          <span className={cn('method-badge', `badge-${endpointById.get(activeDrag.id)?.method.toLowerCase()}`)}>
+            {endpointById.get(activeDrag.id)?.method}
+          </span>
+          <span className="truncate font-semibold">{endpointById.get(activeDrag.id)?.summary || endpointById.get(activeDrag.id)?.path}</span>
+        </div>
+      ) : activeDrag?.type === 'folder' ? (
+        <div className="flex min-w-[200px] items-center gap-2 border border-primary/50 bg-card px-3 py-2 text-xs text-text-primary shadow-lg">
+          <Folder className="h-3.5 w-3.5 text-purple" /> {folderById.get(activeDrag.id)?.name}
+        </div>
+      ) : null}
+    </DragOverlay>
     </DndContext>
   );
 }
