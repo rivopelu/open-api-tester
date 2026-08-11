@@ -5,8 +5,15 @@ import pg from 'pg'
 
 dotenv.config({ path: new URL('../../../.env', import.meta.url), quiet: true })
 
+// Connect exactly like the app (src/configs/database.config.ts): via DB_* vars.
+// DATABASE_URL is a stale legacy value (old Supabase pooler) and must NOT be used,
+// otherwise migrations apply to the wrong database.
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT) || 5432,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
 })
 
