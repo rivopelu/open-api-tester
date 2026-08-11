@@ -42,6 +42,7 @@ describe('AuthService', () => {
     password: 'hashed-password',
     profile_picture: 'https://ui-avatars.com/api/?name=Test+User&background=random',
     mcp_token_hash: null,
+    mcp_token: null,
     environments: [],
     active_environment_id: null,
     active: true,

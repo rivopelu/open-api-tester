@@ -28,6 +28,14 @@ export class AccountController {
     return c.json(ResponseHelper.data({ token }, 'MCP token generated successfully'))
   }
 
+  @Get('/account/mcp-token')
+  async getMcpToken(c: Context) {
+    const user = getUser(c)
+    if (!user) throw new UnauthorizedError()
+    const token = await this.accountBffService.getMcpToken(user.sub)
+    return c.json(ResponseHelper.data({ token }))
+  }
+
   @Delete('/account/mcp-token')
   async revokeMcpToken(c: Context) {
     const user = getUser(c)

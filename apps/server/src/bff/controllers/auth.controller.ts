@@ -43,10 +43,13 @@ export class AuthController {
   @Get('/auth/google/callback')
   async googleCallback(c: Context) {
     const requestOrigin = new URL(c.req.url).origin
-    const configuredOrigins = env.ALLOWED_ORIGINS.split(',').map((value) => value.trim())
-    const clientUrl = env.ALLOWED_ORIGINS === '*'
-      ? requestOrigin
-      : configuredOrigins.find((origin) => origin === requestOrigin) ?? configuredOrigins[0] ?? requestOrigin
+    const configuredOrigins = env.ALLOWED_ORIGINS.split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+    const clientUrl = env.CLIENT_URL?.replace(/\/$/, '')
+      ?? configuredOrigins.find((origin) => origin !== '*' && !origin.includes('localhost'))
+      ?? configuredOrigins.find((origin) => origin !== '*')
+      ?? requestOrigin
     const error = c.req.query('error')
     const code = c.req.query('code')
     const state = c.req.query('state')

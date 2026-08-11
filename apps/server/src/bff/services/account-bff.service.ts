@@ -12,6 +12,10 @@ export class AccountBffService {
     return this.accountService.rotateMcpToken(accountId)
   }
 
+  async getMcpToken(accountId: string): Promise<string | null> {
+    return this.accountService.getMcpToken(accountId)
+  }
+
   async revokeMcpToken(accountId: string): Promise<void> {
     return this.accountService.revokeMcpToken(accountId)
   }

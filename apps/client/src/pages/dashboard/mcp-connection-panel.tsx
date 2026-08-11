@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronDown, ChevronUp, Copy, KeyRound, PlugZap, RotateCw, ShieldCheck, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button, Typography } from '../../components/ui'
@@ -26,6 +26,18 @@ export function McpConnectionPanel() {
   const [revoking, setRevoking] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const endpoint = `${(import.meta.env.VITE_API_URL || window.location.origin.replace(/:\d+$/, ':8888')).replace(/\/$/, '')}/mcp`
+
+  useEffect(() => {
+    if (!accountId) return
+    void mcpRepository.getToken().then(({ token: storedToken }) => {
+      setToken(storedToken)
+      if (!tokenStorageKey) return
+      if (storedToken) localStorage.setItem(tokenStorageKey, storedToken)
+      else localStorage.removeItem(tokenStorageKey)
+    }).catch(() => {
+      // Keep the locally cached token visible if the account request is temporarily unavailable.
+    })
+  }, [accountId, tokenStorageKey])
 
   const config = useMemo(() => {
     const bearer = token || '<YOUR_MCP_TOKEN>'

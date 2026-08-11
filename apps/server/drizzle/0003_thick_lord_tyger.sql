@@ -1,0 +1,1 @@
+ALTER TABLE "account" ADD COLUMN "mcp_token" varchar(255);
