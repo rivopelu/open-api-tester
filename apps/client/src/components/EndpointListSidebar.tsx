@@ -12,7 +12,8 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import type { Endpoint } from '@modern-api-studio/types';
-import type { EndpointFolderDto, EndpointSummaryDto } from '../lib/api';
+import type { EndpointDto } from '../lib/api';
+import type { EndpointFolderDto } from '../lib/api';
 import {
   AlertTriangle,
   ChevronRight,
@@ -24,16 +25,18 @@ import {
   Pencil,
   Search,
   Trash2,
+  FileJson2,
 } from 'lucide-react';
 import { Input } from './ui';
 import { cn } from '../lib/utils';
 
 export interface EndpointListSidebarProps {
   endpoints: Endpoint[];
-  endpointDtos: EndpointSummaryDto[];
+  endpointDtos: EndpointDto[];
   folders: EndpointFolderDto[];
   activeEndpointId?: string | null;
   onSelectEndpoint: (endpointId: string) => void;
+  onSelectExamples: (endpointId: string, exampleId?: string) => void;
   onCreateEndpoint: (folderId: string | null) => void;
   onCreateFolder: (parentId: string | null) => void;
   onRenameFolder: (folderId: string, currentName: string) => void;
@@ -69,25 +72,28 @@ interface EndpointRowProps {
   depth: number;
   active: boolean;
   onSelect: () => void;
+  onSelectExamples: (exampleId?: string) => void;
   onContextMenu: (event: MouseEvent) => void;
 }
 
-function EndpointRow({ endpoint, folderId, depth, active, onSelect, onContextMenu }: EndpointRowProps) {
+function EndpointRow({ endpoint, folderId, depth, active, onSelect, onSelectExamples, onContextMenu }: EndpointRowProps) {
+  const [expanded, setExpanded] = useState(false);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `endpoint:${endpoint.id}`,
     data: { type: 'endpoint', id: endpoint.id, folderId } satisfies DragItem,
   });
 
   return (
-    <button
-      ref={setNodeRef}
-      type="button"
-      onClick={onSelect}
+    <div ref={setNodeRef} style={getDragStyle(transform, isDragging)} className={cn(isDragging && 'opacity-30')}>
+    <div
       onContextMenu={onContextMenu}
       className={cn('sidebar-item group cursor-pointer', active && 'active', isDragging && 'opacity-30')}
-      style={{ ...getDragStyle(transform, isDragging), paddingLeft: 20 + depth * 14 }}
+      style={{ paddingLeft: 10 + depth * 14 }}
       {...attributes}
     >
+      <button type="button" onClick={() => setExpanded((value) => !value)} className="flex h-5 w-4 shrink-0 items-center justify-center text-text-muted" aria-label={`${expanded ? 'Collapse' : 'Expand'} ${endpoint.summary || endpoint.path}`}>
+        <ChevronRight className={cn('h-3 w-3 transition-transform', expanded && 'rotate-90')} />
+      </button>
       <span
         {...listeners}
         className="-ml-1 flex h-5 w-3 shrink-0 cursor-grab touch-none items-center justify-center text-text-muted opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
@@ -95,13 +101,35 @@ function EndpointRow({ endpoint, folderId, depth, active, onSelect, onContextMen
       >
         <GripVertical className="h-3.5 w-3.5" />
       </span>
+      <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-2 text-left">
       <span className={cn('method-badge', `badge-${endpoint.method.toLowerCase()}`)}>{endpoint.method}</span>
       <span className={cn('min-w-0 flex-1 truncate text-xs font-semibold', !endpoint.summary && 'font-mono font-normal')}>
         {endpoint.summary || endpoint.path}
       </span>
       {endpoint.security && endpoint.security.length > 0 && <Lock className="h-3 w-3 shrink-0 text-warning" />}
       {endpoint.deprecated && <AlertTriangle className="h-3 w-3 shrink-0 text-warning" />}
-    </button>
+      </button>
+    </div>
+    {expanded && (() => {
+      const examples = [
+        ...(endpoint.requestBody?.examples ?? []),
+        ...endpoint.responses.flatMap((response) => response.examples ?? []),
+      ]
+      return (
+        <div>
+          <button type="button" onClick={() => onSelectExamples()} className="sidebar-item text-[11px] text-text-muted hover:text-primary" style={{ paddingLeft: 48 + depth * 14 }}>
+            <FileJson2 className="h-3.5 w-3.5" /> Examples
+            <span className="ml-auto font-mono text-[9px]">{examples.length}</span>
+          </button>
+          {examples.map((example) => (
+            <button key={example.id} type="button" onClick={() => onSelectExamples(example.id)} className="sidebar-item font-mono text-[10px] text-text-muted hover:text-primary" style={{ paddingLeft: 66 + depth * 14 }}>
+              <FileJson2 className="h-3 w-3" /><span className="truncate">{example.name}</span>
+            </button>
+          ))}
+        </div>
+      )
+    })()}
+    </div>
   );
 }
 
@@ -168,6 +196,7 @@ export function EndpointListSidebar({
   folders,
   activeEndpointId,
   onSelectEndpoint,
+  onSelectExamples,
   onCreateEndpoint,
   onCreateFolder,
   onRenameFolder,
@@ -296,6 +325,7 @@ export function EndpointListSidebar({
       depth={depth}
       active={activeEndpointId === endpoint.id}
       onSelect={() => onSelectEndpoint(endpoint.id)}
+      onSelectExamples={(exampleId) => onSelectExamples(endpoint.id, exampleId)}
       onContextMenu={(event) => openMenu(event, { type: 'endpoint', id: endpoint.id })}
     />
   );

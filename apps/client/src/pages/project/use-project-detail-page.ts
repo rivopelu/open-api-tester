@@ -29,6 +29,8 @@ export function useProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(null);
+  const [selectedEndpointTab, setSelectedEndpointTab] = useState<'params' | 'examples'>('params');
+  const [selectedExampleId, setSelectedExampleId] = useState<string | undefined>();
   const [itemDialog, setItemDialog] = useState<ProjectItemDialogState | null>(null);
 
   const projectQuery = useQuery({
@@ -113,13 +115,12 @@ export function useProjectDetailPage() {
   });
   const saveContractMutation = useMutation({
     mutationFn: ({ endpointId, requestBody, responses }: { endpointId: string; requestBody: Endpoint['requestBody']; responses: Endpoint['responses'] }) => {
-      const current = endpointDetailQuery.data;
-      if (!current) throw new Error('Endpoint is not loaded');
-      return endpointRepository.update(endpointId, {
-        specData: { ...current.specData, requestBody, responses },
-      });
+      return endpointRepository.updateExamples(endpointId, { requestBody, responses });
     },
-    onSuccess: (endpoint) => queryClient.setQueryData(endpointQueryKeys.detail(endpoint.id), endpoint),
+    onSuccess: async (endpoint) => {
+      queryClient.setQueryData(endpointQueryKeys.detail(endpoint.id), endpoint);
+      await invalidateProject();
+    },
   });
 
   const project = projectQuery.data?.project ?? null;
@@ -149,7 +150,16 @@ export function useProjectDetailPage() {
     [endpointDetailQuery.data],
   );
 
-  const handleSelectEndpoint = useCallback((endpointId: string) => setSelectedEndpointId(endpointId), []);
+  const handleSelectEndpoint = useCallback((endpointId: string) => {
+    setSelectedEndpointTab('params');
+    setSelectedExampleId(undefined);
+    setSelectedEndpointId(endpointId);
+  }, []);
+  const handleSelectExamples = useCallback((endpointId: string, exampleId?: string) => {
+    setSelectedEndpointTab('examples');
+    setSelectedExampleId(exampleId);
+    setSelectedEndpointId(endpointId);
+  }, []);
 
   const submitItemDialog = async (value?: string) => {
     if (!itemDialog) return;
@@ -181,6 +191,9 @@ export function useProjectDetailPage() {
     selectedEndpoint,
     selectedEndpointId,
     handleSelectEndpoint,
+    handleSelectExamples,
+    selectedEndpointTab,
+    selectedExampleId,
     itemDialog,
     closeItemDialog: () => setItemDialog(null),
     submitItemDialog,

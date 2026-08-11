@@ -2,6 +2,7 @@ import { EndpointRepository } from '../repository/endpoint.repository'
 import { BadRequestError, NotFoundError } from '../../../configs/exception'
 import type { EndpointRecord } from '../entity/endpoint.entity'
 import type { HttpMethod } from '@modern-api-studio/types'
+import type { RequestBodyDefinition, ResponseDefinition } from '@modern-api-studio/types'
 import { ProjectService } from '../../projects/service/project.service'
 import { EndpointFolderRepository } from '../../endpoint-folders/repository/endpoint-folder.repository'
 
@@ -111,6 +112,24 @@ export class EndpointService {
     if (input.specData !== undefined) patch.spec_data = input.specData
 
     const row = await this.repository.update(id, patch)
+    if (!row) throw new NotFoundError('Endpoint not found')
+    return this.toItem(row)
+  }
+
+  async updateExamples(
+    id: string,
+    contract: { requestBody?: RequestBodyDefinition; responses: ResponseDefinition[] },
+  ): Promise<EndpointItem> {
+    const existing = await this.repository.findById(id)
+    if (!existing) throw new NotFoundError('Endpoint not found')
+
+    const row = await this.repository.update(id, {
+      spec_data: {
+        ...((existing.spec_data ?? {}) as Record<string, unknown>),
+        requestBody: contract.requestBody,
+        responses: contract.responses,
+      },
+    })
     if (!row) throw new NotFoundError('Endpoint not found')
     return this.toItem(row)
   }

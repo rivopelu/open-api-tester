@@ -1,4 +1,5 @@
 import { api, unwrap, type EndpointDto } from '../lib/api';
+import type { Endpoint } from '@modern-api-studio/types';
 
 export interface EndpointPayload {
   projectId?: string;
@@ -14,6 +15,7 @@ export interface EndpointRepository {
   get(id: string): Promise<EndpointDto>;
   create(body: EndpointPayload & { projectId: string }): Promise<EndpointDto>;
   update(id: string, body: Omit<EndpointPayload, 'projectId'>): Promise<EndpointDto>;
+  updateExamples(id: string, body: Pick<Endpoint, 'requestBody' | 'responses'>): Promise<EndpointDto>;
   remove(id: string): Promise<void>;
 }
 
@@ -32,6 +34,10 @@ export const endpointRepository: EndpointRepository = {
 
   update(id, body) {
     return unwrap<EndpointDto>(api.put(`/endpoints/${id}`, body));
+  },
+
+  updateExamples(id, body) {
+    return unwrap<EndpointDto>(api.put(`/endpoints/${id}/examples`, body));
   },
 
   async remove(id) {

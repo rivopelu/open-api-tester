@@ -65,7 +65,7 @@ export interface ProjectDto {
 
 export interface ProjectDetailDto {
   project: ProjectDto;
-  endpoints: EndpointSummaryDto[];
+  endpoints: EndpointDto[];
   folders: EndpointFolderDto[];
 }
 

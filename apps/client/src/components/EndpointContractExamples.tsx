@@ -1,42 +1,55 @@
 import { useEffect, useState } from 'react'
 import type { Endpoint, EndpointExample, ResponseDefinition } from '@modern-api-studio/types'
-import { Check, FileJson2, Plus, Save, Trash2 } from 'lucide-react'
+import { AlertCircle, Check, FileJson2, Plus, Save, Trash2 } from 'lucide-react'
 import { Button } from './ui'
 import { cn } from '../lib/utils'
 
 interface Props {
   endpoint: Endpoint
+  initialExampleId?: string
   onSave: (contract: Pick<Endpoint, 'requestBody' | 'responses'>) => Promise<void>
 }
 
 type SelectedExample = { scope: 'request'; id: string } | { scope: 'response'; responseId: string; id: string }
 
-const newExample = (index: number): EndpointExample => ({
+const newExample = (examples: EndpointExample[]): EndpointExample => ({
   id: crypto.randomUUID(),
-  name: `example_${index + 1}`,
+  name: `example_${Math.max(0, ...examples.map((example) => Number(example.name.match(/^example_(\d+)$/)?.[1]) || 0)) + 1}`,
   summary: '',
   value: '{\n  \n}',
 })
 
-export function EndpointContractExamples({ endpoint, onSave }: Props) {
+export function EndpointContractExamples({ endpoint, initialExampleId, onSave }: Props) {
   const [requestExamples, setRequestExamples] = useState<EndpointExample[]>([])
   const [responses, setResponses] = useState<ResponseDefinition[]>([])
   const [selected, setSelected] = useState<SelectedExample | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   useEffect(() => {
     const request = endpoint.requestBody?.examples ?? []
     setRequestExamples(request)
     setResponses(endpoint.responses)
-    setSelected(
-      request[0]
+    const requestedRequest = request.find((example) => example.id === initialExampleId)
+    const requestedResponse = endpoint.responses.find((response) => response.examples?.some((example) => example.id === initialExampleId))
+    setSelected((current) => {
+      if (requestedRequest) return { scope: 'request', id: requestedRequest.id }
+      if (requestedResponse) {
+        return { scope: 'response', responseId: requestedResponse.id, id: initialExampleId! }
+      }
+      const currentRequest = current?.scope === 'request' && request.some((example) => example.id === current.id)
+      const currentResponse = current?.scope === 'response' && endpoint.responses.some(
+        (response) => response.id === current.responseId && response.examples?.some((example) => example.id === current.id),
+      )
+      if (currentRequest || currentResponse) return current
+      return request[0]
         ? { scope: 'request', id: request[0].id }
         : endpoint.responses[0]?.examples?.[0]
           ? { scope: 'response', responseId: endpoint.responses[0].id, id: endpoint.responses[0].examples![0].id }
-          : null,
-    )
-  }, [endpoint])
+          : null
+    })
+  }, [endpoint, initialExampleId])
 
   const active = selected?.scope === 'request'
     ? requestExamples.find((example) => example.id === selected.id)
@@ -46,6 +59,7 @@ export function EndpointContractExamples({ endpoint, onSave }: Props) {
 
   const updateActive = (changes: Partial<EndpointExample>) => {
     if (!selected) return
+    setValidationError(null)
     if (selected.scope === 'request') {
       setRequestExamples((items) => items.map((item) => item.id === selected.id ? { ...item, ...changes } : item))
       return
@@ -56,7 +70,7 @@ export function EndpointContractExamples({ endpoint, onSave }: Props) {
   }
 
   const addRequest = () => {
-    const example = newExample(requestExamples.length)
+    const example = newExample(requestExamples)
     setRequestExamples((items) => [...items, example])
     setSelected({ scope: 'request', id: example.id })
   }
@@ -64,7 +78,7 @@ export function EndpointContractExamples({ endpoint, onSave }: Props) {
   const addResponse = (responseId: string) => {
     const response = responses.find((item) => item.id === responseId)
     if (!response) return
-    const example = newExample(response.examples?.length ?? 0)
+    const example = newExample(response.examples ?? [])
     setResponses((items) => items.map((item) => item.id === responseId
       ? { ...item, examples: [...(item.examples ?? []), example] }
       : item))
@@ -86,14 +100,33 @@ export function EndpointContractExamples({ endpoint, onSave }: Props) {
   }
 
   const save = async () => {
+    const examples = [requestExamples, ...responses.map((response) => response.examples ?? [])].flat()
+    for (const example of examples) {
+      try {
+        JSON.parse(example.value)
+      } catch {
+        setValidationError(`${example.name || 'Example'} contains invalid JSON.`)
+        return
+      }
+    }
     setSaving(true)
     try {
       await onSave({
-        requestBody: endpoint.requestBody ? { ...endpoint.requestBody, examples: requestExamples } : undefined,
+        requestBody: requestExamples.length
+          ? {
+              required: endpoint.requestBody?.required ?? false,
+              contentType: endpoint.requestBody?.contentType ?? 'application/json',
+              schema: endpoint.requestBody?.schema ?? [],
+              ...endpoint.requestBody,
+              examples: requestExamples,
+            }
+          : endpoint.requestBody ? { ...endpoint.requestBody, examples: [] } : undefined,
         responses,
       })
       setSaved(true)
       window.setTimeout(() => setSaved(false), 1400)
+    } catch (error) {
+      setValidationError(error instanceof Error ? error.message : 'Examples could not be saved.')
     } finally {
       setSaving(false)
     }
@@ -153,9 +186,14 @@ export function EndpointContractExamples({ endpoint, onSave }: Props) {
               <button type="button" onClick={removeActive} className="flex items-center justify-center border border-border text-text-muted hover:border-danger/50 hover:text-danger" aria-label="Delete example"><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
             <textarea value={active.value} onChange={(event) => updateActive({ value: event.target.value })} spellCheck={false} className="min-h-[180px] flex-1 resize-none border border-border bg-overlay p-4 font-mono text-xs leading-6 text-text-primary outline-none focus:border-primary" placeholder={'{\n  "id": 1\n}'} />
+            {validationError && (
+              <div role="alert" className="mt-3 flex items-center gap-2 border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {validationError} Fix the JSON before saving.
+              </div>
+            )}
             <div className="mt-3 flex items-center justify-between">
               <p className="text-[10px] text-text-muted">Persisted globally in this endpoint specification.</p>
-              <Button variant="primary" size="sm" loading={saving} onClick={() => void save()}>{saved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}{saved ? 'Saved' : 'Save contract'}</Button>
+              <Button variant="primary" size="sm" loading={saving} disabled={Boolean(validationError)} onClick={() => void save()}>{saved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}{saved ? 'Saved' : 'Save contract'}</Button>
             </div>
           </div>
         )}

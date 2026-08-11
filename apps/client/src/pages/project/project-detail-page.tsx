@@ -63,6 +63,7 @@ export default function ProjectDetailPage() {
           folders={page.folders}
           activeEndpointId={page.selectedEndpointId}
           onSelectEndpoint={page.handleSelectEndpoint}
+          onSelectExamples={page.handleSelectExamples}
           onCreateEndpoint={page.createEndpoint}
           onCreateFolder={page.createFolder}
           onRenameFolder={page.renameFolder}
@@ -101,6 +102,8 @@ export default function ProjectDetailPage() {
           ) : page.selectedEndpoint ? (
             <EndpointDetailView
               endpoint={page.selectedEndpoint}
+              initialTab={page.selectedEndpointTab}
+              initialExampleId={page.selectedExampleId}
               onMethodChange={page.changeMethod}
               onSaveContract={page.saveContract}
               className="flex-1"

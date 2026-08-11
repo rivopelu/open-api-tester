@@ -4,6 +4,7 @@ import { ResponseHelper } from '../../lib/response-helper'
 import { EndpointService } from '../../app/endpoints/service/endpoint.service'
 import { BadRequestError } from '../../configs/exception'
 import { getUser } from '../../lib/get-user'
+import type { RequestBodyDefinition, ResponseDefinition } from '@modern-api-studio/types'
 
 @Controller()
 export class EndpointsController {
@@ -75,6 +76,37 @@ export class EndpointsController {
         : undefined,
     })
     return c.json(ResponseHelper.data(endpoint, 'Endpoint updated successfully'))
+  }
+
+  @Put('/endpoints/:id/examples')
+  @AuthAccess()
+  async updateExamples(c: Context) {
+    let body: Record<string, unknown>
+    try {
+      body = await c.req.json()
+    } catch {
+      throw new BadRequestError('Invalid JSON body')
+    }
+    if (!Array.isArray(body.responses)) throw new BadRequestError('responses must be an array')
+    if (body.requestBody !== undefined && (typeof body.requestBody !== 'object' || body.requestBody === null)) {
+      throw new BadRequestError('requestBody must be an object')
+    }
+    const requestExamples = (body.requestBody as RequestBodyDefinition | undefined)?.examples ?? []
+    const responseExamples = (body.responses as ResponseDefinition[]).flatMap((response) => response.examples ?? [])
+    for (const example of [...requestExamples, ...responseExamples]) {
+      if (!example || typeof example.value !== 'string') throw new BadRequestError('Example value must be a JSON string')
+      try {
+        JSON.parse(example.value)
+      } catch {
+        throw new BadRequestError(`Example ${example.name || example.id} contains invalid JSON`)
+      }
+    }
+
+    const endpoint = await this.endpointService.updateExamples(c.req.param('id')!, {
+      requestBody: body.requestBody as RequestBodyDefinition | undefined,
+      responses: body.responses as ResponseDefinition[],
+    })
+    return c.json(ResponseHelper.data(endpoint, 'Endpoint examples updated successfully'))
   }
 
   @Delete('/endpoints/:id')

@@ -34,6 +34,8 @@ type ResponseTab = 'body' | 'headers'
 interface EndpointDetailViewProps {
   endpoint: Endpoint
   className?: string
+  initialTab?: 'params' | 'examples'
+  initialExampleId?: string
   onMethodChange?: (method: HttpMethod) => Promise<void>
   onSaveContract?: (contract: Pick<Endpoint, 'requestBody' | 'responses'>) => Promise<void>
 }
@@ -201,7 +203,7 @@ function KeyValueEditor({
   )
 }
 
-export default function EndpointDetailView({ endpoint, className, onMethodChange, onSaveContract }: EndpointDetailViewProps) {
+export default function EndpointDetailView({ endpoint, className, initialTab = 'params', initialExampleId, onMethodChange, onSaveContract }: EndpointDetailViewProps) {
   const environments = useEnvironmentStore((state) => state.environments)
   const activeEnvironmentId = useEnvironmentStore((state) => state.activeEnvironmentId)
   const variables = environments.find((environment) => environment.id === activeEnvironmentId)?.variables ?? {}
@@ -248,11 +250,11 @@ export default function EndpointDetailView({ endpoint, className, onMethodChange
     setQueryRows(parsed.queryRows.length ? parsed.queryRows : rowsFrom(parameters, 'query'))
     setHeaderRows(rowsFrom(parameters, 'header'))
     setBodyText(initialBody(endpoint.requestBody))
-    setActiveTab('params')
+    setActiveTab(initialTab)
     setResponse(null)
     setError(null)
     setElapsedMs(null)
-  }, [endpoint])
+  }, [endpoint, initialTab])
 
   const onUrlChange = (value: string) => {
     const parsed = parseRequestUrl(value)
@@ -706,6 +708,7 @@ export default function EndpointDetailView({ endpoint, className, onMethodChange
             {activeTab === 'examples' && (
               <EndpointContractExamples
                 endpoint={endpoint}
+                initialExampleId={initialExampleId}
                 onSave={onSaveContract ?? (async () => {})}
               />
             )}
