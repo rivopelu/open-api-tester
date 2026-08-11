@@ -4,6 +4,7 @@ import type { EndpointDto, EndpointFolderDto } from '../lib/api';
 import {
   AlertTriangle,
   ChevronRight,
+  FilePlus2,
   Folder,
   FolderPlus,
   Lock,
@@ -20,9 +21,10 @@ export interface EndpointListSidebarProps {
   folders: EndpointFolderDto[];
   activeEndpointId?: string | null;
   onSelectEndpoint: (endpointId: string) => void;
+  onCreateEndpoint: (folderId: string | null) => void;
   onCreateFolder: (parentId: string | null) => void;
   onRenameFolder: (folderId: string, currentName: string) => void;
-  onDeleteFolder: (folderId: string) => void;
+  onDeleteFolder: (folderId: string, currentName: string) => void;
   onRenameEndpoint: (endpointId: string, currentName: string) => void;
   onMoveEndpoint: (endpointId: string, folderId: string | null) => void;
   className?: string;
@@ -40,6 +42,7 @@ export function EndpointListSidebar({
   folders,
   activeEndpointId,
   onSelectEndpoint,
+  onCreateEndpoint,
   onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
@@ -118,6 +121,12 @@ export function EndpointListSidebar({
     setMenu(null);
     callback();
   };
+  const createInFolder = (folderId: string | null, type: 'endpoint' | 'folder') => {
+    if (folderId) {
+      setExpandedFolders((current) => new Set(current).add(folderId));
+    }
+    action(() => type === 'endpoint' ? onCreateEndpoint(folderId) : onCreateFolder(folderId));
+  };
   const toggleFolder = (id: string) => setExpandedFolders((current) => {
     const next = new Set(current);
     if (next.has(id)) next.delete(id);
@@ -190,16 +199,29 @@ export function EndpointListSidebar({
       {menu && (
         <div ref={menuRef} role="menu" className="fixed z-[200] min-w-[190px] border border-border bg-surface p-1.5" style={{ left: menu.x, top: menu.y }}>
           {(menu.type === 'root' || menu.type === 'folder') && (
-            <button className="sidebar-item" role="menuitem" onClick={() => action(() => onCreateFolder(menu.type === 'folder' ? menu.id : null))}>
-              <FolderPlus className="h-3.5 w-3.5" /> Add folder
-            </button>
+            <>
+              <button
+                className="sidebar-item"
+                role="menuitem"
+                onClick={() => createInFolder(menu.type === 'folder' ? menu.id : null, 'endpoint')}
+              >
+                <FilePlus2 className="h-3.5 w-3.5" /> Create Request
+              </button>
+              <button
+                className="sidebar-item"
+                role="menuitem"
+                onClick={() => createInFolder(menu.type === 'folder' ? menu.id : null, 'folder')}
+              >
+                <FolderPlus className="h-3.5 w-3.5" /> Create Folder
+              </button>
+            </>
           )}
           {selectedMenuFolder && (
             <>
               <button className="sidebar-item" role="menuitem" onClick={() => action(() => onRenameFolder(selectedMenuFolder.id, selectedMenuFolder.name))}>
                 <Pencil className="h-3.5 w-3.5" /> Rename folder
               </button>
-              <button className="sidebar-item text-danger" role="menuitem" onClick={() => action(() => onDeleteFolder(selectedMenuFolder.id))}>
+              <button className="sidebar-item text-danger" role="menuitem" onClick={() => action(() => onDeleteFolder(selectedMenuFolder.id, selectedMenuFolder.name))}>
                 <Trash2 className="h-3.5 w-3.5" /> Delete folder
               </button>
             </>

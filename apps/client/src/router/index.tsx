@@ -15,6 +15,7 @@ import TypographyLabPage from '../pages/lab/typography-lab-page';
 import CheckboxLabPage from '../pages/lab/checkbox-lab-page';
 import SelectLabPage from '../pages/lab/select-lab-page';
 import InputLabPage from '../pages/lab/input-lab-page';
+import ModalLabPage from '../pages/lab/modal-lab-page';
 import AvatarLabPage from '../pages/lab/avatar-lab-page';
 import SpinnerLabPage from '../pages/lab/spinner-lab-page';
 import ShowcaseLabPage from '../pages/lab/showcase-lab-page';
@@ -49,6 +50,7 @@ export const appRouter = createBrowserRouter([
       { path: 'checkbox', element: <CheckboxLabPage /> },
       { path: 'select', element: <SelectLabPage /> },
       { path: 'input', element: <InputLabPage /> },
+      { path: 'modal', element: <ModalLabPage /> },
       { path: 'avatar', element: <AvatarLabPage /> },
       { path: 'spinner', element: <SpinnerLabPage /> },
       { path: 'showcase', element: <ShowcaseLabPage /> },

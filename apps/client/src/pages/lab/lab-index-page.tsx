@@ -1,4 +1,4 @@
-import { ArrowRight, CheckSquare, Image, List, Loader, MousePointerClick, SquareSquare, TextCursorInput, Type } from 'lucide-react';
+import { ArrowRight, CheckSquare, Image, List, Loader, MousePointerClick, PanelsTopLeft, SquareSquare, TextCursorInput, Type } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, Typography } from '../../components/ui';
 
@@ -56,6 +56,15 @@ const labCards = [
     badge: 'Form',
     badgeTone: 'text-primary',
     description: 'Text entry with label, helper, error, mono, and accessibility wiring.',
+  },
+  {
+    path: '/lab/modal',
+    icon: PanelsTopLeft,
+    tone: 'text-primary',
+    title: 'Modal Organism',
+    badge: 'Overlay',
+    badgeTone: 'text-primary',
+    description: 'Composable dialogs with accessible focus management, keyboard dismissal, form layouts, and destructive actions.',
   },
 ];
 

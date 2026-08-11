@@ -5,6 +5,7 @@ import { Button, GridCell, GridPanel, PageContainer, Typography } from '../../co
 import { EndpointListSidebar } from '../../components/EndpointListSidebar'
 import EndpointDetailView from '../../components/EndpointDetailView'
 import { useProjectDetailPage } from './use-project-detail-page'
+import { ProjectItemModal } from './project-item-modal'
 
 export default function ProjectDetailPage() {
   const page = useProjectDetailPage()
@@ -51,6 +52,7 @@ export default function ProjectDetailPage() {
           folders={page.folders}
           activeEndpointId={page.selectedEndpoint?.id ?? null}
           onSelectEndpoint={page.handleSelectEndpoint}
+          onCreateEndpoint={page.createEndpoint}
           onCreateFolder={page.createFolder}
           onRenameFolder={page.renameFolder}
           onDeleteFolder={page.deleteFolder}
@@ -160,6 +162,14 @@ export default function ProjectDetailPage() {
           ) : null}
         </main>
       </div>
+      {page.itemDialog && (
+        <ProjectItemModal
+          key={`${page.itemDialog.type}-${'folderId' in page.itemDialog ? page.itemDialog.folderId : 'endpointId' in page.itemDialog ? page.itemDialog.endpointId : page.itemDialog.parentId ?? 'root'}`}
+          dialog={page.itemDialog}
+          onClose={page.closeItemDialog}
+          onSubmit={page.submitItemDialog}
+        />
+      )}
     </div>
   )
 }

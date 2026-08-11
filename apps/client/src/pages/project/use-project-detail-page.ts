@@ -5,6 +5,7 @@ import type { Endpoint } from '@modern-api-studio/types';
 import type { EndpointDto } from '../../lib/api';
 import { projectQueryKeys } from '../../queries/project.queries';
 import { endpointFolderRepository, endpointRepository, projectRepository } from '../../repositories';
+import type { ProjectItemDialogState } from './project-item-modal';
 
 function toEndpoint(dto: EndpointDto): Endpoint {
   const spec = dto.specData ?? {};
@@ -28,6 +29,7 @@ export function useProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(null);
+  const [itemDialog, setItemDialog] = useState<ProjectItemDialogState | null>(null);
 
   const projectQuery = useQuery({
     queryKey: projectQueryKeys.detail(id ?? ''),
@@ -43,6 +45,26 @@ export function useProjectDetailPage() {
     mutationFn: ({ name, parentId }: { name: string; parentId: string | null }) =>
       endpointFolderRepository.create({ projectId: id as string, name, parentId }),
     onSuccess: invalidateProject,
+  });
+  const createEndpointMutation = useMutation({
+    mutationFn: ({ name, folderId }: { name: string; folderId: string | null }) =>
+      endpointRepository.create({
+        projectId: id as string,
+        folderId,
+        path: '/',
+        method: 'GET',
+        summary: name,
+        specData: {
+          tags: [],
+          deprecated: false,
+          parameters: [],
+          responses: [],
+        },
+      }),
+    onSuccess: async (endpoint) => {
+      setSelectedEndpointId(endpoint.id);
+      await invalidateProject();
+    },
   });
   const renameFolderMutation = useMutation({
     mutationFn: ({ folderId, name }: { folderId: string; name: string }) =>
@@ -92,7 +114,21 @@ export function useProjectDetailPage() {
   );
 
   const handleSelectEndpoint = useCallback((endpointId: string) => setSelectedEndpointId(endpointId), []);
-  const promptName = (message: string, initial = '') => window.prompt(message, initial)?.trim() ?? '';
+
+  const submitItemDialog = async (value?: string) => {
+    if (!itemDialog) return;
+    if (itemDialog.type === 'create-endpoint' && value) {
+      await createEndpointMutation.mutateAsync({ name: value, folderId: itemDialog.folderId });
+    } else if (itemDialog.type === 'create-folder' && value) {
+      await createFolderMutation.mutateAsync({ name: value, parentId: itemDialog.parentId });
+    } else if (itemDialog.type === 'rename-folder' && value && value !== itemDialog.currentName) {
+      await renameFolderMutation.mutateAsync({ folderId: itemDialog.folderId, name: value });
+    } else if (itemDialog.type === 'delete-folder') {
+      await deleteFolderMutation.mutateAsync(itemDialog.folderId);
+    } else if (itemDialog.type === 'rename-endpoint' && value && value !== itemDialog.currentName) {
+      await renameEndpointMutation.mutateAsync({ endpointId: itemDialog.endpointId, name: value });
+    }
+  };
 
   return {
     projectId: id,
@@ -107,21 +143,17 @@ export function useProjectDetailPage() {
     selectedEndpoint,
     selectedEndpointId,
     handleSelectEndpoint,
-    createFolder: async (parentId: string | null) => {
-      const name = promptName('Folder name:', 'New Folder');
-      if (name) await createFolderMutation.mutateAsync({ name, parentId });
-    },
-    renameFolder: async (folderId: string, currentName: string) => {
-      const name = promptName('Rename folder:', currentName);
-      if (name && name !== currentName) await renameFolderMutation.mutateAsync({ folderId, name });
-    },
-    deleteFolder: async (folderId: string) => {
-      if (window.confirm('Delete this folder? It must be empty.')) await deleteFolderMutation.mutateAsync(folderId);
-    },
-    renameEndpoint: async (endpointId: string, currentName: string) => {
-      const name = promptName('Rename endpoint:', currentName);
-      if (name && name !== currentName) await renameEndpointMutation.mutateAsync({ endpointId, name });
-    },
+    itemDialog,
+    closeItemDialog: () => setItemDialog(null),
+    submitItemDialog,
+    createEndpoint: (folderId: string | null) => setItemDialog({ type: 'create-endpoint', folderId }),
+    createFolder: (parentId: string | null) => setItemDialog({ type: 'create-folder', parentId }),
+    renameFolder: (folderId: string, currentName: string) =>
+      setItemDialog({ type: 'rename-folder', folderId, currentName }),
+    deleteFolder: (folderId: string, currentName: string) =>
+      setItemDialog({ type: 'delete-folder', folderId, currentName }),
+    renameEndpoint: (endpointId: string, currentName: string) =>
+      setItemDialog({ type: 'rename-endpoint', endpointId, currentName }),
     moveEndpoint: (endpointId: string, folderId: string | null) =>
       moveEndpointMutation.mutateAsync({ endpointId, folderId }),
   };
