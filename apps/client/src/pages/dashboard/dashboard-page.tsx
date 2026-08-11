@@ -12,6 +12,7 @@ import { ImportYamlModal } from '../../components/ImportYamlModal';
 import type { ProjectDto } from '../../lib/api';
 import { CreateProjectModal } from './create-project-modal';
 import useDashboardPage from './use-dashboard-page';
+import { McpConnectionPanel } from './mcp-connection-panel';
 
 export default function DashboardPage() {
   const page = useDashboardPage();
@@ -32,6 +33,8 @@ export default function DashboardPage() {
             {page.subtitle}
           </Typography>
         </header>
+
+      <McpConnectionPanel />
 
       {/* Stats — 2 items only, use 2-col grid */}
       <GridPanel columns="grid-cols-1 sm:grid-cols-2" className="mb-8">
