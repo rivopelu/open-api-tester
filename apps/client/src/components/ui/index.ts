@@ -9,5 +9,6 @@ export * from './PageContainer';
 export * from './Popover';
 export * from './Select';
 export * from './Spinner';
+export * from './Tooltip';
 export * from './Typography';
 export * from './GridPanel';

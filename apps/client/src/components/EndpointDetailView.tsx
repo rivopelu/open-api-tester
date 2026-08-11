@@ -14,8 +14,9 @@ import {
   ShieldCheck,
   Trash2,
   ChevronDown,
+  Pencil,
 } from 'lucide-react'
-import { Button, Input, Popover } from './ui'
+import { Button, Input, Popover, Tooltip } from './ui'
 import { cn } from '../lib/utils'
 import { interpolateEnvironment, useEnvironmentStore } from '../store/useEnvironmentStore'
 import { EndpointContractExamples } from './EndpointContractExamples'
@@ -79,6 +80,34 @@ function initialBody(body?: RequestBodyDefinition): string {
     ),
     null,
     2,
+  )
+}
+
+function EnvironmentValue({ value, variables }: { value: string; variables: Record<string, string> }) {
+  const parts = value.split(/(\{\{[^{}]+\}\})/g)
+  return (
+    <span className="min-w-0 flex-1 truncate">
+      {parts.map((part, index) => {
+        const match = part.match(/^\{\{([^{}]+)\}\}$/)
+        if (!match) return part
+        const name = match[1].trim()
+        const resolved = variables[name]
+        const missing = !resolved
+        return (
+          <Tooltip
+            key={`${part}-${index}`}
+            content={missing ? `${name}: no value in the active environment` : `${name}: ${resolved}`}
+          >
+            <span className={cn(
+              'mx-0.5 border px-1 py-0.5 font-mono text-[11px]',
+              missing
+                ? 'border-danger/40 bg-danger/10 text-danger'
+                : 'border-primary/40 bg-primary/10 text-primary',
+            )}>{part}</span>
+          </Tooltip>
+        )
+      })}
+    </span>
   )
 }
 
@@ -179,12 +208,14 @@ export default function EndpointDetailView({ endpoint, className, onMethodChange
   const [activeTab, setActiveTab] = useState<RequestTab>('params')
   const [responseTab, setResponseTab] = useState<ResponseTab>('body')
   const [urlText, setUrlText] = useState('')
+  const [editingUrl, setEditingUrl] = useState(false)
   const [pathRows, setPathRows] = useState<KvRow[]>([])
   const [queryRows, setQueryRows] = useState<KvRow[]>([])
   const [headerRows, setHeaderRows] = useState<KvRow[]>([])
   const [bodyText, setBodyText] = useState('')
   const [authType, setAuthType] = useState<'none' | 'bearer' | 'basic'>('none')
   const [bearerToken, setBearerToken] = useState('')
+  const [editingBearerToken, setEditingBearerToken] = useState(false)
   const [basicUser, setBasicUser] = useState('')
   const [basicPass, setBasicPass] = useState('')
   const [response, setResponse] = useState<{
@@ -274,6 +305,7 @@ export default function EndpointDetailView({ endpoint, className, onMethodChange
         // Keep editing usable when persistence is unavailable.
       }
     }
+    setEditingUrl(false)
   }
 
   const resolvedUrl = useMemo(() => {
@@ -427,20 +459,36 @@ export default function EndpointDetailView({ endpoint, className, onMethodChange
               </button>
             ))}
           </Popover>
-          <input
-            value={urlText}
-            onChange={(event) => onUrlChange(event.target.value)}
-            onBlur={onUrlBlur}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !loading) {
-                onUrlBlur()
-                void send()
-              }
-            }}
-            placeholder="Enter a complete request URL"
-            className="min-w-0 flex-1 bg-transparent px-4 font-mono text-xs text-text-primary outline-none placeholder:text-text-muted"
-            aria-label="Request URL"
-          />
+          {editingUrl ? (
+            <input
+              autoFocus
+              value={urlText}
+              onChange={(event) => onUrlChange(event.target.value)}
+              onBlur={onUrlBlur}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !loading) {
+                  onUrlBlur()
+                  void send()
+                }
+              }}
+              placeholder="Enter a complete request URL"
+              className="min-w-0 flex-1 bg-transparent px-4 font-mono text-xs text-text-primary outline-none placeholder:text-text-muted"
+              aria-label="Request URL"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingUrl(true)}
+              className="flex min-w-0 flex-1 items-center px-4 text-left font-mono text-xs text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+              aria-label="Edit request URL"
+            >
+              {urlText ? (
+                <EnvironmentValue value={urlText} variables={variables} />
+              ) : (
+                <span className="truncate text-text-muted">Enter a complete request URL</span>
+              )}
+            </button>
+          )}
           <Button
             variant="primary"
             size="sm"
@@ -511,15 +559,43 @@ export default function EndpointDetailView({ endpoint, className, onMethodChange
               <div className="grid max-w-3xl gap-6 md:grid-cols-[220px_1fr]">
                 <div>
                   <label className="mb-2 block text-xs font-bold text-text-secondary">Auth type</label>
-                  <select
-                    value={authType}
-                    onChange={(event) => setAuthType(event.target.value as typeof authType)}
-                    className="h-9 w-full border border-border bg-surface px-3 text-xs text-text-primary outline-none focus:border-primary"
+                  <Popover
+                    align="start"
+                    triggerClassName="w-full"
+                    className="mt-1 w-full min-w-0 p-1"
+                    trigger={({ open }) => (
+                      <button
+                        type="button"
+                        className={cn(
+                          'flex h-9 w-full items-center justify-between border bg-surface px-3 text-xs font-semibold text-text-primary outline-none transition-colors',
+                          open ? 'border-primary ring-1 ring-primary' : 'border-border hover:border-text-muted',
+                        )}
+                      >
+                        {authType === 'none' ? 'No Auth' : authType === 'bearer' ? 'Bearer Token' : 'Basic Auth'}
+                        <ChevronDown className={cn('h-3.5 w-3.5 text-text-muted transition-transform', open && 'rotate-180')} />
+                      </button>
+                    )}
                   >
-                    <option value="none">No Auth</option>
-                    <option value="bearer">Bearer Token</option>
-                    <option value="basic">Basic Auth</option>
-                  </select>
+                    {({ close }) => ([
+                      ['none', 'No Auth'],
+                      ['bearer', 'Bearer Token'],
+                      ['basic', 'Basic Auth'],
+                    ] as const).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={authType === value}
+                        onClick={() => { setAuthType(value); close() }}
+                        className={cn(
+                          'flex w-full items-center px-3 py-2 text-xs font-semibold transition-colors hover:bg-overlay focus-visible:bg-overlay focus-visible:outline-none',
+                          authType === value ? 'bg-primary/10 text-primary' : 'text-text-secondary',
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </Popover>
                 </div>
                 <div className="border-l border-border pl-6">
                   <div className="mb-4 flex items-center gap-2 text-xs font-bold text-text-secondary">
@@ -529,8 +605,63 @@ export default function EndpointDetailView({ endpoint, className, onMethodChange
                   {authType === 'bearer' && (
                     <div>
                       <label className="mb-2 block text-xs text-text-secondary">Token</label>
-                      <Input type="password" size="sm" className="font-mono" value={bearerToken} onChange={(event) => setBearerToken(event.target.value)} placeholder="Paste bearer token" />
-                      <p className="mt-2 text-[11px] text-text-muted">Sent in the Authorization request header.</p>
+                      <div className="flex h-9 border border-border bg-base focus-within:border-primary">
+                        {editingBearerToken ? (
+                          <input
+                            autoFocus
+                            value={bearerToken}
+                            onChange={(event) => setBearerToken(event.target.value)}
+                            onBlur={() => setEditingBearerToken(false)}
+                            onKeyDown={(event) => event.key === 'Enter' && setEditingBearerToken(false)}
+                            placeholder="Paste token or use {{variable}}"
+                            className="min-w-0 flex-1 bg-transparent px-3 font-mono text-xs text-text-primary outline-none placeholder:text-text-muted"
+                          />
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setEditingBearerToken(true)}
+                            className="flex min-w-0 flex-1 items-center gap-2 px-3 text-left font-mono text-xs text-text-primary"
+                          >
+                            {bearerToken ? (
+                              <EnvironmentValue value={bearerToken} variables={variables} />
+                            ) : (
+                              <span className="min-w-0 flex-1 truncate font-sans text-text-muted">Paste token or use {'{{variable}}'}</span>
+                            )}
+                            <Pencil className="h-3 w-3 shrink-0 text-text-muted" />
+                          </button>
+                        )}
+                        <Popover
+                          align="end"
+                          triggerClassName="h-full"
+                          className="mt-1 w-56 p-1"
+                          trigger={(
+                            <button type="button" className="flex h-full items-center gap-1.5 border-l border-border px-3 font-mono text-[10px] font-bold text-primary hover:bg-primary/10">
+                              <Braces className="h-3.5 w-3.5" /> ENV
+                            </button>
+                          )}
+                        >
+                          {({ close }) => Object.keys(variables).length ? (
+                            <div>
+                              <p className="px-2.5 py-2 text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">Environment variables</p>
+                              {Object.keys(variables).map((key) => (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => { setBearerToken(`{{${key}}}`); setEditingBearerToken(true); close() }}
+                                  className="flex w-full items-center justify-between gap-3 px-2.5 py-2 text-left font-mono text-xs text-text-secondary hover:bg-overlay hover:text-text-primary"
+                                >
+                                  <span className="truncate">{`{{${key}}}`}</span>
+                                  <span className="max-w-20 truncate text-[10px] text-text-muted">{variables[key]}</span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="px-3 py-4 text-xs leading-5 text-text-muted">No variables in the active environment.</p>
+                          )}
+                        </Popover>
+                      </div>
+                      <p className="mt-2 text-[11px] text-text-muted">Sent as Bearer token. Environment variables use {'{{variable}}'}.</p>
                     </div>
                   )}
                   {authType === 'basic' && (
