@@ -9,7 +9,7 @@ type Client = 'codex' | 'claude' | 'cursor'
 
 const clientLabels: Record<Client, string> = {
   codex: 'Codex',
-  claude: 'Claude Desktop',
+  claude: 'Claude Code',
   cursor: 'Cursor',
 }
 
@@ -40,9 +40,12 @@ export function McpConnectionPanel() {
   }, [accountId, tokenStorageKey])
 
   const config = useMemo(() => {
-    const bearer = token || '<YOUR_MCP_TOKEN>'
+    const bearer = token || 'TOKEN_BARU_ANDA'
     if (client === 'codex') {
       return `codex mcp add max-api-studio --url ${endpoint} --bearer-token ${bearer}`
+    }
+    if (client === 'claude') {
+      return `claude mcp add --transport http --scope project max-api-studio ${endpoint} --header "Authorization: Bearer ${bearer}"`
     }
     return JSON.stringify(
       {
@@ -173,7 +176,7 @@ export function McpConnectionPanel() {
               </div>
             </div>
             <p className="mb-3 text-xs text-text-muted">
-              {client === 'codex' ? 'Run this command in your terminal.' : `Add this server to your ${clientLabels[client]} MCP configuration.`}
+              {client === 'cursor' ? `Add this server to your ${clientLabels[client]} MCP configuration.` : 'Run this command in your terminal.'}
             </p>
             <div className="relative min-h-[150px] border border-border bg-base p-4 pr-12">
               <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[11px] leading-6 text-text-secondary">{config}</pre>

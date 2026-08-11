@@ -46,6 +46,9 @@ supabase/.temp/
 .gemini/
 .claude/
 .kiro
+
+# MCP config — contains bearer token (personal, not team-shared)
+/.mcp.json
 .opencode
 .agents/skills/impeccable/
 .agents/scripts/
