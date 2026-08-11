@@ -10,6 +10,8 @@ describe('AccountService', () => {
     password: 'hashed',
     profile_picture: null,
     mcp_token_hash: null,
+    environments: [],
+    active_environment_id: null,
     active: true,
     created_date: 1000,
     created_by: null,

@@ -3,6 +3,7 @@ import { Check, ChevronDown, ChevronUp, Copy, KeyRound, PlugZap, RotateCw, Shiel
 import toast from 'react-hot-toast'
 import { Button, Typography } from '../../components/ui'
 import { mcpRepository } from '../../repositories'
+import { useAuthStore } from '../../store/useAuthStore'
 
 type Client = 'codex' | 'claude' | 'cursor'
 
@@ -13,9 +14,14 @@ const clientLabels: Record<Client, string> = {
 }
 
 export function McpConnectionPanel() {
+  const accountId = useAuthStore((state) => state.user?.id)
+  const tokenStorageKey = accountId ? `api-studio:mcp-token:${accountId}` : null
   const [expanded, setExpanded] = useState(false)
   const [client, setClient] = useState<Client>('codex')
-  const [token, setToken] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(() => {
+    if (!tokenStorageKey) return null
+    try { return localStorage.getItem(tokenStorageKey) } catch { return null }
+  })
   const [rotating, setRotating] = useState(false)
   const [revoking, setRevoking] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
@@ -47,11 +53,12 @@ export function McpConnectionPanel() {
   }
 
   const rotate = async () => {
-    if (token && !window.confirm('Rotate this token? Existing MCP connections will stop working.')) return
+    if (token) return
     setRotating(true)
     try {
       const result = await mcpRepository.rotateToken()
       setToken(result.token)
+      if (tokenStorageKey) localStorage.setItem(tokenStorageKey, result.token)
       toast.success('MCP token generated')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to generate MCP token')
@@ -66,6 +73,7 @@ export function McpConnectionPanel() {
     try {
       await mcpRepository.revokeToken()
       setToken(null)
+      if (tokenStorageKey) localStorage.removeItem(tokenStorageKey)
       toast.success('MCP token revoked')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to revoke MCP token')
@@ -111,7 +119,7 @@ export function McpConnectionPanel() {
 
             <div className="mb-2 flex items-center justify-between">
               <label className="text-xs font-semibold text-text-secondary">Access token</label>
-              <span className="flex items-center gap-1 text-[10px] text-text-muted"><KeyRound className="h-3 w-3" /> shown once</span>
+              <span className="flex items-center gap-1 text-[10px] text-text-muted"><KeyRound className="h-3 w-3" /> stored on this browser</span>
             </div>
             <div className="mb-3 flex h-9 border border-border bg-base">
               <code className="min-w-0 flex-1 truncate px-3 py-2 text-[11px] text-text-secondary">{token || 'Generate a token to connect'}</code>
@@ -122,15 +130,15 @@ export function McpConnectionPanel() {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="primary" size="sm" loading={rotating} onClick={() => void rotate()}>
-                <RotateCw className="h-3.5 w-3.5" /> {token ? 'Rotate token' : 'Generate token'}
+              <Button variant="primary" size="sm" loading={rotating} disabled={Boolean(token)} onClick={() => void rotate()}>
+                <RotateCw className="h-3.5 w-3.5" /> {token ? 'Token generated' : 'Generate token'}
               </Button>
               <Button variant="danger" size="sm" loading={revoking} disabled={!token} onClick={() => void revoke()}>
                 <Trash2 className="h-3.5 w-3.5" /> Revoke
               </Button>
             </div>
             <p className="mt-3 text-[11px] leading-5 text-text-muted">
-              Store this token securely. Generating another token immediately invalidates the previous one.
+              This token remains visible on this browser. Revoke it before generating a replacement.
             </p>
           </div>
 

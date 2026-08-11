@@ -6,6 +6,7 @@ import type {
   AccountListResult,
 } from '../types/account.types'
 import { createHash, randomBytes } from 'node:crypto'
+import { ConflictError, NotFoundError } from '../../../configs/exception'
 
 export class AccountService {
   constructor(private repository: AccountRepository = new AccountRepository()) {}
@@ -41,6 +42,11 @@ export class AccountService {
   }
 
   async rotateMcpToken(id: string): Promise<string> {
+    const account = await this.repository.findById(id)
+    if (!account) throw new NotFoundError('Account not found')
+    if (account.mcp_token_hash) {
+      throw new ConflictError('MCP token already exists. Revoke it before generating a new token.')
+    }
     const token = `mas_${randomBytes(32).toString('base64url')}`
     await this.repository.update(id, { mcp_token_hash: this.hashMcpToken(token) })
     return token
@@ -48,6 +54,16 @@ export class AccountService {
 
   async revokeMcpToken(id: string): Promise<void> {
     await this.repository.update(id, { mcp_token_hash: null })
+  }
+
+  async getEnvironments(id: string) {
+    const account = await this.repository.findById(id)
+    if (!account) throw new NotFoundError('Account not found')
+    return { environments: account.environments, activeEnvironmentId: account.active_environment_id }
+  }
+
+  async saveEnvironments(id: string, environments: Array<{ id: string; name: string; variables: Record<string, string> }>, activeEnvironmentId: string | null): Promise<void> {
+    await this.repository.update(id, { environments, active_environment_id: activeEnvironmentId })
   }
 
   private hashMcpToken(token: string): string {

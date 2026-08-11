@@ -15,6 +15,13 @@
       "when": 1786439775855,
       "tag": "0001_complete_justice",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786441755145,
+      "tag": "0002_nasty_dark_beast",
+      "breakpoints": true
     }
   ]
 }

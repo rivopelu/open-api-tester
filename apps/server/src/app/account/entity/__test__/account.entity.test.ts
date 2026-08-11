@@ -15,6 +15,8 @@ describe('AccountEntity', () => {
       password: 'hash',
       profile_picture: null,
       mcp_token_hash: null,
+      environments: [],
+      active_environment_id: null,
       active: true,
       created_date: 123,
       created_by: null,

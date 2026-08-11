@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Check, ChevronDown, CircleDot, Plus, Settings2, Trash2 } from 'lucide-react'
 import { Button, Modal, ModalBody, ModalDescription, ModalFooter, ModalHeader, ModalTitle, Popover } from './ui'
 import { type ApiEnvironment, useEnvironmentStore } from '../store/useEnvironmentStore'
+import { useAuthStore } from '../store/useAuthStore'
 
 interface VariableRow {
   id: string
@@ -12,13 +13,18 @@ interface VariableRow {
 const blankRow = (): VariableRow => ({ id: crypto.randomUUID(), key: '', value: '' })
 
 export function EnvironmentSelector({ compact = false }: { compact?: boolean }) {
-  const { environments, activeEnvironmentId, selectEnvironment, saveEnvironment, deleteEnvironment } = useEnvironmentStore()
+  const { environments, activeEnvironmentId, selectEnvironment, saveEnvironment, deleteEnvironment, loadEnvironments } = useEnvironmentStore()
+  const accountId = useAuthStore((state) => state.user?.id)
   const active = environments.find((environment) => environment.id === activeEnvironmentId)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [rows, setRows] = useState<VariableRow[]>([blankRow()])
   const closeSettings = useCallback(() => setSettingsOpen(false), [])
+
+  useEffect(() => {
+    if (accountId) void loadEnvironments()
+  }, [accountId, loadEnvironments])
 
   const edit = (environment?: ApiEnvironment) => {
     setEditingId(environment?.id ?? null)

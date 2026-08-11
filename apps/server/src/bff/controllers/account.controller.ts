@@ -4,7 +4,7 @@ import { ResponseHelper } from '../../lib/response-helper'
 import { getPagination } from '../../lib/get-pagination'
 import { AccountBffService } from '../services/account-bff.service'
 import { getUser } from '../../lib/get-user'
-import { UnauthorizedError } from '../../configs/exception'
+import { BadRequestError, UnauthorizedError } from '../../configs/exception'
 
 @Controller()
 @AuthAccess()
@@ -25,7 +25,7 @@ export class AccountController {
     const user = getUser(c)
     if (!user) throw new UnauthorizedError()
     const token = await this.accountBffService.rotateMcpToken(user.sub)
-    return c.json(ResponseHelper.data({ token }, 'MCP token rotated successfully'))
+    return c.json(ResponseHelper.data({ token }, 'MCP token generated successfully'))
   }
 
   @Delete('/account/mcp-token')
@@ -34,6 +34,23 @@ export class AccountController {
     if (!user) throw new UnauthorizedError()
     await this.accountBffService.revokeMcpToken(user.sub)
     return c.json(ResponseHelper.success('MCP token revoked successfully'))
+  }
+
+  @Get('/account/environments')
+  async getEnvironments(c: Context) {
+    const user = getUser(c)
+    if (!user) throw new UnauthorizedError()
+    return c.json(ResponseHelper.data(await this.accountBffService.getEnvironments(user.sub)))
+  }
+
+  @Post('/account/environments')
+  async saveEnvironments(c: Context) {
+    const user = getUser(c)
+    if (!user) throw new UnauthorizedError()
+    const body = await c.req.json().catch(() => null) as { environments?: Array<{ id: string; name: string; variables: Record<string, string> }>; activeEnvironmentId?: string | null } | null
+    if (!body || !Array.isArray(body.environments)) throw new BadRequestError('Invalid environments')
+    await this.accountBffService.saveEnvironments(user.sub, body.environments, body.activeEnvironmentId ?? null)
+    return c.json(ResponseHelper.success('Environments saved successfully'))
   }
 }
 

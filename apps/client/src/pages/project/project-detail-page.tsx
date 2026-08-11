@@ -21,9 +21,6 @@ export default function ProjectDetailPage() {
     <div className="flex h-screen flex-col overflow-hidden bg-base">
       {/* Topbar */}
       <div className="flex h-[56px] shrink-0 items-center border-b border-border bg-surface px-3">
-        <div className="ml-auto mr-2">
-          <EnvironmentSelector />
-        </div>
         <Button
           variant="ghost"
           size="sm"
@@ -40,6 +37,9 @@ export default function ProjectDetailPage() {
           <Typography variant="caption" tone="muted" className="mt-0.5">
             {page.endpoints.length} requests · Version {page.project?.version ?? '1.0.0'}
           </Typography>
+        </div>
+        <div className="ml-auto mr-2">
+          <EnvironmentSelector />
         </div>
         <Button
           variant="primary"

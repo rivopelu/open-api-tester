@@ -1,4 +1,4 @@
-import { bigint, boolean, pgTable, varchar } from 'drizzle-orm/pg-core'
+import { bigint, boolean, jsonb, pgTable, varchar } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import { generateId } from '../../../lib/string-utils'
 
@@ -17,6 +17,8 @@ export const AccountEntity = pgTable('account', {
   password: varchar('password', { length: 255 }).notNull(),
   profile_picture: varchar('profile_picture', { length: 500 }),
   mcp_token_hash: varchar('mcp_token_hash', { length: 64 }).unique(),
+  environments: jsonb('environments').$type<Array<{ id: string; name: string; variables: Record<string, string> }>>().default([]).notNull(),
+  active_environment_id: varchar('active_environment_id', { length: 255 }),
   active: boolean('active').default(true).notNull(),
   created_date: bigint('created_date', { mode: 'number' }).$defaultFn(nowTimestamp).notNull(),
   created_by: varchar('created_by', { length: 256 }),

@@ -79,9 +79,12 @@ function parseRequestUrl(value: string): { base: string; pathKeys: string[]; que
   const question = value.indexOf('?')
   const base = question >= 0 ? value.slice(0, question) : value
   const query = question >= 0 ? value.slice(question + 1) : ''
-  const pathKeys = Array.from(base.matchAll(/(?:^|\/)\:([A-Za-z_][\w-]*)/g), (match) => match[1])
+  const pathKeys = Array.from(
+    base.matchAll(/(?:^|\/)(?::([A-Za-z_][\w-]*)|\{([A-Za-z_][\w-]*)\})/g),
+    (match) => match[1] || match[2],
+  )
   return {
-    base: base.replace(/(^|\/)\:([A-Za-z_][\w-]*)/g, '$1{$2}'),
+    base,
     pathKeys,
     queryRows: Array.from(new URLSearchParams(query).entries()).map(([key, value]) => ({
       id: crypto.randomUUID(),
@@ -214,21 +217,60 @@ export default function EndpointDetailView({ endpoint, className }: EndpointDeta
 
   const onUrlChange = (value: string) => {
     const parsed = parseRequestUrl(value)
-    setUrlText(parsed.base)
-    if (parsed.queryRows.length || value.includes('?')) setQueryRows(parsed.queryRows)
-    setPathRows((current) => [
-      ...current,
-      ...parsed.pathKeys.filter((key) => !current.some((row) => row.key === key)).map((key) => ({ id: crypto.randomUUID(), key, value: '', enabled: true })),
-    ])
+    setUrlText(value)
+    if (parsed.queryRows.length) setQueryRows(parsed.queryRows)
+    setPathRows((current) => parsed.pathKeys.map((key) => {
+      const existing = current.find((row) => row.key === key)
+      return existing ?? { id: crypto.randomUUID(), key, value: '', enabled: true }
+    }))
     try {
-      localStorage.setItem(storageKey(endpoint.id), parsed.base)
+      localStorage.setItem(storageKey(endpoint.id), value)
     } catch {
       // Keep the request usable even when persistence is unavailable.
     }
   }
 
+  const onPathRowsChange = (nextRows: KvRow[]) => {
+    let nextUrl = urlText
+    for (let index = 0; index < pathRows.length; index += 1) {
+      const previous = pathRows[index]
+      const next = nextRows.find((row) => row.id === previous.id)
+      const escaped = previous.key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      if (!next) {
+        nextUrl = nextUrl
+          .replace(new RegExp(`/:${escaped}(?=/|\\?|$)`), '')
+          .replace(new RegExp(`/\\{${escaped}\\}(?=/|\\?|$)`), '')
+      } else if (next.key && next.key !== previous.key) {
+        nextUrl = nextUrl
+          .replace(new RegExp(`:${escaped}(?=/|\\?|$)`, 'g'), `:${next.key}`)
+          .replace(new RegExp(`\\{${escaped}\\}`, 'g'), `{${next.key}}`)
+      }
+    }
+    setUrlText(nextUrl)
+    setPathRows(nextRows)
+    try {
+      localStorage.setItem(storageKey(endpoint.id), nextUrl)
+    } catch {
+      // Keep editing usable when persistence is unavailable.
+    }
+  }
+
+  const onUrlBlur = () => {
+    const parsed = parseRequestUrl(urlText)
+    if (urlText.includes('?')) {
+      setQueryRows(parsed.queryRows)
+      setUrlText(parsed.base)
+      try {
+        localStorage.setItem(storageKey(endpoint.id), parsed.base)
+      } catch {
+        // Keep editing usable when persistence is unavailable.
+      }
+    }
+  }
+
   const resolvedUrl = useMemo(() => {
-    let url = interpolateEnvironment(rawUrl(urlText).trim(), variables).replace(/([^:])\/{2,}/g, '$1/')
+    const parsed = parseRequestUrl(interpolateEnvironment(rawUrl(urlText).trim(), variables))
+    let url = parsed.base.replace(/([^:])\/{2,}/g, '$1/')
     for (const row of pathRows) {
       if (row.enabled && row.key && row.value) {
         const value = interpolateEnvironment(row.value, variables)
@@ -338,8 +380,12 @@ export default function EndpointDetailView({ endpoint, className }: EndpointDeta
           <input
             value={urlText}
             onChange={(event) => onUrlChange(event.target.value)}
+            onBlur={onUrlBlur}
             onKeyDown={(event) => {
-              if (event.key === 'Enter' && !loading) void send()
+              if (event.key === 'Enter' && !loading) {
+                onUrlBlur()
+                void send()
+              }
             }}
             placeholder="Enter a complete request URL"
             className="min-w-0 flex-1 bg-transparent px-4 font-mono text-xs text-text-primary outline-none placeholder:text-text-muted"
@@ -398,7 +444,7 @@ export default function EndpointDetailView({ endpoint, className }: EndpointDeta
                       <h3 className="text-xs font-bold text-text-secondary">Path variables</h3>
                       <span className="font-mono text-[10px] text-text-muted">{pathRows.length} defined</span>
                     </div>
-                    <KeyValueEditor rows={pathRows} onChange={setPathRows} emptyMessage="No path variables" />
+                    <KeyValueEditor rows={pathRows} onChange={onPathRowsChange} emptyMessage="No path variables" />
                   </section>
                 )}
                 <section>
