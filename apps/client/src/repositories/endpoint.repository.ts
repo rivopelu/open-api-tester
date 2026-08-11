@@ -2,6 +2,7 @@ import { api, unwrap, type EndpointDto } from '../lib/api';
 
 export interface EndpointPayload {
   projectId?: string;
+  folderId?: string | null;
   path?: string;
   method?: string;
   summary?: string;

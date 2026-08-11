@@ -46,10 +46,16 @@ export default function ProjectDetailPage() {
       <div className="flex flex-1 overflow-hidden">
         {/* Endpoint list sidebar */}
         <EndpointListSidebar
-          tags={page.tags}
           endpoints={page.endpoints}
+          endpointDtos={page.endpointDtos}
+          folders={page.folders}
           activeEndpointId={page.selectedEndpoint?.id ?? null}
           onSelectEndpoint={page.handleSelectEndpoint}
+          onCreateFolder={page.createFolder}
+          onRenameFolder={page.renameFolder}
+          onDeleteFolder={page.deleteFolder}
+          onRenameEndpoint={page.renameEndpoint}
+          onMoveEndpoint={page.moveEndpoint}
         />
 
         {/* Main area: overview OR endpoint detail */}

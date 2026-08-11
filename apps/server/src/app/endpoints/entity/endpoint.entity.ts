@@ -1,14 +1,18 @@
-import { boolean, integer, jsonb, pgTable, text, varchar } from 'drizzle-orm/pg-core'
+import { integer, jsonb, pgTable, text, varchar } from 'drizzle-orm/pg-core'
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 import type { HttpMethod } from '@modern-api-studio/types'
 import { baseEntity, entityId } from '../../../lib/base.entity'
 import { ProjectEntity } from '../../projects/entity/project.entity'
+import { EndpointFoldersEntity } from '../../endpoint-folders/entity/endpoint-folder.entity'
 
 export const EndpointsEntity = pgTable('endpoints', {
   ...entityId,
   project_id: varchar('project_id', { length: 255 })
     .notNull()
     .references(() => ProjectEntity.id, { onDelete: 'cascade' }),
+  folder_id: varchar('folder_id', { length: 255 }).references(() => EndpointFoldersEntity.id, {
+    onDelete: 'set null',
+  }),
   path: text('path').notNull(),
   method: varchar('method', { length: 12 }).$type<HttpMethod>().notNull(),
   summary: text('summary').notNull().default(''),

@@ -66,11 +66,23 @@ export interface ProjectDto {
 export interface ProjectDetailDto {
   project: ProjectDto;
   endpoints: EndpointDto[];
+  folders: EndpointFolderDto[];
+}
+
+export interface EndpointFolderDto {
+  id: string;
+  projectId: string;
+  parentId: string | null;
+  name: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string | null;
 }
 
 export interface EndpointDto {
   id: string;
   projectId: string;
+  folderId: string | null;
   path: string;
   method: string;
   summary: string | null;

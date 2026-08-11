@@ -42,6 +42,7 @@ export class EndpointsController {
 
     const endpoint = await this.endpointService.create({
       projectId,
+      folderId: typeof body.folderId === 'string' ? body.folderId : null,
       path: typeof body.path === 'string' ? body.path : undefined,
       method: typeof body.method === 'string' ? body.method : undefined,
       summary: typeof body.summary === 'string' ? body.summary : undefined,
@@ -63,6 +64,9 @@ export class EndpointsController {
     }
 
     const endpoint = await this.endpointService.update(c.req.param('id')!, {
+      folderId: body.folderId === null || typeof body.folderId === 'string'
+        ? body.folderId
+        : undefined,
       path: typeof body.path === 'string' ? body.path : undefined,
       method: typeof body.method === 'string' ? body.method : undefined,
       summary: typeof body.summary === 'string' ? body.summary : undefined,

@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import type { Endpoint } from '@modern-api-studio/types';
 import type { EndpointDto } from '../../lib/api';
 import { projectQueryKeys } from '../../queries/project.queries';
-import { projectRepository } from '../../repositories';
+import { endpointFolderRepository, endpointRepository, projectRepository } from '../../repositories';
 
 function toEndpoint(dto: EndpointDto): Endpoint {
   const spec = dto.specData ?? {};
@@ -26,6 +26,7 @@ function toEndpoint(dto: EndpointDto): Endpoint {
 
 export function useProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(null);
 
   const projectQuery = useQuery({
@@ -34,25 +35,46 @@ export function useProjectDetailPage() {
     enabled: Boolean(id),
   });
 
+  const invalidateProject = useCallback(async () => {
+    if (id) await queryClient.invalidateQueries({ queryKey: projectQueryKeys.detail(id) });
+  }, [id, queryClient]);
+
+  const createFolderMutation = useMutation({
+    mutationFn: ({ name, parentId }: { name: string; parentId: string | null }) =>
+      endpointFolderRepository.create({ projectId: id as string, name, parentId }),
+    onSuccess: invalidateProject,
+  });
+  const renameFolderMutation = useMutation({
+    mutationFn: ({ folderId, name }: { folderId: string; name: string }) =>
+      endpointFolderRepository.update(folderId, { name }),
+    onSuccess: invalidateProject,
+  });
+  const deleteFolderMutation = useMutation({
+    mutationFn: (folderId: string) => endpointFolderRepository.remove(folderId),
+    onSuccess: invalidateProject,
+  });
+  const renameEndpointMutation = useMutation({
+    mutationFn: ({ endpointId, name }: { endpointId: string; name: string }) =>
+      endpointRepository.update(endpointId, { summary: name }),
+    onSuccess: invalidateProject,
+  });
+  const moveEndpointMutation = useMutation({
+    mutationFn: ({ endpointId, folderId }: { endpointId: string; folderId: string | null }) =>
+      endpointRepository.update(endpointId, { folderId }),
+    onSuccess: invalidateProject,
+  });
+
   const project = projectQuery.data?.project ?? null;
-  const endpointDtos = useMemo(
-    () => projectQuery.data?.endpoints ?? [],
-    [projectQuery.data?.endpoints],
-  );
+  const endpointDtos = useMemo(() => projectQuery.data?.endpoints ?? [], [projectQuery.data?.endpoints]);
+  const folders = useMemo(() => projectQuery.data?.folders ?? [], [projectQuery.data?.folders]);
   const endpoints = useMemo<Endpoint[]>(() => endpointDtos.map(toEndpoint), [endpointDtos]);
 
   const tagGroups = useMemo(() => {
     const map: Record<string, Endpoint[]> = { Untagged: [] };
     for (const endpoint of endpoints) {
       const endpointTags = endpoint.tags ?? [];
-      if (endpointTags.length === 0) {
-        map.Untagged.push(endpoint);
-      } else {
-        for (const tag of endpointTags) {
-          if (!map[tag]) map[tag] = [];
-          map[tag].push(endpoint);
-        }
-      }
+      if (endpointTags.length === 0) map.Untagged.push(endpoint);
+      else for (const tag of endpointTags) (map[tag] ??= []).push(endpoint);
     }
     if (map.Untagged.length === 0) delete map.Untagged;
     return map;
@@ -60,9 +82,7 @@ export function useProjectDetailPage() {
 
   const tags = useMemo(() => {
     const names = new Set<string>();
-    for (const endpoint of endpoints) {
-      for (const tag of endpoint.tags ?? []) names.add(tag);
-    }
+    for (const endpoint of endpoints) for (const tag of endpoint.tags ?? []) names.add(tag);
     return Array.from(names).map((name) => ({ id: name, name, description: undefined }));
   }, [endpoints]);
 
@@ -71,15 +91,15 @@ export function useProjectDetailPage() {
     [endpoints, selectedEndpointId],
   );
 
-  const handleSelectEndpoint = useCallback((endpointId: string) => {
-    setSelectedEndpointId(endpointId);
-  }, []);
+  const handleSelectEndpoint = useCallback((endpointId: string) => setSelectedEndpointId(endpointId), []);
+  const promptName = (message: string, initial = '') => window.prompt(message, initial)?.trim() ?? '';
 
   return {
     projectId: id,
     project,
     endpoints,
     endpointDtos,
+    folders,
     tagGroups,
     tags,
     loading: projectQuery.isPending,
@@ -87,5 +107,22 @@ export function useProjectDetailPage() {
     selectedEndpoint,
     selectedEndpointId,
     handleSelectEndpoint,
+    createFolder: async (parentId: string | null) => {
+      const name = promptName('Folder name:', 'New Folder');
+      if (name) await createFolderMutation.mutateAsync({ name, parentId });
+    },
+    renameFolder: async (folderId: string, currentName: string) => {
+      const name = promptName('Rename folder:', currentName);
+      if (name && name !== currentName) await renameFolderMutation.mutateAsync({ folderId, name });
+    },
+    deleteFolder: async (folderId: string) => {
+      if (window.confirm('Delete this folder? It must be empty.')) await deleteFolderMutation.mutateAsync(folderId);
+    },
+    renameEndpoint: async (endpointId: string, currentName: string) => {
+      const name = promptName('Rename endpoint:', currentName);
+      if (name && name !== currentName) await renameEndpointMutation.mutateAsync({ endpointId, name });
+    },
+    moveEndpoint: (endpointId: string, folderId: string | null) =>
+      moveEndpointMutation.mutateAsync({ endpointId, folderId }),
   };
 }

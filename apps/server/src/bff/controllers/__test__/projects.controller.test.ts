@@ -8,6 +8,7 @@ import { authMiddleware } from '../../../middlewares/auth'
 import { env } from '../../../configs/env'
 import type { ProjectService } from '../../../app/projects/service/project.service'
 import type { EndpointService } from '../../../app/endpoints/service/endpoint.service'
+import type { EndpointFolderService } from '../../../app/endpoint-folders/service/endpoint-folder.service'
 import type { ProjectItem } from '../../../app/projects/types/project.types'
 
 const item: ProjectItem = {
@@ -41,6 +42,12 @@ function fakeEndpointService(): EndpointService {
   } as unknown as EndpointService
 }
 
+function fakeEndpointFolderService(): EndpointFolderService {
+  return {
+    listByProject: vi.fn(async () => []),
+  } as unknown as EndpointFolderService
+}
+
 async function makeToken(): Promise<string> {
   const secret = new TextEncoder().encode(env.JWT_SECRET)
   return new SignJWT({ sub: 'user-1', email: 'user@example.com' })
@@ -51,13 +58,21 @@ async function makeToken(): Promise<string> {
     .sign(secret)
 }
 
-function buildApp(service?: ProjectService, endpointService?: EndpointService) {
+function buildApp(
+  service?: ProjectService,
+  endpointService?: EndpointService,
+  endpointFolderService?: EndpointFolderService,
+) {
   const app = new Hono()
   app.onError(errorHandler)
   app.use('/api/*', authMiddleware())
   registerControllers(
     app,
-    [createProjectsController(service ?? fakeService(), endpointService ?? fakeEndpointService())],
+    [createProjectsController(
+      service ?? fakeService(),
+      endpointService ?? fakeEndpointService(),
+      endpointFolderService ?? fakeEndpointFolderService(),
+    )],
     '/api',
   )
   return app
@@ -133,6 +148,7 @@ describe('ProjectsController', () => {
     const body = await res.json()
     expect(body.response_data.project.id).toBe('proj-1')
     expect(body.response_data.endpoints).toEqual([])
+    expect(body.response_data.folders).toEqual([])
   })
 
   test('PUT /api/projects/:id updates project', async () => {

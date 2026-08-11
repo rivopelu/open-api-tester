@@ -4,6 +4,7 @@ import { secureHeaders } from 'hono/secure-headers'
 import { accountController } from './bff/controllers/account.controller'
 import { authController } from './bff/controllers/auth.controller'
 import { endpointsController } from './bff/controllers/endpoints.controller'
+import { endpointFoldersController } from './bff/controllers/endpoint-folders.controller'
 import { projectsController } from './bff/controllers/projects.controller'
 import { systemController } from './bff/controllers/system.controller'
 import { corsConfig } from './configs/cors'
@@ -24,6 +25,7 @@ registerControllers(
     authController,
     accountController,
     projectsController,
+    endpointFoldersController,
     endpointsController,
   ],
   env.API_PREFIX,
