@@ -35,8 +35,9 @@ type ResponseTab = 'body' | 'headers'
 interface EndpointDetailViewProps {
   endpoint: Endpoint
   className?: string
-  initialTab?: 'params' | 'examples'
+  initialTab?: string
   initialExampleId?: string
+  onStateChange?: (tab: RequestTab, exampleId?: string) => void
   onMethodChange?: (method: HttpMethod) => Promise<void>
   onRename?: (name: string) => Promise<void>
   onSaveContract?: (contract: Pick<Endpoint, 'requestBody' | 'responses'>) => Promise<void>
@@ -210,7 +211,7 @@ function KeyValueEditor({
   )
 }
 
-export default function EndpointDetailView({ endpoint, className, initialTab = 'params', initialExampleId, onMethodChange, onRename, onSaveContract, onSaveRequest }: EndpointDetailViewProps) {
+export default function EndpointDetailView({ endpoint, className, initialTab = 'params', initialExampleId, onStateChange, onMethodChange, onRename, onSaveContract, onSaveRequest }: EndpointDetailViewProps) {
   const environments = useEnvironmentStore((state) => state.environments)
   const activeEnvironmentId = useEnvironmentStore((state) => state.activeEnvironmentId)
   const variables = environments.find((environment) => environment.id === activeEnvironmentId)?.variables ?? {}
@@ -269,7 +270,7 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
   }, [endpoint])
 
   useEffect(() => {
-    setActiveTab(initialTab)
+    setActiveTab(requestTabs.some((tab) => tab.id === initialTab) ? initialTab as RequestTab : 'params')
   }, [endpoint.id, initialTab])
 
   const requestParameters = useMemo<EndpointParameter[]>(() => [
@@ -628,7 +629,10 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id)
+                  onStateChange?.(tab.id)
+                }}
                 className={cn(
                   'relative flex h-full items-center gap-2 px-3 text-xs font-semibold transition-colors',
                   activeTab === tab.id ? 'text-text-primary' : 'text-text-muted hover:text-text-secondary',
@@ -824,6 +828,7 @@ export default function EndpointDetailView({ endpoint, className, initialTab = '
               <EndpointContractExamples
                 endpoint={endpoint}
                 initialExampleId={initialExampleId}
+                onSelectExample={(exampleId) => onStateChange?.('examples', exampleId)}
                 onDirtyChange={setExamplesDirty}
                 onSave={onSaveContract ?? (async () => {})}
               />

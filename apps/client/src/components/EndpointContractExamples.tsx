@@ -7,6 +7,7 @@ import { cn } from '../lib/utils'
 interface Props {
   endpoint: Endpoint
   initialExampleId?: string
+  onSelectExample?: (exampleId?: string) => void
   onSave: (contract: Pick<Endpoint, 'requestBody' | 'responses'>) => Promise<void>
   onDirtyChange?: (dirty: boolean) => void
 }
@@ -20,7 +21,7 @@ const newExample = (examples: EndpointExample[]): EndpointExample => ({
   value: '{\n  \n}',
 })
 
-export function EndpointContractExamples({ endpoint, initialExampleId, onSave, onDirtyChange }: Props) {
+export function EndpointContractExamples({ endpoint, initialExampleId, onSelectExample, onSave, onDirtyChange }: Props) {
   const [requestExamples, setRequestExamples] = useState<EndpointExample[]>([])
   const [responses, setResponses] = useState<ResponseDefinition[]>([])
   const [selected, setSelected] = useState<SelectedExample | null>(null)
@@ -84,6 +85,7 @@ export function EndpointContractExamples({ endpoint, initialExampleId, onSave, o
     const example = newExample(requestExamples)
     setRequestExamples((items) => [...items, example])
     setSelected({ scope: 'request', id: example.id })
+    onSelectExample?.(example.id)
   }
 
   const addResponse = (responseId: string) => {
@@ -94,6 +96,7 @@ export function EndpointContractExamples({ endpoint, initialExampleId, onSave, o
       ? { ...item, examples: [...(item.examples ?? []), example] }
       : item))
     setSelected({ scope: 'response', responseId, id: example.id })
+    onSelectExample?.(example.id)
   }
 
   const removeActive = () => {
@@ -102,12 +105,14 @@ export function EndpointContractExamples({ endpoint, initialExampleId, onSave, o
       const next = requestExamples.filter((item) => item.id !== selected.id)
       setRequestExamples(next)
       setSelected(next[0] ? { scope: 'request', id: next[0].id } : null)
+      onSelectExample?.(next[0]?.id)
       return
     }
     setResponses((items) => items.map((response) => response.id === selected.responseId
       ? { ...response, examples: (response.examples ?? []).filter((item) => item.id !== selected.id) }
       : response))
     setSelected(null)
+    onSelectExample?.()
   }
 
   const save = useCallback(async () => {
@@ -175,7 +180,7 @@ export function EndpointContractExamples({ endpoint, initialExampleId, onSave, o
           </div>
           {requestExamples.length === 0 && <p className="px-2 pb-2 text-[10px] text-text-muted">No request example</p>}
           {requestExamples.map((example) => (
-            <button key={example.id} type="button" onClick={() => setSelected({ scope: 'request', id: example.id })} className={cn('sidebar-item font-mono text-[11px]', selected?.scope === 'request' && selected.id === example.id && 'active')}>
+            <button key={example.id} type="button" onClick={() => { setSelected({ scope: 'request', id: example.id }); onSelectExample?.(example.id) }} className={cn('sidebar-item font-mono text-[11px]', selected?.scope === 'request' && selected.id === example.id && 'active')}>
               <FileJson2 className="h-3.5 w-3.5" /><span className="truncate">{example.name}</span>
             </button>
           ))}
@@ -188,7 +193,7 @@ export function EndpointContractExamples({ endpoint, initialExampleId, onSave, o
                 <button type="button" onClick={() => addResponse(response.id)} className="p-1 text-text-muted hover:text-primary" aria-label={`Add ${response.statusCode} response example`}><Plus className="h-3.5 w-3.5" /></button>
               </div>
               {(response.examples ?? []).map((example) => (
-                <button key={example.id} type="button" onClick={() => setSelected({ scope: 'response', responseId: response.id, id: example.id })} className={cn('sidebar-item font-mono text-[11px]', selected?.scope === 'response' && selected.id === example.id && 'active')}>
+                <button key={example.id} type="button" onClick={() => { setSelected({ scope: 'response', responseId: response.id, id: example.id }); onSelectExample?.(example.id) }} className={cn('sidebar-item font-mono text-[11px]', selected?.scope === 'response' && selected.id === example.id && 'active')}>
                   <FileJson2 className="h-3.5 w-3.5" /><span className="truncate">{example.name}</span>
                 </button>
               ))}

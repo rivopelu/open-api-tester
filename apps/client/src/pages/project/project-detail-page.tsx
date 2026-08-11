@@ -104,6 +104,7 @@ export default function ProjectDetailPage() {
               endpoint={page.selectedEndpoint}
               initialTab={page.selectedEndpointTab}
               initialExampleId={page.selectedExampleId}
+              onStateChange={page.handleEndpointStateChange}
               onMethodChange={page.changeMethod}
               onRename={page.renameSelectedEndpoint}
               onSaveContract={page.saveContract}

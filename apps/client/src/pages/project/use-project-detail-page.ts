@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import type { Endpoint, HttpMethod } from '@modern-api-studio/types';
 import type { EndpointDto, EndpointSummaryDto } from '../../lib/api';
 import { endpointQueryKeys, projectQueryKeys } from '../../queries/project.queries';
@@ -27,10 +27,11 @@ function toEndpoint(dto: EndpointDto | EndpointSummaryDto): Endpoint {
 
 export function useProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(null);
-  const [selectedEndpointTab, setSelectedEndpointTab] = useState<'params' | 'examples'>('params');
-  const [selectedExampleId, setSelectedExampleId] = useState<string | undefined>();
+  const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(() => searchParams.get('endpoint'));
+  const [selectedEndpointTab, setSelectedEndpointTab] = useState(searchParams.get('tab') ?? 'params');
+  const [selectedExampleId, setSelectedExampleId] = useState<string | undefined>(() => searchParams.get('example') ?? undefined);
   const [itemDialog, setItemDialog] = useState<ProjectItemDialogState | null>(null);
 
   const projectQuery = useQuery({
@@ -68,9 +69,9 @@ export function useProjectDetailPage() {
           parameters: [],
           responses: [],
         },
-      }),
+    }),
     onSuccess: async (endpoint) => {
-      setSelectedEndpointId(endpoint.id);
+      setSearchParams({ endpoint: endpoint.id, tab: 'params' });
       queryClient.setQueryData(endpointQueryKeys.detail(endpoint.id), endpoint);
       await invalidateProject();
     },
@@ -164,16 +165,32 @@ export function useProjectDetailPage() {
     [endpointDetailQuery.data],
   );
 
+  useEffect(() => {
+    setSelectedEndpointId(searchParams.get('endpoint'));
+    setSelectedEndpointTab(searchParams.get('tab') ?? 'params');
+    setSelectedExampleId(searchParams.get('example') ?? undefined);
+  }, [searchParams]);
+
+  const selectState = useCallback((endpointId: string, tab = 'params', exampleId?: string) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set('endpoint', endpointId);
+      next.set('tab', tab);
+      if (exampleId) next.set('example', exampleId);
+      else next.delete('example');
+      return next;
+    });
+  }, [setSearchParams]);
+
   const handleSelectEndpoint = useCallback((endpointId: string) => {
-    setSelectedEndpointTab('params');
-    setSelectedExampleId(undefined);
-    setSelectedEndpointId(endpointId);
-  }, []);
+    selectState(endpointId);
+  }, [selectState]);
   const handleSelectExamples = useCallback((endpointId: string, exampleId?: string) => {
-    setSelectedEndpointTab('examples');
-    setSelectedExampleId(exampleId);
-    setSelectedEndpointId(endpointId);
-  }, []);
+    selectState(endpointId, 'examples', exampleId);
+  }, [selectState]);
+  const handleEndpointStateChange = useCallback((tab: string, exampleId?: string) => {
+    if (selectedEndpointId) selectState(selectedEndpointId, tab, exampleId);
+  }, [selectState, selectedEndpointId]);
 
   const submitItemDialog = async (value?: string) => {
     if (!itemDialog) return;
@@ -206,6 +223,7 @@ export function useProjectDetailPage() {
     selectedEndpointId,
     handleSelectEndpoint,
     handleSelectExamples,
+    handleEndpointStateChange,
     selectedEndpointTab,
     selectedExampleId,
     itemDialog,
