@@ -6,6 +6,18 @@ import { EndpointsEntity, type EndpointRecord, type NewEndpointRecord } from '..
 export class EndpointRepository {
   constructor(private database: NodePgDatabase = defaultDb) {}
 
+  async findAllActive(): Promise<EndpointRecord[]> {
+    return this.database
+      .select()
+      .from(EndpointsEntity)
+      .where(eq(EndpointsEntity.active, true))
+      .orderBy(
+        asc(EndpointsEntity.project_id),
+        asc(EndpointsEntity.sort_order),
+        asc(EndpointsEntity.created_date),
+      )
+  }
+
   async findByProject(projectId: string): Promise<EndpointRecord[]> {
     return this.database
       .select()

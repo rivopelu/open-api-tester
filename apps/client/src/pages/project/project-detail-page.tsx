@@ -1,21 +1,36 @@
-import { ArrowLeft, PenTool, FolderOpen, MoreHorizontal } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import type { Endpoint } from '@modern-api-studio/types'
-import { Button, GridCell, GridPanel, PageContainer, Typography } from '../../components/ui'
-import { EndpointListSidebar } from '../../components/EndpointListSidebar'
-import EndpointDetailView from '../../components/EndpointDetailView'
-import { useProjectDetailPage } from './use-project-detail-page'
-import { ProjectItemModal } from './project-item-modal'
-import { EnvironmentSelector } from '../../components/EnvironmentSelector'
+import {
+  ArrowLeft,
+  Globe,
+  PenTool,
+  FolderOpen,
+  MoreHorizontal,
+} from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { Endpoint } from "@modern-api-studio/types";
+import {
+  Button,
+  GridCell,
+  GridPanel,
+  PageContainer,
+  Typography,
+} from "../../components/ui";
+import { EndpointListSidebar } from "../../components/EndpointListSidebar";
+import EndpointDetailView from "../../components/EndpointDetailView";
+import { useProjectDetailPage } from "./use-project-detail-page";
+import { ProjectItemModal } from "./project-item-modal";
+import { EnvironmentSelector } from "../../components/EnvironmentSelector";
+import { MockServerModal } from "../../components/MockServerModal";
 
 export default function ProjectDetailPage() {
-  const page = useProjectDetailPage()
-  const navigate = useNavigate()
+  const page = useProjectDetailPage();
+  const navigate = useNavigate();
+  const [mockOpen, setMockOpen] = useState(false);
 
   // Build tag groups for overview section
-  const groups: { name: string; endpoints: Endpoint[] }[] = Object.entries(page.tagGroups).map(
-    ([name, endpoints]) => ({ name, endpoints }),
-  )
+  const groups: { name: string; endpoints: Endpoint[] }[] = Object.entries(
+    page.tagGroups,
+  ).map(([name, endpoints]) => ({ name, endpoints }));
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-base">
@@ -26,31 +41,51 @@ export default function ProjectDetailPage() {
           size="sm"
           iconOnly
           aria-label="Back to Projects"
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate("/dashboard")}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="ml-2 min-w-0 border-l border-border pl-4">
           <Typography variant="heading-sm" as="h1" className="truncate">
-            {page.project?.name ?? 'Project Detail'}
+            {page.project?.name ?? "Project Detail"}
           </Typography>
           <Typography variant="caption" tone="muted" className="mt-0.5">
-            {page.endpoints.length} requests · Version {page.project?.version ?? '1.0.0'}
+            {page.endpoints.length} requests · Version{" "}
+            {page.project?.version ?? "1.0.0"}
           </Typography>
         </div>
         <div className="ml-auto mr-2">
           <EnvironmentSelector />
         </div>
         <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMockOpen(true)}
+          disabled={!page.endpointDtos.length}
+        >
+          <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+          Mock Server
+        </Button>
+        <Button
           variant="primary"
           size="sm"
-          onClick={() => navigate(page.projectId ? `/editor?project=${page.projectId}` : '/editor')}
+          onClick={() =>
+            navigate(
+              page.projectId ? `/editor?project=${page.projectId}` : "/editor",
+            )
+          }
           disabled={!page.project}
         >
           <PenTool className="h-3.5 w-3.5" aria-hidden="true" />
           Open Editor
         </Button>
-        <Button variant="ghost" size="sm" iconOnly aria-label="Project options" className="ml-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          iconOnly
+          aria-label="Project options"
+          className="ml-2"
+        >
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </div>
@@ -97,7 +132,9 @@ export default function ProjectDetailPage() {
               <Typography tone="danger" variant="heading-sm" className="mb-2">
                 Failed to load endpoint
               </Typography>
-              <Typography tone="muted" variant="body-sm">{page.endpointError}</Typography>
+              <Typography tone="muted" variant="body-sm">
+                {page.endpointError}
+              </Typography>
             </div>
           ) : page.selectedEndpoint ? (
             <EndpointDetailView
@@ -119,28 +156,34 @@ export default function ProjectDetailPage() {
                   {page.project.name}
                 </Typography>
                 <Typography tone="muted" variant="body-sm">
-                  {page.project.description || 'No description'}
+                  {page.project.description || "No description"}
                 </Typography>
               </header>
 
               {/* Stats */}
               <GridPanel columns="grid-cols-1 sm:grid-cols-3" className="mb-6">
                 <GridCell className="flex flex-col gap-1 p-4">
-                  <Typography tone="muted" variant="body-sm">Endpoints</Typography>
+                  <Typography tone="muted" variant="body-sm">
+                    Endpoints
+                  </Typography>
                   <Typography variant="heading-md" as="p" className="font-mono">
                     {page.endpoints.length}
                   </Typography>
                 </GridCell>
                 <GridCell className="flex flex-col gap-1 p-4">
-                  <Typography tone="muted" variant="body-sm">Tags</Typography>
+                  <Typography tone="muted" variant="body-sm">
+                    Tags
+                  </Typography>
                   <Typography variant="heading-md" as="p" className="font-mono">
                     {page.tags.length}
                   </Typography>
                 </GridCell>
                 <GridCell className="flex flex-col gap-1 p-4">
-                  <Typography tone="muted" variant="body-sm">Version</Typography>
+                  <Typography tone="muted" variant="body-sm">
+                    Version
+                  </Typography>
                   <Typography variant="heading-md" as="p" className="font-mono">
-                    {page.project.version ?? '-'}
+                    {page.project.version ?? "-"}
                   </Typography>
                 </GridCell>
               </GridPanel>
@@ -148,8 +191,15 @@ export default function ProjectDetailPage() {
               {/* Overview of grouped endpoints */}
               {groups.length === 0 ? (
                 <div className="flex flex-col items-center py-14 text-center">
-                  <FolderOpen className="mb-3 h-10 w-10 text-text-muted" aria-hidden="true" />
-                  <Typography variant="heading-sm" tone="secondary" className="mb-2">
+                  <FolderOpen
+                    className="mb-3 h-10 w-10 text-text-muted"
+                    aria-hidden="true"
+                  />
+                  <Typography
+                    variant="heading-sm"
+                    tone="secondary"
+                    className="mb-2"
+                  >
                     No endpoints yet
                   </Typography>
                   <Typography variant="body-sm" tone="muted" className="mb-5">
@@ -160,7 +210,11 @@ export default function ProjectDetailPage() {
                 <div className="flex flex-col gap-6">
                   {groups.map((group) => (
                     <section key={group.name}>
-                      <Typography variant="label" tone="muted" className="mb-2 uppercase tracking-wide">
+                      <Typography
+                        variant="label"
+                        tone="muted"
+                        className="mb-2 uppercase tracking-wide"
+                      >
                         {group.name}
                       </Typography>
                       <GridPanel columns="grid-cols-1">
@@ -195,12 +249,17 @@ export default function ProjectDetailPage() {
       </div>
       {page.itemDialog && (
         <ProjectItemModal
-          key={`${page.itemDialog.type}-${'folderId' in page.itemDialog ? page.itemDialog.folderId : 'endpointId' in page.itemDialog ? page.itemDialog.endpointId : page.itemDialog.parentId ?? 'root'}`}
+          key={`${page.itemDialog.type}-${"folderId" in page.itemDialog ? page.itemDialog.folderId : "endpointId" in page.itemDialog ? page.itemDialog.endpointId : (page.itemDialog.parentId ?? "root")}`}
           dialog={page.itemDialog}
           onClose={page.closeItemDialog}
           onSubmit={page.submitItemDialog}
         />
       )}
+      <MockServerModal
+        open={mockOpen}
+        onClose={() => setMockOpen(false)}
+        endpoints={page.endpointDtos}
+      />
     </div>
-  )
+  );
 }
