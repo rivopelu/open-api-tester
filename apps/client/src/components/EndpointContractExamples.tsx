@@ -231,6 +231,7 @@ export function EndpointContractExamples({
     const nextRequestExamples = persistedRequestExamples;
     const nextResponses = persistedResponses;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRequestExamples(nextRequestExamples);
     setResponses(nextResponses);
     setFeedback(null);
@@ -255,6 +256,7 @@ export function EndpointContractExamples({
       responses,
     );
     if (requested)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelected((current) =>
         sameSelection(current, requested) ? current : requested,
       );

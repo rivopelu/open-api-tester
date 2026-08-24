@@ -1,8 +1,7 @@
 import type {
-  EndpointExample,
-  HttpMethod,
-  RequestBodyDefinition,
-  ResponseDefinition,
+    EndpointExample,
+    HttpMethod,
+    ResponseDefinition
 } from '@modern-api-studio/types'
 import { NotFoundError } from '../../../configs/exception'
 

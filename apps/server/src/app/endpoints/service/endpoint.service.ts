@@ -154,7 +154,7 @@ export class EndpointService {
 
     const projectEndpoints = await this.repository.findByProject(projectId)
     const endpointById = new Map(projectEndpoints.map((endpoint) => [endpoint.id, endpoint]))
-    for (const endpointId of endpointIds) {
+    for (const endpointId of Array.from(endpointIds)) {
       if (!endpointById.has(endpointId)) {
         throw new BadRequestError('Endpoint does not belong to this project')
       }
