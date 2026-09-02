@@ -9,6 +9,29 @@ import type {
 
 export type { AssistantToolEventListener, ConfirmationRequestHandler, UiEffectEventListener }
 
+function formatToolErrorMessage(err: unknown): string {
+  if (!err) return 'Tool execution error'
+  const rawMsg = err instanceof Error ? err.message : String(err)
+
+  // Handle Drizzle / Postgres Query Errors
+  if (rawMsg.includes('Failed query:')) {
+    if (/duplicate key|unique constraint/i.test(rawMsg)) {
+      return 'Data duplikat: data dengan nama atau identitas tersebut sudah ada.'
+    }
+    if (/foreign key constraint|violates foreign key/i.test(rawMsg)) {
+      return 'Relasi tidak ditemukan atau referensi project/folder tidak valid.'
+    }
+    if (/null value in column/i.test(rawMsg)) {
+      const match = rawMsg.match(/column "([^"]+)"/i)
+      return `Kolom wajib belum terisi: ${match ? match[1] : 'field'}`
+    }
+    return 'Gagal memproses data ke database. Periksa parameter yang diberikan.'
+  }
+
+  const firstLine = rawMsg.split('\n')[0].trim()
+  return firstLine.length > 100 ? `${firstLine.slice(0, 97)}…` : firstLine
+}
+
 export function createAssistantTools(
   onEvent?: AssistantToolEventListener,
   accountId?: string,
@@ -80,7 +103,7 @@ export function createAssistantTools(
 
           return result
         } catch (err: unknown) {
-          const errMsg = err instanceof Error ? err.message : 'Tool execution error'
+          const errMsg = formatToolErrorMessage(err)
           onEvent?.({
             type: 'tool_call_error',
             toolId: toolDef.name,

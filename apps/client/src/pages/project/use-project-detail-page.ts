@@ -11,6 +11,16 @@ import type { ProjectItemDialogState } from './project-item-modal';
 
 function toEndpoint(dto: EndpointDto | EndpointSummaryDto): Endpoint {
   const spec = 'specData' in dto ? dto.specData ?? {} : {};
+  const rawAuth = spec.auth as Record<string, unknown> | undefined;
+  const auth = rawAuth && typeof rawAuth.type === 'string'
+    ? {
+        type: rawAuth.type as 'none' | 'bearer' | 'basic',
+        bearerToken: typeof rawAuth.bearerToken === 'string' ? rawAuth.bearerToken : '',
+        basicUser: typeof rawAuth.basicUser === 'string' ? rawAuth.basicUser : '',
+        basicPass: typeof rawAuth.basicPass === 'string' ? rawAuth.basicPass : '',
+      }
+    : undefined;
+
   return {
     id: dto.id,
     path: dto.path,
@@ -21,6 +31,7 @@ function toEndpoint(dto: EndpointDto | EndpointSummaryDto): Endpoint {
     tags: Array.isArray(spec.tags) ? (spec.tags as string[]) : [],
     deprecated: Boolean(spec.deprecated),
     security: Array.isArray(spec.security) ? (spec.security as string[]) : undefined,
+    auth,
     parameters: Array.isArray(spec.parameters) ? (spec.parameters as Endpoint['parameters']) : [],
     requestBody: spec.requestBody as Endpoint['requestBody'],
     responses: Array.isArray(spec.responses) ? (spec.responses as Endpoint['responses']) : [],
@@ -196,12 +207,12 @@ export function useProjectDetailPage() {
     },
   });
   const saveRequestMutation = useMutation({
-    mutationFn: ({ endpointId, path, parameters, requestBody }: { endpointId: string; path: string; parameters: Endpoint['parameters']; requestBody?: Endpoint['requestBody'] }) => {
+    mutationFn: ({ endpointId, path, parameters, requestBody, auth }: { endpointId: string; path: string; parameters: Endpoint['parameters']; requestBody?: Endpoint['requestBody']; auth?: Endpoint['auth'] }) => {
       const current = endpointDetailQuery.data;
       if (!current) throw new Error('Endpoint is not loaded');
       return endpointRepository.update(endpointId, {
         path,
-        specData: { ...current.specData, parameters, requestBody },
+        specData: { ...current.specData, parameters, requestBody, ...(auth ? { auth } : {}) },
       });
     },
     onSuccess: async (endpoint) => {
@@ -323,7 +334,7 @@ export function useProjectDetailPage() {
         responses: contract.responses,
       }).then(() => undefined);
     },
-    saveRequest: (request: Pick<Endpoint, 'path' | 'parameters' | 'requestBody'>) => {
+    saveRequest: (request: Pick<Endpoint, 'path' | 'parameters' | 'requestBody' | 'auth'>) => {
       if (!selectedEndpointId) return Promise.resolve();
       return saveRequestMutation.mutateAsync({ endpointId: selectedEndpointId, ...request }).then(() => undefined);
     },

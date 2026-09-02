@@ -53,7 +53,7 @@ interface EndpointDetailViewProps {
     contract: Pick<Endpoint, "requestBody" | "responses">,
   ) => Promise<void>;
   onSaveRequest?: (
-    request: Pick<Endpoint, "path" | "parameters" | "requestBody">,
+    request: Pick<Endpoint, "path" | "parameters" | "requestBody" | "auth">,
   ) => Promise<void>;
 }
 
@@ -285,6 +285,7 @@ function getInitialEndpointForm(endpoint: Endpoint) {
   const parameters = endpoint.parameters ?? [];
   const parsed = parseRequestUrl(saved || rawUrl(endpoint.path));
   const definedPathRows = rowsFrom(parameters, "path");
+  const auth = endpoint.auth ?? { type: "none", bearerToken: "", basicUser: "", basicPass: "" };
 
   return {
     urlText: parsed.base,
@@ -305,6 +306,10 @@ function getInitialEndpointForm(endpoint: Endpoint) {
     headerRows: rowsFrom(parameters, "header"),
     bodyText: initialBody(endpoint.requestBody),
     nameText: endpoint.summary || "",
+    authType: auth.type ?? "none",
+    bearerToken: auth.bearerToken ?? "",
+    basicUser: auth.basicUser ?? "",
+    basicPass: auth.basicPass ?? "",
   };
 }
 
@@ -376,11 +381,13 @@ export default function EndpointDetailView({
   const [queryRows, setQueryRows] = useState<KvRow[]>(initialForm.queryRows);
   const [headerRows, setHeaderRows] = useState<KvRow[]>(initialForm.headerRows);
   const [bodyText, setBodyText] = useState(initialForm.bodyText);
-  const [authType, setAuthType] = useState<"none" | "bearer" | "basic">("none");
-  const [bearerToken, setBearerToken] = useState("");
+  const [authType, setAuthType] = useState<"none" | "bearer" | "basic">(
+    initialForm.authType,
+  );
+  const [bearerToken, setBearerToken] = useState(initialForm.bearerToken);
   const [editingBearerToken, setEditingBearerToken] = useState(false);
-  const [basicUser, setBasicUser] = useState("");
-  const [basicPass, setBasicPass] = useState("");
+  const [basicUser, setBasicUser] = useState(initialForm.basicUser);
+  const [basicPass, setBasicPass] = useState(initialForm.basicPass);
   const [response, setResponse] = useState<{
     status: number;
     statusText: string;
@@ -413,6 +420,11 @@ export default function EndpointDetailView({
     setHeaderRows(nextForm.headerRows);
     setBodyText(nextForm.bodyText);
     setNameText(nextForm.nameText);
+    setAuthType(nextForm.authType);
+    setBearerToken(nextForm.bearerToken);
+    setEditingBearerToken(false);
+    setBasicUser(nextForm.basicUser);
+    setBasicPass(nextForm.basicPass);
     setResponse(null);
     setError(null);
     setElapsedMs(null);
@@ -460,11 +472,24 @@ export default function EndpointDetailView({
     [headerRows, pathRows, queryRows],
   );
 
+  const initialAuth = endpoint.auth ?? {
+    type: "none",
+    bearerToken: "",
+    basicUser: "",
+    basicPass: "",
+  };
+  const authDirty =
+    authType !== (initialAuth.type ?? "none") ||
+    bearerToken !== (initialAuth.bearerToken ?? "") ||
+    basicUser !== (initialAuth.basicUser ?? "") ||
+    basicPass !== (initialAuth.basicPass ?? "");
+
   const requestDirty =
     rawUrl(urlText) !== endpoint.path ||
     JSON.stringify(requestParameters) !==
       JSON.stringify(endpoint.parameters ?? []) ||
-    bodyText !== initialBody(endpoint.requestBody);
+    bodyText !== initialBody(endpoint.requestBody) ||
+    authDirty;
   const endpointDirty = requestDirty || examplesDirty;
 
   const saveRequest = useCallback(async () => {
@@ -474,6 +499,12 @@ export default function EndpointDetailView({
       await onSaveRequest({
         path: rawUrl(urlText),
         parameters: requestParameters,
+        auth: {
+          type: authType,
+          bearerToken,
+          basicUser,
+          basicPass,
+        },
         requestBody: bodyText.trim()
           ? {
               required: endpoint.requestBody?.required ?? false,
@@ -489,6 +520,10 @@ export default function EndpointDetailView({
       setRequestSaving(false);
     }
   }, [
+    authType,
+    basicPass,
+    basicUser,
+    bearerToken,
     bodyText,
     endpoint.requestBody,
     onSaveRequest,

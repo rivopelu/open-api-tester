@@ -124,20 +124,29 @@ export function AssistantResponseView({
           {eventsOpen && (
             <div className="divide-y divide-border/60 border-t border-border/70 px-3 py-1.5 bg-base/60">
               {toolEvents.map((evt) => (
-                <div key={evt.id} className="flex items-center justify-between py-1.5 text-[11px]">
-                  <div className="flex items-center gap-2">
-                    {evt.status === 'running' ? (
-                      <Loader2 className="h-3 w-3 animate-spin text-primary" />
-                    ) : evt.status === 'completed' ? (
-                      <Check className="h-3 w-3 text-success" />
-                    ) : (
-                      <span className="h-2 w-2 bg-danger rounded-none" />
+                <div key={evt.id} className="flex flex-col gap-1 py-1.5 text-[11px]">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {evt.status === 'running' ? (
+                        <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />
+                      ) : evt.status === 'completed' ? (
+                        <Check className="h-3 w-3 text-success shrink-0" />
+                      ) : (
+                        <span className="h-2 w-2 bg-danger rounded-none shrink-0" />
+                      )}
+                      <span className="font-mono text-text-primary">{evt.name}</span>
+                    </div>
+                    {evt.status !== 'failed' && (
+                      <span className="text-text-muted truncate">
+                        {evt.resultSummary || (evt.status === 'running' ? 'Executing…' : 'Done')}
+                      </span>
                     )}
-                    <span className="font-mono text-text-primary">{evt.name}</span>
                   </div>
-                  <span className="text-text-muted">
-                    {evt.resultSummary || (evt.status === 'running' ? 'Executing…' : 'Done')}
-                  </span>
+                  {evt.status === 'failed' && evt.resultSummary && (
+                    <div className="ml-5 border-l-2 border-danger/60 pl-2 text-[10px] text-danger/90">
+                      {evt.resultSummary}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

@@ -120,7 +120,10 @@ export const domainTools: DomainToolDefinition[] = [
     requiresConfirmation: true,
     formatConfirmation: ({ name, projectId }) => `Create folder "${name}" in project (${projectId})`,
     execute: async (input, ctx) => {
-      const created = await folderService.create(input)
+      const created = await folderService.create({
+        ...input,
+        created_by: ctx.accountId || undefined,
+      } as any)
       ctx.onUiEffect?.({
         type: 'highlight',
         projectId: input.projectId,
