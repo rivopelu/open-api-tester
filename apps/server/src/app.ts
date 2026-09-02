@@ -19,7 +19,10 @@ const app = new Hono()
 
 app.use('*', cors(corsConfig))
 app.use('*', requestLogger())
-app.use('*', secureHeaders())
+// crossOriginResourcePolicy defaults to 'same-origin', which blocks link-preview
+// crawlers (OG image, Discord/Slack/WhatsApp embeds) and third-party sites from
+// loading public assets like the client bundle and og.png.
+app.use('*', secureHeaders({ crossOriginResourcePolicy: 'cross-origin' }))
 app.route(`${env.API_PREFIX}/mcp`, mcpApp)
 // Public mock server: serves stored response examples, no auth.
 app.route(`${env.API_PREFIX}/mock`, createMockApp())
