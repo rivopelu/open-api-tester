@@ -64,6 +64,49 @@ const COMMON_STATUS_CODES = [
   { code: "500", description: "Internal Server Error" },
 ];
 
+function sanitizeExampleValue(val: unknown): string {
+  if (typeof val !== "string") {
+    try {
+      return JSON.stringify(val ?? {}, null, 2);
+    } catch {
+      return "{\n  \n}";
+    }
+  }
+  const trimmed = val.trim();
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      const parsedOnce = JSON.parse(trimmed);
+      if (typeof parsedOnce === "string") {
+        try {
+          const parsedTwice = JSON.parse(parsedOnce);
+          return JSON.stringify(parsedTwice, null, 2);
+        } catch {
+          return parsedOnce;
+        }
+      } else if (typeof parsedOnce === "object" && parsedOnce !== null) {
+        return JSON.stringify(parsedOnce, null, 2);
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return val;
+}
+
+function normalizeExamples(examples: EndpointExample[]): EndpointExample[] {
+  return examples.map((ex) => ({
+    ...ex,
+    value: sanitizeExampleValue(ex.value),
+  }));
+}
+
+function normalizeResponses(responses: ResponseDefinition[]): ResponseDefinition[] {
+  return responses.map((res) => ({
+    ...res,
+    examples: res.examples ? normalizeExamples(res.examples) : undefined,
+  }));
+}
+
 const newExample = (examples: EndpointExample[]): EndpointExample => {
   const usedNames = new Set(examples.map((example) => example.name.trim()));
   let index = 1;
@@ -232,8 +275,14 @@ export function EndpointContractExamples({
   const [newStatusCode, setNewStatusCode] = useState("");
   const savedTimer = useRef<number | undefined>(undefined);
   const endpointId = useRef(endpoint.id);
-  const persistedRequestExamples = endpoint.requestBody?.examples ?? [];
-  const persistedResponses = endpoint.responses;
+  const persistedRequestExamples = useMemo(
+    () => normalizeExamples(endpoint.requestBody?.examples ?? []),
+    [endpoint.requestBody?.examples],
+  );
+  const persistedResponses = useMemo(
+    () => normalizeResponses(endpoint.responses ?? []),
+    [endpoint.responses],
+  );
   const persistedRequestSignature = JSON.stringify(persistedRequestExamples);
   const persistedResponseSignature = JSON.stringify(persistedResponses);
 
@@ -274,7 +323,7 @@ export function EndpointContractExamples({
       setSaved(false);
       endpointId.current = endpoint.id;
     }
-  }, [endpoint.id, persistedRequestSignature, persistedResponseSignature]);
+  }, [endpoint.id, persistedRequestExamples, persistedRequestSignature, persistedResponseSignature, persistedResponses]);
 
   useEffect(() => {
     const requested = findSelectionById(
@@ -581,12 +630,7 @@ export function EndpointContractExamples({
     e.stopPropagation();
     setActiveDragTarget(null);
 
-    let raw = "";
-    try {
-      raw = e.dataTransfer.getData("application/json") || e.dataTransfer.getData("text/plain") || "";
-    } catch {
-      raw = "";
-    }
+    const raw = e.dataTransfer.getData("application/json") || e.dataTransfer.getData("text/plain") || "";
     if (!raw) return;
 
     try {

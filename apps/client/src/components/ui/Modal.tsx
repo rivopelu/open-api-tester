@@ -109,7 +109,7 @@ export function Modal({
   return createPortal(
     <div
       role="presentation"
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-1000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn"
       onMouseDown={closeFromBackdrop}
     >
       <ModalContext.Provider value={{ titleId, descriptionId, onClose }}>

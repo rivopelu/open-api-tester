@@ -75,11 +75,11 @@ function ConflictDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="conflict-title"
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-2000 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
       onClick={onDismiss}
     >
       <div
-        className="w-[440px] max-w-[95vw] rounded-none border border-danger/40 bg-surface p-7 animate-slideIn"
+        className="w-110 max-w-[95vw] rounded-none border border-danger/40 bg-surface p-7 animate-slideIn"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-4">
@@ -202,7 +202,7 @@ export function Header() {
 
   return (
     <>
-      <header className="z-[100] flex h-[56px] shrink-0 items-center border-b border-border bg-surface px-4">
+      <header className="z-100 flex h-14 shrink-0 items-center border-b border-border bg-surface px-4">
         {/* Logo / Back */}
         <div className="mr-6 flex items-center gap-2.5">
           <Button

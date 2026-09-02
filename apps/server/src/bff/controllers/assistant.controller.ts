@@ -5,7 +5,8 @@ import { ResponseHelper } from '../../lib/response-helper'
 import { UnauthorizedError } from '../../configs/exception'
 import { getUser } from '../../lib/get-user'
 import { ChatService } from '../../app/assistant/chat/service/chat.service'
-import { ChatRequestSchema } from '../../app/assistant/chat/types/chat.types'
+import { confirmationManager } from '../../app/assistant/chat/service/confirmation.manager'
+import { ChatRequestSchema, ConfirmationResponseSchema } from '../../app/assistant/chat/types/chat.types'
 import { LLM_MODELS } from '../../app/llm/constants/data'
 
 @Controller()
@@ -51,6 +52,16 @@ export class AssistantController {
     }
     const deleted = await this.chatService.deleteSession(sessionId)
     return c.json(ResponseHelper.data({ deleted }))
+  }
+
+  @Post('/assistant/confirm')
+  @AuthAccess()
+  async confirmTool(c: Context) {
+    const user = getUser(c)
+    if (!user) throw new UnauthorizedError()
+    const { confirmationId, approved } = ConfirmationResponseSchema.parse(await c.req.json())
+    const resolved = confirmationManager.resolveConfirmation(confirmationId, approved)
+    return c.json(ResponseHelper.data({ resolved }))
   }
 
   @Post('/assistant/chat')

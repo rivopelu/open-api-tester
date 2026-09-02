@@ -4,7 +4,8 @@ import { DEFAULT_MODEL, llmService } from '../../../llm/service/llm.service'
 import { createAssistantTools, type AssistantToolEventListener } from '../../tools/service/assistant-tools.service'
 import { ChatMessageRepository } from '../repository/chat-message.repository'
 import { ChatSessionRepository } from '../repository/chat-session.repository'
-import type { AssistantContext, AssistantStreamEvent, ChatResult } from '../types/chat.types'
+import { confirmationManager } from './confirmation.manager'
+import type { AssistantContext, AssistantStreamEvent, AssistantUiEffectDto, ChatResult } from '../types/chat.types'
 
 export class ChatService {
   constructor(
@@ -18,7 +19,10 @@ export class ChatService {
       'Help the user inspect, analyze, design, and troubleshoot their REST APIs, OpenAPI projects, folders, endpoints, examples, and mock server responses. ' +
       'Always make use of the provided tools (list_projects, get_project, create_project, list_folders, create_folder, update_folder, delete_folder, get_endpoints_by_project, get_endpoint_detail, create_endpoint, update_endpoint_contract, move_endpoint, create_example, list_mock_examples, simulate_mock_response) ' +
       'whenever the user asks about their projects, specs, mock data, or endpoints, or when modifying/creating items. ' +
-      'Provide clear, well-structured markdown responses.\n\n'
+      'Rules for OpenAPI Design:\n' +
+      '- Endpoint paths must always be relative paths starting with "/" (e.g., "/api/v1/users", "/orders/{id}"). Do NOT hardcode hostnames/domains in endpoint paths because the studio automatically resolves base URLs from active environment variables (e.g. {{base_url}}).\n' +
+      '- When creating or updating examples, pass JSON payloads as valid structured JSON objects (or arrays), never double-quoted raw stringified escaped JSON.\n' +
+      '- Provide clear, concise, and well-structured markdown responses.\n\n'
 
     if (context && (context.projectId || context.endpointId || context.pathname)) {
       instructions += '### CURRENT USER VIEWPORT & PAGE CONTEXT:\n'
@@ -36,17 +40,25 @@ export class ChatService {
   }
 
   private createAgent(
-    modelId?: string,
-    onToolEvent?: AssistantToolEventListener,
-    accountId?: string,
-    context?: AssistantContext,
+    modelId: string | undefined,
+    onToolEvent: AssistantToolEventListener | undefined,
+    accountId: string | undefined,
+    context: AssistantContext | undefined,
+    requestConfirmation?: (req: {
+      confirmationId: string
+      toolId: string
+      toolName: string
+      args: Record<string, unknown>
+      summary: string
+    }) => Promise<boolean>,
+    onUiEffect?: (effect: AssistantUiEffectDto) => void,
   ) {
     return new Agent({
       id: 'api-studio-assistant',
       name: 'api-studio-assistant',
       instructions: this.buildSystemInstructions(context),
       model: llmService.model(modelId || DEFAULT_MODEL),
-      tools: createAssistantTools(onToolEvent, accountId),
+      tools: createAssistantTools(onToolEvent, accountId, requestConfirmation, onUiEffect),
     })
   }
 
@@ -170,6 +182,43 @@ export class ChatService {
       await onEvent({ type: 'session_info', threadId: session.id, sessionTitle })
     }
 
+    // Confirmation handler for human-in-the-loop tool calls
+    const requestConfirmation = async (req: {
+      confirmationId: string
+      toolId: string
+      toolName: string
+      args: Record<string, unknown>
+      summary: string
+    }): Promise<boolean> => {
+      return new Promise<boolean>((resolve) => {
+        confirmationManager.createConfirmation(
+          req.confirmationId,
+          accountId,
+          req.toolName,
+          req.args,
+          req.summary,
+          resolve,
+        )
+
+        // Broadcast confirmation request to client over SSE
+        void onEvent({
+          type: 'tool_confirmation_request',
+          confirmationId: req.confirmationId,
+          toolId: req.toolId,
+          toolName: req.toolName,
+          args: req.args,
+          summary: req.summary,
+        })
+      })
+    }
+
+    const onUiEffect = (effect: AssistantUiEffectDto) => {
+      void onEvent({
+        type: 'ui_effect',
+        effect,
+      })
+    }
+
     const agent = this.createAgent(
       activeModel,
       async (toolEvt) => {
@@ -198,6 +247,8 @@ export class ChatService {
       },
       accountId,
       context,
+      requestConfirmation,
+      onUiEffect,
     )
 
     let fullReply = ''

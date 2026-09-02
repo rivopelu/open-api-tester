@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import type { Endpoint, HttpMethod } from '@modern-api-studio/types';
 import type { EndpointDto, EndpointSummaryDto, ProjectDetailDto } from '../../lib/api';
 import { endpointQueryKeys, projectQueryKeys } from '../../queries/project.queries';
 import { endpointFolderRepository, endpointRepository, projectRepository } from '../../repositories';
 import type { EndpointOrderGroup } from '../../repositories';
+import { useAssistantEffectStore } from '../../store/useAssistantEffectStore';
 import type { ProjectItemDialogState } from './project-item-modal';
 
 function toEndpoint(dto: EndpointDto | EndpointSummaryDto): Endpoint {
@@ -28,12 +29,16 @@ function toEndpoint(dto: EndpointDto | EndpointSummaryDto): Endpoint {
 
 export function useProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const [selectedEndpointId, setSelectedEndpointId] = useState<string | null>(() => searchParams.get('endpoint'));
-  const [selectedEndpointTab, setSelectedEndpointTab] = useState(searchParams.get('tab') ?? 'params');
-  const [selectedExampleId, setSelectedExampleId] = useState<string | undefined>(() => searchParams.get('example') ?? undefined);
+  const selectedEndpointId = searchParams.get('endpoint');
+  const selectedEndpointTab = searchParams.get('tab') ?? 'params';
+  const selectedExampleId = searchParams.get('example') ?? undefined;
   const [itemDialog, setItemDialog] = useState<ProjectItemDialogState | null>(null);
+
+  const pendingEffect = useAssistantEffectStore((state) => state.pendingEffect);
+  const consumePendingEffect = useAssistantEffectStore((state) => state.consumePendingEffect);
 
   const projectQuery = useQuery({
     queryKey: projectQueryKeys.detail(id ?? ''),
@@ -50,6 +55,43 @@ export function useProjectDetailPage() {
   const invalidateProject = useCallback(async () => {
     if (id) await queryClient.invalidateQueries({ queryKey: projectQueryKeys.detail(id) });
   }, [id, queryClient]);
+
+  // Handle assistant UI effects (navigation, switching tabs, redirecting to new endpoints)
+  useEffect(() => {
+    if (!pendingEffect) return;
+    const effect = consumePendingEffect();
+    if (!effect) return;
+
+    // Invalidate project or endpoint cache to ensure fresh state
+    if (id) {
+      void queryClient.invalidateQueries({ queryKey: projectQueryKeys.detail(id) });
+    }
+    if (effect.endpointId) {
+      void queryClient.invalidateQueries({ queryKey: endpointQueryKeys.detail(effect.endpointId) });
+    }
+
+    if (effect.projectId && effect.projectId !== id) {
+      let targetUrl = `/projects/${effect.projectId}`;
+      const params = new URLSearchParams();
+      if (effect.endpointId) params.set('endpoint', effect.endpointId);
+      if (effect.tab) params.set('tab', effect.tab);
+      if (effect.exampleId) params.set('example', effect.exampleId);
+      const queryStr = params.toString();
+      if (queryStr) targetUrl += `?${queryStr}`;
+      navigate(targetUrl);
+      return;
+    }
+
+    if (effect.endpointId || effect.tab || effect.exampleId) {
+      setSearchParams((current) => {
+        const next = new URLSearchParams(current);
+        if (effect.endpointId) next.set('endpoint', effect.endpointId);
+        if (effect.tab) next.set('tab', effect.tab);
+        if (effect.exampleId) next.set('example', effect.exampleId);
+        return next;
+      });
+    }
+  }, [pendingEffect, consumePendingEffect, id, queryClient, navigate, setSearchParams]);
 
   const createFolderMutation = useMutation({
     mutationFn: ({ name, parentId }: { name: string; parentId: string | null }) =>
@@ -194,12 +236,6 @@ export function useProjectDetailPage() {
     () => endpointDetailQuery.data ? toEndpoint(endpointDetailQuery.data) : null,
     [endpointDetailQuery.data],
   );
-
-  useEffect(() => {
-    setSelectedEndpointId(searchParams.get('endpoint'));
-    setSelectedEndpointTab(searchParams.get('tab') ?? 'params');
-    setSelectedExampleId(searchParams.get('example') ?? undefined);
-  }, [searchParams]);
 
   const selectState = useCallback((endpointId: string, tab = 'params', exampleId?: string) => {
     setSearchParams((current) => {

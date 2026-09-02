@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Button, CodeEditor, Input, Popover, Tooltip } from "./ui";
 import { cn } from "../lib/utils";
+import { useAssistantEffectStore } from "../store/useAssistantEffectStore";
 import {
   interpolateEnvironment,
   useEnvironmentStore,
@@ -322,9 +323,12 @@ export default function EndpointDetailView({
   const activeEnvironmentId = useEnvironmentStore(
     (state) => state.activeEnvironmentId,
   );
-  const variables =
-    environments.find((environment) => environment.id === activeEnvironmentId)
-      ?.variables ?? {};
+  const variables = useMemo(
+    () =>
+      environments.find((environment) => environment.id === activeEnvironmentId)
+        ?.variables ?? {},
+    [activeEnvironmentId, environments],
+  );
   const [activeTab, setActiveTab] = useState<RequestTab>(() =>
     requestTabs.some((tab) => tab.id === initialTab)
       ? (initialTab as RequestTab)
@@ -392,6 +396,11 @@ export default function EndpointDetailView({
   const [nameText, setNameText] = useState(initialForm.nameText);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Assistant field highlight effects
+  const activeHighlight = useAssistantEffectStore((state) => state.activeHighlight);
+  const isHighlighted = (target: 'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples') =>
+    activeHighlight?.target === target && (!activeHighlight.endpointId || activeHighlight.endpointId === endpoint.id);
 
   // Render-phase sync saat active endpoint berganti (tanpa useEffect setState)
   if (prevEndpointId !== endpoint.id) {
@@ -559,8 +568,26 @@ export default function EndpointDetailView({
   };
 
   const resolvedUrl = useMemo(() => {
+    let raw = rawUrl(urlText).trim();
+
+    // If the path is relative (e.g. "/users" or "users") and not an absolute http(s) URL
+    // and base_url/baseUrl exists in active variables, auto-prefix it if not already containing {{base_url}}
+    if (raw && !/^https?:\/\//i.test(raw)) {
+      const hasBaseUrlKey =
+        Object.prototype.hasOwnProperty.call(variables, "base_url") ||
+        Object.prototype.hasOwnProperty.call(variables, "baseUrl") ||
+        Object.prototype.hasOwnProperty.call(variables, "BASE_URL");
+
+      if (!raw.includes("{{base_url}}") && !raw.includes("{{baseUrl}}") && !raw.includes("{{BASE_URL}}")) {
+        if (hasBaseUrlKey) {
+          const prefix = raw.startsWith("/") ? "{{base_url}}" : "{{base_url}}/";
+          raw = `${prefix}${raw}`;
+        }
+      }
+    }
+
     const parsed = parseRequestUrl(
-      interpolateEnvironment(rawUrl(urlText).trim(), variables),
+      interpolateEnvironment(raw, variables),
     );
     let url = parsed.base.replace(/([^:])\/{2,}/g, "$1/");
     for (const row of pathRows) {
@@ -715,7 +742,10 @@ export default function EndpointDetailView({
                 <button
                   type="button"
                   onClick={() => setEditingName(true)}
-                  className="group/name flex min-w-0 items-center gap-2 text-left"
+                  className={cn(
+                    "group/name flex min-w-0 items-center gap-2 text-left rounded-sm px-1.5 py-0.5 transition-all",
+                    isHighlighted("summary") && "ring-2 ring-primary ring-offset-2 ring-offset-surface bg-primary/10 animate-pulse",
+                  )}
                 >
                   <h2 className="truncate font-heading text-sm font-semibold text-text-primary">
                     {endpoint.summary || "Untitled request"}
@@ -750,7 +780,13 @@ export default function EndpointDetailView({
       </header>
 
       <div className="shrink-0 border-b border-border bg-overlay px-5 py-4">
-        <div className="flex h-10 min-w-0 border border-border bg-base focus-within:border-primary">
+        <div
+          className={cn(
+            "flex h-10 min-w-0 border border-border bg-base focus-within:border-primary transition-all",
+            (isHighlighted("url") || isHighlighted("method")) &&
+              "ring-2 ring-primary ring-offset-2 ring-offset-overlay border-primary animate-pulse",
+          )}
+        >
           <Popover
             align="start"
             triggerClassName="w-[92px] shrink-0"
@@ -764,6 +800,7 @@ export default function EndpointDetailView({
                   "flex h-full w-full items-center justify-between border-r border-border px-3 font-mono text-xs font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary disabled:opacity-60",
                   `badge-${method}`,
                   open && "ring-2 ring-inset ring-primary",
+                  isHighlighted("method") && "bg-primary/20",
                 )}
               >
                 {endpoint.method}
@@ -879,6 +916,8 @@ export default function EndpointDetailView({
                   activeTab === tab.id
                     ? "text-text-primary"
                     : "text-text-muted hover:text-text-secondary",
+                  isHighlighted(tab.id as Parameters<typeof isHighlighted>[0]) &&
+                    "bg-primary/20 text-primary ring-1 ring-primary ring-inset animate-pulse",
                 )}
               >
                 {tab.label}

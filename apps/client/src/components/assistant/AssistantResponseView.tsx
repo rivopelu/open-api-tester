@@ -36,7 +36,6 @@ export interface AssistantResponseProps {
 }
 
 export function AssistantResponseView({
-  id: _id,
   content,
   status = 'idle',
   errorMessage,

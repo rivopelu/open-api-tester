@@ -8,9 +8,32 @@ export type AssistantToolEventListener = (event: {
   resultSummary?: string
 }) => void
 
+export interface ConfirmationRequest {
+  confirmationId: string
+  toolId: string
+  toolName: string
+  args: Record<string, unknown>
+  summary: string
+}
+
+export type ConfirmationRequestHandler = (request: ConfirmationRequest) => Promise<boolean>
+
+export interface AssistantUiEffect {
+  type: 'navigate' | 'highlight' | 'tab_change'
+  projectId?: string
+  endpointId?: string
+  tab?: string
+  exampleId?: string
+  target?: 'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples'
+}
+
+export type UiEffectEventListener = (effect: AssistantUiEffect) => void
+
 export interface DomainToolContext {
   accountId?: string
   onEvent?: AssistantToolEventListener
+  onUiEffect?: UiEffectEventListener
+  requestConfirmation?: ConfirmationRequestHandler
 }
 
 export interface DomainToolDefinition<
@@ -22,8 +45,10 @@ export interface DomainToolDefinition<
   inputSchema: z.ZodObject<TSchema>
   readOnly?: boolean
   destructive?: boolean
+  requiresConfirmation?: boolean
   execute: (input: any, ctx: DomainToolContext) => Promise<TResult>
   formatSummary?: (result: any, input: any) => string
+  formatConfirmation?: (input: any) => string
 }
 
 export type AnyDomainToolDefinition = DomainToolDefinition<z.ZodRawShape, unknown>

@@ -141,14 +141,41 @@ export interface AssistantContextDto {
   exampleId?: string;
 }
 
+export interface AssistantUiEffectDto {
+  type: 'navigate' | 'highlight' | 'tab_change';
+  projectId?: string;
+  endpointId?: string;
+  tab?: string;
+  exampleId?: string;
+  target?: 'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples';
+}
+
 export type AssistantStreamEventDto =
   | { type: 'token'; delta: string }
   | { type: 'tool_call_start'; toolId: string; toolName: string; args?: Record<string, unknown> }
   | { type: 'tool_call_complete'; toolId: string; toolName: string; resultSummary?: string }
   | { type: 'tool_call_error'; toolId: string; toolName: string; resultSummary?: string }
+  | {
+      type: 'tool_confirmation_request';
+      confirmationId: string;
+      toolId: string;
+      toolName: string;
+      args: Record<string, unknown>;
+      summary: string;
+    }
+  | { type: 'ui_effect'; effect: AssistantUiEffectDto }
   | { type: 'session_info'; threadId: string; sessionTitle?: string }
   | { type: 'done'; fullReply: string; threadId: string }
   | { type: 'error'; message: string };
+
+export async function confirmAssistantTool(
+  confirmationId: string,
+  approved: boolean
+): Promise<{ resolved: boolean }> {
+  return unwrap<{ resolved: boolean }>(
+    api.post('/assistant/confirm', { confirmationId, approved })
+  );
+}
 
 export async function chatStream(
   payload: {

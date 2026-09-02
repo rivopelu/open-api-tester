@@ -76,11 +76,18 @@ export const domainTools: DomainToolDefinition[] = [
     inputSchema: z.object({
       name: z.string().trim().min(1).describe('The name of the project to create'),
     }),
+    requiresConfirmation: true,
+    formatConfirmation: ({ name }) => `Create new project named "${name}"`,
     execute: async ({ name }, ctx) => {
-      return projectService.create({
+      const created = await projectService.create({
         name,
         created_by: ctx.accountId || 'system',
       })
+      ctx.onUiEffect?.({
+        type: 'navigate',
+        projectId: created.id,
+      })
+      return created
     },
     formatSummary: (result) => {
       const res = result as { name?: string }
@@ -110,8 +117,15 @@ export const domainTools: DomainToolDefinition[] = [
       name: z.string().trim().min(1).describe('The name of the folder'),
       parentId: z.string().nullable().optional().describe('Parent folder ID if nested, or null/omitted for root'),
     }),
-    execute: async (input) => {
-      return folderService.create(input)
+    requiresConfirmation: true,
+    formatConfirmation: ({ name, projectId }) => `Create folder "${name}" in project (${projectId})`,
+    execute: async (input, ctx) => {
+      const created = await folderService.create(input)
+      ctx.onUiEffect?.({
+        type: 'highlight',
+        projectId: input.projectId,
+      })
+      return created
     },
     formatSummary: (result) => {
       const res = result as { name?: string }
@@ -128,6 +142,8 @@ export const domainTools: DomainToolDefinition[] = [
       parentId: z.string().nullable().optional().describe('New parent folder ID or null to move to root'),
       sortOrder: z.number().int().min(0).optional().describe('Order index for sorting'),
     }),
+    requiresConfirmation: true,
+    formatConfirmation: ({ name, folderId }) => `Update folder ${name ? `"${name}"` : `ID ${folderId}`}`,
     execute: async ({ folderId, ...changes }) => {
       return folderService.update(folderId, changes)
     },
@@ -144,6 +160,8 @@ export const domainTools: DomainToolDefinition[] = [
       folderId: z.string().min(1).describe('The folder ID to delete'),
     }),
     destructive: true,
+    requiresConfirmation: true,
+    formatConfirmation: ({ folderId }) => `Permanently delete folder (ID: ${folderId})`,
     execute: async ({ folderId }, ctx) => {
       await folderService.delete(folderId, ctx.accountId)
       return { success: true }
@@ -201,8 +219,23 @@ export const domainTools: DomainToolDefinition[] = [
         .optional()
         .describe('OpenAPI operation fields: parameters, requestBody, responses, tags, security, description, operationId.'),
     }),
-    execute: async (input) => {
-      return endpointService.create(input)
+    requiresConfirmation: true,
+    formatConfirmation: (input) => `Create new endpoint [${input.method}] ${input.path} in project`,
+    execute: async (input, ctx) => {
+      const created = await endpointService.create(input)
+      ctx.onUiEffect?.({
+        type: 'navigate',
+        projectId: input.projectId,
+        endpointId: created.id,
+        tab: 'params',
+        target: 'url',
+      })
+      ctx.onUiEffect?.({
+        type: 'highlight',
+        endpointId: created.id,
+        target: 'url',
+      })
+      return created
     },
     formatSummary: (result) => {
       const res = result as { method?: string; path?: string }
@@ -221,12 +254,77 @@ export const domainTools: DomainToolDefinition[] = [
       summary: z.string().optional().describe('New summary description'),
       specData: z.record(z.string(), z.unknown()).optional().describe('Partial or full OpenAPI specData object to merge'),
     }),
-    execute: async ({ endpointId, specData, ...changes }) => {
+    requiresConfirmation: true,
+    formatConfirmation: (input) => {
+      const parts: string[] = []
+      if (input.method || input.path) parts.push(`[${input.method || 'METHOD'}] ${input.path || 'path'}`)
+      if (input.summary) parts.push(`summary: "${input.summary}"`)
+      if (input.specData?.requestBody) parts.push(`request body`)
+      if (input.specData?.responses) parts.push(`responses`)
+      if (input.specData?.parameters) parts.push(`parameters`)
+      return `Update endpoint: ${parts.length > 0 ? parts.join(', ') : input.endpointId}`
+    },
+    execute: async ({ endpointId, specData, ...changes }, ctx) => {
       const current = await endpointService.get(endpointId)
-      return endpointService.update(endpointId, {
+      const updated = await endpointService.update(endpointId, {
         ...changes,
         ...(specData ? { specData: { ...current.specData, ...specData } } : {}),
       })
+
+      // Dispatch UI effect based on what was updated
+      if (changes.path !== undefined || changes.method !== undefined) {
+        ctx.onUiEffect?.({
+          type: 'highlight',
+          endpointId,
+          target: 'url',
+        })
+      }
+      if (changes.summary !== undefined) {
+        ctx.onUiEffect?.({
+          type: 'highlight',
+          endpointId,
+          target: 'summary',
+        })
+      }
+      if (specData?.requestBody !== undefined) {
+        ctx.onUiEffect?.({
+          type: 'tab_change',
+          endpointId,
+          tab: 'body',
+          target: 'body',
+        })
+        ctx.onUiEffect?.({
+          type: 'highlight',
+          endpointId,
+          target: 'body',
+        })
+      } else if (specData?.responses !== undefined) {
+        ctx.onUiEffect?.({
+          type: 'tab_change',
+          endpointId,
+          tab: 'examples',
+          target: 'responses',
+        })
+        ctx.onUiEffect?.({
+          type: 'highlight',
+          endpointId,
+          target: 'responses',
+        })
+      } else if (specData?.parameters !== undefined) {
+        ctx.onUiEffect?.({
+          type: 'tab_change',
+          endpointId,
+          tab: 'params',
+          target: 'params',
+        })
+        ctx.onUiEffect?.({
+          type: 'highlight',
+          endpointId,
+          target: 'params',
+        })
+      }
+
+      return updated
     },
     formatSummary: (result) => {
       const res = result as { method?: string; path?: string }
@@ -241,8 +339,16 @@ export const domainTools: DomainToolDefinition[] = [
       endpointId: z.string().min(1).describe('The endpoint ID'),
       folderId: z.string().nullable().describe('Folder ID to move to, or null for root level'),
     }),
-    execute: async ({ endpointId, folderId }) => {
-      return endpointService.update(endpointId, { folderId })
+    requiresConfirmation: true,
+    formatConfirmation: ({ endpointId, folderId }) =>
+      `Move endpoint (${endpointId}) to ${folderId ? `folder ${folderId}` : 'project root'}`,
+    execute: async ({ endpointId, folderId }, ctx) => {
+      const res = await endpointService.update(endpointId, { folderId })
+      ctx.onUiEffect?.({
+        type: 'highlight',
+        endpointId,
+      })
+      return res
     },
     formatSummary: () => 'Endpoint moved successfully',
   }),
@@ -258,15 +364,35 @@ export const domainTools: DomainToolDefinition[] = [
       summary: z.string().optional().describe('Description of the example scenario'),
       value: z.unknown().describe('JSON value payload. It will be stored as formatted JSON text.'),
     }),
-    execute: async ({ endpointId, scope, responseStatus, name, summary, value }) => {
+    requiresConfirmation: true,
+    formatConfirmation: ({ name, scope, responseStatus }) =>
+      `Add ${scope} example "${name}"${responseStatus ? ` (Status ${responseStatus})` : ''} to endpoint`,
+    execute: async ({ endpointId, scope, responseStatus, name, summary, value }, ctx) => {
       const endpoint = await endpointService.get(endpointId)
       const spec = endpoint.specData
-      const example: EndpointExample = { id: randomUUID(), name, summary, value: JSON.stringify(value, null, 2) }
+      const exampleId = randomUUID()
+
+      let formattedValue = ''
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value)
+          formattedValue = JSON.stringify(parsed, null, 2)
+        } catch {
+          formattedValue = value
+        }
+      } else if (value !== undefined && value !== null) {
+        formattedValue = JSON.stringify(value, null, 2)
+      } else {
+        formattedValue = '{\n  \n}'
+      }
+
+      const example: EndpointExample = { id: exampleId, name, summary, value: formattedValue }
       const requestBody = spec.requestBody as RequestBodyDefinition | undefined
       const responses = Array.isArray(spec.responses) ? (spec.responses as ResponseDefinition[]) : []
 
+      let updatedResult
       if (scope === 'request') {
-        return endpointService.updateExamples(endpointId, {
+        updatedResult = await endpointService.updateExamples(endpointId, {
           requestBody: {
             required: requestBody?.required ?? false,
             contentType: requestBody?.contentType ?? 'application/json',
@@ -276,26 +402,41 @@ export const domainTools: DomainToolDefinition[] = [
           },
           responses,
         })
+      } else {
+        if (!responseStatus) throw new Error('responseStatus is required for response examples')
+        const response = responses.find((item) => item.statusCode === responseStatus)
+        const nextResponses = response
+          ? responses.map((item) =>
+              item.id === response.id ? { ...item, examples: [...(item.examples ?? []), example] } : item
+            )
+          : [
+              ...responses,
+              {
+                id: randomUUID(),
+                statusCode: responseStatus,
+                description: 'Generated response',
+                contentType: 'application/json',
+                examples: [example],
+              },
+            ]
+
+        updatedResult = await endpointService.updateExamples(endpointId, { requestBody, responses: nextResponses })
       }
 
-      if (!responseStatus) throw new Error('responseStatus is required for response examples')
-      const response = responses.find((item) => item.statusCode === responseStatus)
-      const nextResponses = response
-        ? responses.map((item) =>
-            item.id === response.id ? { ...item, examples: [...(item.examples ?? []), example] } : item
-          )
-        : [
-            ...responses,
-            {
-              id: randomUUID(),
-              statusCode: responseStatus,
-              description: 'Generated response',
-              contentType: 'application/json',
-              examples: [example],
-            },
-          ]
+      ctx.onUiEffect?.({
+        type: 'tab_change',
+        endpointId,
+        tab: 'examples',
+        exampleId,
+        target: 'examples',
+      })
+      ctx.onUiEffect?.({
+        type: 'highlight',
+        endpointId,
+        target: 'examples',
+      })
 
-      return endpointService.updateExamples(endpointId, { requestBody, responses: nextResponses })
+      return updatedResult
     },
     formatSummary: (_res, input) => `Example '${input.name}' added to endpoint`,
   }),

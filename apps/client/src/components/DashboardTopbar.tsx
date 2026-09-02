@@ -24,7 +24,7 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
   const openProfileSettings = () => navigate(router.settings.profile());
 
   return (
-    <header className="flex h-[56px] shrink-0 items-center gap-2 border-b border-border bg-surface px-4">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-surface px-4">
       {/* Brand + actions (left) */}
       <div className="flex items-center gap-2">
         <img
@@ -81,7 +81,7 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
               fallback={initials}
               size="sm"
             />
-            <span className="hidden max-w-[140px] truncate text-sm font-medium text-text-primary md:inline">
+            <span className="hidden max-w-35 truncate text-sm font-medium text-text-primary md:inline">
               {user?.name}
             </span>
             <ChevronDown

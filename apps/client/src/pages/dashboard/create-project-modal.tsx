@@ -39,13 +39,13 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-1000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !submitting) onClose();
       }}
     >
       <form
-        className="w-full max-w-[480px] overflow-hidden rounded-none border border-border bg-surface animate-slideIn"
+        className="w-full max-w-120 overflow-hidden rounded-none border border-border bg-surface animate-slideIn"
         onSubmit={handleSubmit}
       >
         <header className="flex items-center justify-between gap-4 border-b border-border px-6 py-4">

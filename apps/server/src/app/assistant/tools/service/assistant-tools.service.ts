@@ -1,12 +1,19 @@
 import { createTool } from '@mastra/core/tools'
+import { randomUUID } from 'node:crypto'
 import { domainTools } from '../definitions/domain-tools'
-import type { AssistantToolEventListener } from '../types/tool.types'
+import type {
+  AssistantToolEventListener,
+  ConfirmationRequestHandler,
+  UiEffectEventListener,
+} from '../types/tool.types'
 
-export type { AssistantToolEventListener }
+export type { AssistantToolEventListener, ConfirmationRequestHandler, UiEffectEventListener }
 
 export function createAssistantTools(
   onEvent?: AssistantToolEventListener,
   accountId?: string,
+  requestConfirmation?: ConfirmationRequestHandler,
+  onUiEffect?: UiEffectEventListener,
 ) {
   const toolsRecord: Record<string, ReturnType<typeof createTool>> = {}
 
@@ -17,6 +24,34 @@ export function createAssistantTools(
       inputSchema: toolDef.inputSchema,
       execute: async (input) => {
         const inputObj = (input ?? {}) as Record<string, unknown>
+
+        // Human-in-the-loop confirmation check
+        if (toolDef.requiresConfirmation && requestConfirmation) {
+          const confirmationId = randomUUID()
+          const confirmationSummary = toolDef.formatConfirmation
+            ? toolDef.formatConfirmation(inputObj)
+            : `Execute ${toolDef.name}`
+
+          const approved = await requestConfirmation({
+            confirmationId,
+            toolId: toolDef.name,
+            toolName: toolDef.name,
+            args: inputObj,
+            summary: confirmationSummary,
+          })
+
+          if (!approved) {
+            const rejectMsg = `Aksi '${toolDef.name}' dibatalkan oleh pengguna.`
+            onEvent?.({
+              type: 'tool_call_error',
+              toolId: toolDef.name,
+              toolName: toolDef.name,
+              resultSummary: 'Dibatalkan oleh pengguna',
+            })
+            return { cancelled: true, message: rejectMsg }
+          }
+        }
+
         onEvent?.({
           type: 'tool_call_start',
           toolId: toolDef.name,
@@ -28,6 +63,8 @@ export function createAssistantTools(
           const result = await toolDef.execute(inputObj, {
             accountId,
             onEvent,
+            onUiEffect,
+            requestConfirmation,
           })
 
           const summary = toolDef.formatSummary
