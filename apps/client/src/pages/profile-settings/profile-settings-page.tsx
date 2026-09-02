@@ -9,7 +9,7 @@ export default function ProfileSettingsPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-base">
+    <div className="h-full overflow-y-auto bg-base py-6">
       <PageContainer size="md">
         <Button
           variant="ghost"

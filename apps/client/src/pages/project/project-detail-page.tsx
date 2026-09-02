@@ -1,13 +1,14 @@
 import {
   ArrowLeft,
   Globe,
-  PenTool,
   FolderOpen,
   MoreHorizontal,
+  Bot,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Endpoint } from "@modern-api-studio/types";
+import { useUiStore } from "../../store/useUiStore";
 import {
   Button,
   GridCell,
@@ -25,6 +26,7 @@ import { MockServerModal } from "../../components/MockServerModal";
 export default function ProjectDetailPage() {
   const page = useProjectDetailPage();
   const navigate = useNavigate();
+  const { toggleAssistant, assistantOpen } = useUiStore();
   const [mockOpen, setMockOpen] = useState(false);
 
   // Build tag groups for overview section
@@ -69,15 +71,11 @@ export default function ProjectDetailPage() {
         <Button
           variant="primary"
           size="sm"
-          onClick={() =>
-            navigate(
-              page.projectId ? `/editor?project=${page.projectId}` : "/editor",
-            )
-          }
-          disabled={!page.project}
+          onClick={toggleAssistant}
+          className="ml-2 gap-1.5"
         >
-          <PenTool className="h-3.5 w-3.5" aria-hidden="true" />
-          Open Editor
+          <Bot className="h-3.5 w-3.5" aria-hidden="true" />
+          <span className="hidden md:inline">AI Assistant</span>
         </Button>
         <Button
           variant="ghost"

@@ -45,7 +45,7 @@ export default function DashboardPage() {
   const [editingProject, setEditingProject] = useState<ProjectDto | null>(null);
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-base">
+    <div className="relative flex h-full flex-col overflow-y-auto bg-base">
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
         <div className="absolute -right-32 top-12 h-[420px] w-[620px] rotate-[-12deg] animate-[pulse_9s_ease-in-out_infinite] border border-primary/10 bg-primary/[0.025] motion-reduce:animate-none" />
         <div className="absolute -right-12 top-48 h-[320px] w-[440px] rotate-[18deg] animate-[pulse_12s_ease-in-out_infinite] border border-purple/10 bg-purple/[0.025] motion-reduce:animate-none" />

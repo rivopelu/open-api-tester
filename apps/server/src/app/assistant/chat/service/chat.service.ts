@@ -7,23 +7,25 @@ import { ChatSessionRepository } from '../repository/chat-session.repository'
 import type { ChatResult } from '../types/chat.types'
 
 export class ChatService {
-  private agent = new Agent({
-    id: 'api-studio-assistant',
-    name: 'api-studio-assistant',
-    instructions:
-      'You are the assistant embedded in Max API Studio, a REST API design and testing tool. ' +
-      'Help the user inspect and manage their API projects, endpoints, and OpenAPI contracts using the available tools. ' +
-      'Be concise and confirm destructive or write actions in your reply.',
-    model: llmService.model(),
-    tools: assistantTools,
-  })
-
   constructor(
     private sessionRepository: ChatSessionRepository = new ChatSessionRepository(),
     private messageRepository: ChatMessageRepository = new ChatMessageRepository(),
   ) {}
 
-  async chat(accountId: string, message: string, threadId?: string): Promise<ChatResult> {
+  private createAgent(modelId?: string) {
+    return new Agent({
+      id: 'api-studio-assistant',
+      name: 'api-studio-assistant',
+      instructions:
+        'You are the assistant embedded in Max API Studio, a REST API design and testing tool. ' +
+        'Help the user inspect and manage their API projects, endpoints, and OpenAPI contracts using the available tools. ' +
+        'Be concise and confirm destructive or write actions in your reply.',
+      model: llmService.model(modelId || DEFAULT_MODEL),
+      tools: assistantTools,
+    })
+  }
+
+  async chat(accountId: string, message: string, threadId?: string, modelId?: string): Promise<ChatResult> {
     const session = threadId
       ? await this.sessionRepository.findById(threadId)
       : await this.sessionRepository.insert({ title: message.slice(0, 80), created_by: accountId })
@@ -38,14 +40,16 @@ export class ChatService {
     ] as Parameters<Agent['generate']>[0]
     await this.messageRepository.insert({ session_id: session.id, role: 'user', content: message })
 
-    const result = await this.agent.generate(conversation)
+    const activeModel = modelId || DEFAULT_MODEL
+    const agent = this.createAgent(activeModel)
+    const result = await agent.generate(conversation)
     const usage = await result.usage
 
     await this.messageRepository.insert({ session_id: session.id, role: 'assistant', content: result.text })
     await llmService.recordUsage({
       accountId,
       threadId: session.id,
-      model: DEFAULT_MODEL,
+      model: activeModel,
       message,
       promptTokens: usage?.inputTokens,
       completionTokens: usage?.outputTokens,
@@ -53,6 +57,14 @@ export class ChatService {
     })
 
     return { reply: result.text, threadId: session.id }
+  }
+
+  async getSessions(accountId: string) {
+    return this.sessionRepository.findByAccount(accountId)
+  }
+
+  async getSessionMessages(sessionId: string) {
+    return this.messageRepository.findBySession(sessionId)
   }
 }
 

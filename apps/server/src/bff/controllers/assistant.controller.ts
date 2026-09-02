@@ -1,22 +1,48 @@
 import { Context } from 'hono'
-import { Controller, Post, AuthAccess } from '../../lib/decorators'
+import { Controller, Get, Post, AuthAccess } from '../../lib/decorators'
 import { ResponseHelper } from '../../lib/response-helper'
 import { UnauthorizedError } from '../../configs/exception'
 import { getUser } from '../../lib/get-user'
 import { ChatService } from '../../app/assistant/chat/service/chat.service'
 import { ChatRequestSchema } from '../../app/assistant/chat/types/chat.types'
+import { LLM_MODELS } from '../../app/llm/constants/data'
 
 @Controller()
 export class AssistantController {
   private chatService = new ChatService()
+
+  @Get('/assistant/models')
+  @AuthAccess()
+  async getModels(c: Context) {
+    return c.json(ResponseHelper.data(LLM_MODELS))
+  }
+
+  @Get('/assistant/sessions')
+  @AuthAccess()
+  async getSessions(c: Context) {
+    const user = getUser(c)
+    if (!user) throw new UnauthorizedError()
+    const sessions = await this.chatService.getSessions(user.sub)
+    return c.json(ResponseHelper.data(sessions))
+  }
+
+  @Get('/assistant/sessions/:id/messages')
+  @AuthAccess()
+  async getSessionMessages(c: Context) {
+    const user = getUser(c)
+    if (!user) throw new UnauthorizedError()
+    const sessionId = c.req.param('id')
+    const messages = await this.chatService.getSessionMessages(sessionId)
+    return c.json(ResponseHelper.data(messages))
+  }
 
   @Post('/assistant/chat')
   @AuthAccess()
   async chat(c: Context) {
     const user = getUser(c)
     if (!user) throw new UnauthorizedError()
-    const { message, threadId } = ChatRequestSchema.parse(await c.req.json())
-    const result = await this.chatService.chat(user.sub, message, threadId)
+    const { message, threadId, model } = ChatRequestSchema.parse(await c.req.json())
+    const result = await this.chatService.chat(user.sub, message, threadId, model)
     return c.json(ResponseHelper.data(result))
   }
 }

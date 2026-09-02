@@ -1,6 +1,7 @@
-import { ChevronDown, LogOut, User, Upload, Plus } from 'lucide-react';
+import { ChevronDown, LogOut, User, Upload, Plus, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
+import { useUiStore } from '../store/useUiStore';
 import { router } from '../routes';
 import { Avatar, Button, Popover, ThemeToggle, Typography } from './ui';
 import { EnvironmentSelector } from './EnvironmentSelector';
@@ -13,6 +14,7 @@ export interface DashboardTopbarProps {
 /** Top bar for the dashboard shell: brand + actions (left), profile popover (right). */
 export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopbarProps) {
   const { user, signOut } = useAuthStore();
+  const { toggleAssistant, assistantOpen } = useUiStore();
   const navigate = useNavigate();
 
   const initials = user?.name
@@ -48,6 +50,17 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* AI Assistant button */}
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={toggleAssistant}
+        className="gap-1.5"
+      >
+        <Bot className="h-3.5 w-3.5" aria-hidden="true" />
+        <span className="hidden sm:inline">AI Assistant</span>
+      </Button>
 
       <ThemeToggle />
 

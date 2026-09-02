@@ -12,6 +12,7 @@ import {
   Play,
   Redo2,
   ShieldCheck,
+  Bot,
   Undo2,
   X,
   Zap,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useApiSpecStore } from '../store/useApiSpecStore';
+import { useUiStore } from '../store/useUiStore';
 import { router } from '../routes';
 import { apiSpecToOpenApi3 } from '@modern-api-studio/utils';
 import { SaveConflictError, getErrorMessage } from '../lib/api';
@@ -131,6 +133,7 @@ export function Header() {
     saveProject, loadProject,
     lastSavedAt,
   } = useApiSpecStore();
+  const { toggleAssistant, assistantOpen } = useUiStore();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -303,6 +306,17 @@ export function Header() {
           <Button variant="primary" size="sm" onClick={() => navigate(router.editor.panel('preview'))}>
             <Play className="h-3.5 w-3.5" aria-hidden="true" />
             Preview
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={toggleAssistant}
+            className="gap-1.5"
+            data-tooltip="AI Assistant"
+          >
+            <Bot className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="hidden md:inline">AI Assistant</span>
           </Button>
 
           <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
