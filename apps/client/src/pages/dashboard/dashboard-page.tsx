@@ -1,25 +1,28 @@
-import { useState } from 'react';
+import { useState } from "react";
+import { FolderOpen, Pencil, Trash2 } from "lucide-react";
 import {
-  FolderOpen,
-  Pencil,
-  Trash2,
-} from 'lucide-react';
-import { Avatar, Button, GridCell, GridPanel, PageContainer, Typography } from '../../components/ui';
-import { DashboardTopbar } from '../../components/DashboardTopbar';
-import { ImportYamlModal } from '../../components/ImportYamlModal';
-import type { ProjectDto } from '../../lib/api';
-import { CreateProjectModal } from './create-project-modal';
-import { EditProjectModal } from './edit-project-modal';
-import useDashboardPage from './use-dashboard-page';
-import { McpConnectionPanel } from './mcp-connection-panel';
+  Avatar,
+  Button,
+  GridCell,
+  GridPanel,
+  PageContainer,
+  Typography,
+} from "../../components/ui";
+import { DashboardTopbar } from "../../components/DashboardTopbar";
+import { ImportYamlModal } from "../../components/ImportYamlModal";
+import type { ProjectDto } from "../../lib/api";
+import { CreateProjectModal } from "./create-project-modal";
+import { EditProjectModal } from "./edit-project-modal";
+import useDashboardPage from "./use-dashboard-page";
+import { McpConnectionPanel } from "./mcp-connection-panel";
 
 function formatTimeAgo(dateInput?: string | Date | null): string {
-  if (!dateInput) return '—';
+  if (!dateInput) return "—";
   const timestamp = new Date(dateInput).getTime();
-  if (Number.isNaN(timestamp)) return '—';
+  if (Number.isNaN(timestamp)) return "—";
 
   const diffMs = Date.now() - timestamp;
-  if (diffMs < 0) return 'just now';
+  if (diffMs < 0) return "just now";
 
   const seconds = Math.floor(diffMs / 1000);
   if (seconds < 60) return `${Math.max(1, seconds)}s ago`;
@@ -47,14 +50,40 @@ export default function DashboardPage() {
   return (
     <div className="relative flex h-full flex-col overflow-y-auto bg-base">
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        <div className="absolute -right-32 top-12 h-[420px] w-[620px] rotate-[-12deg] animate-[pulse_9s_ease-in-out_infinite] border border-primary/10 bg-primary/[0.025] motion-reduce:animate-none" />
-        <div className="absolute -right-12 top-48 h-[320px] w-[440px] rotate-[18deg] animate-[pulse_12s_ease-in-out_infinite] border border-purple/10 bg-purple/[0.025] motion-reduce:animate-none" />
-        <div className="absolute -left-40 top-[420px] h-[360px] w-[560px] rotate-[8deg] animate-[pulse_14s_ease-in-out_infinite] border border-teal/10 bg-teal/[0.02] motion-reduce:animate-none" />
-        <svg className="absolute right-[7%] top-24 h-[360px] w-[560px] animate-[pulse_10s_ease-in-out_infinite] opacity-25 motion-reduce:animate-none" viewBox="0 0 560 360" fill="none">
-          <path d="M24 292C112 292 108 104 218 104S322 252 418 252s84-188 126-188" stroke="#89b4fa" strokeOpacity=".22" />
-          <path d="M2 326C124 326 132 152 250 152s118 132 206 132 68-92 104-92" stroke="#94e2d5" strokeOpacity=".15" />
-          <circle className="animate-pulse motion-reduce:animate-none" cx="218" cy="104" r="4" fill="#89b4fa" fillOpacity=".45" />
-          <circle className="animate-[pulse_3s_ease-in-out_infinite] motion-reduce:animate-none" cx="418" cy="252" r="4" fill="#cba6f7" fillOpacity=".4" />
+        <div className="absolute -right-32 top-12 h-105 w-155 -rotate-12 animate-[pulse_9s_ease-in-out_infinite] border border-primary/10 bg-primary/2.5 motion-reduce:animate-none" />
+        <div className="absolute -right-12 top-48 h-80 w-110 rotate-18 animate-[pulse_12s_ease-in-out_infinite] border border-purple/10 bg-purple/2.5 motion-reduce:animate-none" />
+        <div className="absolute -left-40 top-105 h-90 w-140 rotate-8 animate-[pulse_14s_ease-in-out_infinite] border border-teal/10 bg-teal/2 motion-reduce:animate-none" />
+        <svg
+          className="absolute right-[7%] top-24 h-90 w-140 animate-[pulse_10s_ease-in-out_infinite] opacity-25 motion-reduce:animate-none"
+          viewBox="0 0 560 360"
+          fill="none"
+        >
+          <path
+            d="M24 292C112 292 108 104 218 104S322 252 418 252s84-188 126-188"
+            stroke="#89b4fa"
+            strokeOpacity=".22"
+          />
+          <path
+            d="M2 326C124 326 132 152 250 152s118 132 206 132 68-92 104-92"
+            stroke="#94e2d5"
+            strokeOpacity=".15"
+          />
+          <circle
+            className="animate-pulse motion-reduce:animate-none"
+            cx="218"
+            cy="104"
+            r="4"
+            fill="#89b4fa"
+            fillOpacity=".45"
+          />
+          <circle
+            className="animate-[pulse_3s_ease-in-out_infinite] motion-reduce:animate-none"
+            cx="418"
+            cy="252"
+            r="4"
+            fill="#cba6f7"
+            fillOpacity=".4"
+          />
         </svg>
       </div>
       <DashboardTopbar
@@ -99,8 +128,13 @@ export default function DashboardPage() {
               </Typography>
             </div>
             {!page.loading && page.projects.length > 0 && (
-              <Typography variant="caption" tone="muted" className="shrink-0 font-mono">
-                {page.projects.length} {page.projects.length === 1 ? 'project' : 'projects'}
+              <Typography
+                variant="caption"
+                tone="muted"
+                className="shrink-0 font-mono"
+              >
+                {page.projects.length}{" "}
+                {page.projects.length === 1 ? "project" : "projects"}
               </Typography>
             )}
           </div>
@@ -123,7 +157,11 @@ export default function DashboardPage() {
                   className="mb-3 h-10 w-10 text-text-muted"
                   aria-hidden="true"
                 />
-                <Typography variant="heading-sm" tone="secondary" className="mb-2">
+                <Typography
+                  variant="heading-sm"
+                  tone="secondary"
+                  className="mb-2"
+                >
                   No projects yet
                 </Typography>
                 <Typography variant="body-sm" tone="muted" className="mb-5">
@@ -135,7 +173,10 @@ export default function DashboardPage() {
               </GridCell>
             </GridPanel>
           ) : (
-            <GridPanel columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]" className="mb-8">
+            <GridPanel
+              columns="grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]"
+              className="mb-8"
+            >
               {page.projects.map((p) => (
                 <ProjectCard
                   key={p.id}
@@ -151,17 +192,25 @@ export default function DashboardPage() {
 
         {/* Import YAML modal */}
         {page.showImport && (
-          <ImportYamlModal onClose={page.closeImport} onImported={page.onImported} />
+          <ImportYamlModal
+            onClose={page.closeImport}
+            onImported={page.onImported}
+          />
         )}
 
         {page.showCreate && (
-          <CreateProjectModal onClose={page.closeCreate} onCreate={page.createProject} />
+          <CreateProjectModal
+            onClose={page.closeCreate}
+            onCreate={page.createProject}
+          />
         )}
         {editingProject && (
           <EditProjectModal
             projectName={editingProject.name}
             onClose={() => setEditingProject(null)}
-            onSave={(name) => page.renameSelectedProject(editingProject.id, name)}
+            onSave={(name) =>
+              page.renameSelectedProject(editingProject.id, name)
+            }
           />
         )}
       </PageContainer>
@@ -171,7 +220,10 @@ export default function DashboardPage() {
 
 function ProjectCardSkeleton() {
   return (
-    <GridCell className="flex min-h-[160px] flex-col justify-between p-4" aria-hidden="true">
+    <GridCell
+      className="flex min-h-40 flex-col justify-between p-4"
+      aria-hidden="true"
+    >
       <div className="h-5 w-48 max-w-[75%] animate-pulse bg-overlay" />
       <div className="my-3 flex items-center justify-between gap-2 border-t border-border pt-3">
         <div className="flex items-center gap-2">
@@ -196,16 +248,16 @@ function ProjectCard({
   onDelete: () => void;
   onEdit: () => void;
 }) {
-  const actorName = project.creator?.name ?? 'Unknown';
+  const actorName = project.creator?.name ?? "Unknown";
 
   return (
     <GridCell
       onClick={onSelect}
-      className="group flex min-h-[160px] cursor-pointer flex-col justify-between p-4 transition-colors duration-200 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      className="group flex min-h-40 cursor-pointer flex-col justify-between p-4 transition-colors duration-200 hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       tabIndex={0}
       role="button"
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === "Enter" || e.key === " ") {
           if (e.target !== e.currentTarget) return;
           e.preventDefault();
           onSelect();
@@ -214,7 +266,11 @@ function ProjectCard({
       aria-label={`Open project ${project.name}`}
     >
       <div className="w-full text-left">
-        <Typography as="h3" variant="heading-sm" className="break-words group-hover:text-primary">
+        <Typography
+          as="h3"
+          variant="heading-sm"
+          className="wrap-break-word group-hover:text-primary"
+        >
           {project.name}
         </Typography>
       </div>
@@ -226,11 +282,19 @@ function ProjectCard({
             src={project.creator?.profilePicture}
             alt={actorName}
           />
-          <Typography variant="caption" tone="secondary" className="truncate font-medium">
+          <Typography
+            variant="caption"
+            tone="secondary"
+            className="truncate font-medium"
+          >
             {actorName}
           </Typography>
         </div>
-        <Typography variant="caption" tone="muted" className="shrink-0 font-mono">
+        <Typography
+          variant="caption"
+          tone="muted"
+          className="shrink-0 font-mono"
+        >
           {formatTimeAgo(project.updatedAt)}
         </Typography>
       </div>

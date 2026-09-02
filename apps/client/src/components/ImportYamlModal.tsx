@@ -238,7 +238,7 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
                 onChange={(e) => { setRawText(e.target.value); setFileName(null); }}
                 placeholder={'openapi: 3.0.3\ninfo:\n  title: My API\n  version: 1.0.0\npaths:\n  /users:\n    get:\n      summary: List users\n      responses:\n        \'200\':\n          description: OK'}
                 spellCheck={false}
-                className="input input-mono min-h-[200px] w-full resize-y"
+                className="input input-mono min-h-50 w-full resize-y"
               />
             </div>
 

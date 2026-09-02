@@ -37,7 +37,7 @@ export default function ProjectDetailPage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-base">
       {/* Topbar */}
-      <div className="flex h-[56px] shrink-0 items-center border-b border-border bg-surface px-3">
+      <div className="flex h-14 shrink-0 items-center border-b border-border bg-surface px-3">
         <Button
           variant="ghost"
           size="sm"

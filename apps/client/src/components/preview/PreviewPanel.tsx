@@ -115,7 +115,7 @@ export function PreviewPanel() {
             </div>
 
             {/* HTTP Request Test Runner */}
-            <TestRunner endpoint={activeEndpoint} mockBodyStr={mockStr} />
+            <TestRunner key={activeEndpoint.id} endpoint={activeEndpoint} mockBodyStr={mockStr} />
 
             {/* Parameters */}
             {activeEndpoint.parameters.length > 0 && (

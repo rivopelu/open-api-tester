@@ -36,7 +36,7 @@ export function RightSidebar() {
   }
 
   return (
-    <aside className="flex w-[260px] shrink-0 flex-col border-l border-border bg-surface">
+    <aside className="flex w-65 shrink-0 flex-col border-l border-border bg-surface">
       {/* Panel header */}
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
         <span className="flex items-center gap-2 text-[13px] font-semibold text-text-primary">

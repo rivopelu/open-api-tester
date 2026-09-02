@@ -15,57 +15,48 @@ export function TestRunner({ endpoint, mockBodyStr }: Props) {
   const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body' | 'response'>('params');
   const prevSrvNameRef = useRef(testActiveServer || (spec.servers.length > 0 ? spec.servers[0].name : ''));
   
-  // State for dynamic fields
-  const [pathParams, setPathParams] = useState<Record<string, string>>({});
-  const [queryParams, setQueryParams] = useState<Record<string, string>>({});
-  const [headers, setHeaders] = useState<Record<string, string>>({});
+  // State for dynamic fields initialized from endpoint props
+  const [pathParams, setPathParams] = useState<Record<string, string>>(() => {
+    const params: Record<string, string> = {};
+    endpoint.parameters.forEach((p) => {
+      if (p.in === 'path') params[p.name] = p.schema?.example ? String(p.schema.example) : '';
+    });
+    return params;
+  });
+  const [queryParams, setQueryParams] = useState<Record<string, string>>(() => {
+    const params: Record<string, string> = {};
+    endpoint.parameters.forEach((p) => {
+      if (p.in === 'query') params[p.name] = p.schema?.example ? String(p.schema.example) : '';
+    });
+    return params;
+  });
+  const [headers, setHeaders] = useState<Record<string, string>>(() => {
+    const params: Record<string, string> = {};
+    endpoint.parameters.forEach((p) => {
+      if (p.in === 'header') params[p.name] = p.schema?.example ? String(p.schema.example) : '';
+    });
+    return params;
+  });
   const [requestBody, setRequestBody] = useState(mockBodyStr);
-  
+
   // Execution state
   const [isTesting, setIsTesting] = useState(false);
-  const [requestUrl, setRequestUrl] = useState('');
-  const [response, setResponse] = useState<{ status: number; statusText: string; time: number; size: number; data: string } | null>(null);
-
-  // Initialize params when endpoint changes
-  useEffect(() => {
-    const newPathParams: Record<string, string> = {};
-    const newQueryParams: Record<string, string> = {};
-    const newHeaders: Record<string, string> = {};
-    
-    endpoint.parameters.forEach(p => {
-      if (p.in === 'path') newPathParams[p.name] = p.schema?.example ? String(p.schema.example) : '';
-      if (p.in === 'query') newQueryParams[p.name] = p.schema?.example ? String(p.schema.example) : '';
-      if (p.in === 'header') newHeaders[p.name] = p.schema?.example ? String(p.schema.example) : '';
-    });
-    
-    setPathParams(newPathParams);
-    setQueryParams(newQueryParams);
-    setHeaders(newHeaders);
-    setRequestBody(mockBodyStr);
-    
-    // Initialize or load saved URL for this specific endpoint
+  const [requestUrl, setRequestUrl] = useState(() => {
     if (endpointTestUrls[endpoint.id]) {
-      // Clean up any old {{VAR}} templates just in case
       let cachedUrl = endpointTestUrls[endpoint.id];
-      spec.servers.forEach(srv => {
+      spec.servers.forEach((srv) => {
         if (srv.name && srv.url) {
           cachedUrl = cachedUrl.replace(new RegExp(`\\{\\{${srv.name}\\}\\}`, 'g'), srv.url.replace(/\/$/, ''));
         }
       });
-      setRequestUrl(cachedUrl);
-    } else {
-      const activeSrvName = testActiveServer || (spec.servers.length > 0 ? spec.servers[0].name : '');
-      const activeServer = spec.servers.find(s => s.name === activeSrvName);
-      const defaultPrefix = (activeServer?.url || '').replace(/\/$/, '');
-      const initialUrl = `${defaultPrefix}${endpoint.path}`;
-      setRequestUrl(initialUrl);
-      setEndpointTestUrl(endpoint.id, initialUrl);
+      return cachedUrl;
     }
-    
-    setResponse(null);
-    setActiveTab('params');
-    prevSrvNameRef.current = testActiveServer || (spec.servers.length > 0 ? spec.servers[0].name : '');
-  }, [endpoint.id, endpoint.parameters, endpoint.method, endpoint.path, mockBodyStr, spec.servers]);
+    const activeSrvName = testActiveServer || (spec.servers.length > 0 ? spec.servers[0].name : '');
+    const activeServer = spec.servers.find((s) => s.name === activeSrvName);
+    const defaultPrefix = (activeServer?.url || '').replace(/\/$/, '');
+    return `${defaultPrefix}${endpoint.path}`;
+  });
+  const [response, setResponse] = useState<{ status: number; statusText: string; time: number; size: number; data: string } | null>(null);
 
   // Update requestUrl prefix immediately when active server changes
   useEffect(() => {

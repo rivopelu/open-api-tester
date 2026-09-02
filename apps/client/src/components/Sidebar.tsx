@@ -77,7 +77,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="flex w-[260px] shrink-0 flex-col border-r border-border bg-surface">
+    <aside className="flex w-65 shrink-0 flex-col border-r border-border bg-surface">
       {/* Sidebar header */}
       <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
         <div className="min-w-0 flex-1">

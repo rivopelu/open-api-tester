@@ -63,7 +63,7 @@ export default function SignInPage() {
         <div className="relative flex items-center gap-3">
           <img src="/logo.png" alt="Max API Studio logo" className="h-10 w-10 rounded-none object-contain" />
           <div className="leading-none">
-            <div className="text-base font-bold text-text-primary">Max API Studio</div>
+            <div className="font-bold text-text-primary">Max API Studio</div>
             <div className="mt-1 text-xs text-text-muted">Modern OpenAPI Designer</div>
           </div>
         </div>
@@ -115,7 +115,7 @@ export default function SignInPage() {
           animate="show"
           variants={fadeUp}
           transition={{ type: "spring", stiffness: 360, damping: 26 }}
-          className="relative w-full max-w-[400px]"
+          className="relative w-full max-w-100"
         >
           <Card variant="elevated" padding="lg">
             <div className="mb-8 flex flex-col items-center text-center lg:hidden">

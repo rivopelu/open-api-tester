@@ -789,8 +789,8 @@ export default function EndpointDetailView({
         >
           <Popover
             align="start"
-            triggerClassName="w-[92px] shrink-0"
-            className="mt-1 w-[132px] min-w-0 p-1"
+            triggerClassName="w-23 shrink-0"
+            className="mt-1 w-33 min-w-0 p-1"
             trigger={({ open }) => (
               <button
                 type="button"
@@ -878,7 +878,7 @@ export default function EndpointDetailView({
           <Button
             variant="primary"
             size="sm"
-            className="h-full min-w-[104px] border-0"
+            className="h-full min-w-26 border-0"
             onClick={() => void send()}
             disabled={loading || !resolvedUrl}
           >
@@ -898,7 +898,7 @@ export default function EndpointDetailView({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <section className="flex min-h-[280px] flex-[1.05] flex-col border-b border-border">
+        <section className="flex min-h-70 flex-[1.05] flex-col border-b border-border">
           <nav
             className="flex h-10 shrink-0 items-end border-b border-border bg-surface px-4"
             aria-label="Request options"
@@ -1233,7 +1233,7 @@ export default function EndpointDetailView({
                 value={bodyText}
                 onChange={setBodyText}
                 label={endpoint.requestBody?.contentType || "application/json"}
-                className="h-full min-h-[240px]"
+                className="h-full min-h-60"
               />
             )}
 
@@ -1377,7 +1377,7 @@ export default function EndpointDetailView({
 
               <div className="scroll-y flex-1 p-5">
                 {!response && !loading && !error && (
-                  <div className="flex h-full min-h-[130px] items-center justify-center">
+                  <div className="flex h-full min-h-32.5 items-center justify-center">
                     <div className="text-center">
                       <FileJson className="mx-auto mb-3 h-7 w-7 text-text-muted" />
                       <p className="text-xs font-semibold text-text-secondary">
@@ -1391,7 +1391,7 @@ export default function EndpointDetailView({
                   </div>
                 )}
                 {loading && (
-                  <div className="flex h-full min-h-[130px] items-center justify-center gap-3 text-xs text-text-muted">
+                  <div className="flex h-full min-h-32.5 items-center justify-center gap-3 text-xs text-text-muted">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-border border-t-primary" />{" "}
                     Waiting for response…
                   </div>
@@ -1414,7 +1414,7 @@ export default function EndpointDetailView({
                   </div>
                 )}
                 {response && responseTab === "body" && (
-                  <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-text-primary">
+                  <pre className="whitespace-pre-wrap wrap-break-word font-mono text-xs leading-6 text-text-primary">
                     {response.body || "Empty response body"}
                   </pre>
                 )}

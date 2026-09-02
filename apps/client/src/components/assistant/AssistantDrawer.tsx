@@ -175,13 +175,32 @@ export function AssistantDrawer() {
       .then((data) => {
         if (data && data.length > 0) {
           setModels(data);
-          setSelectedModel((prev) => (data.some((m) => m.id === prev) ? prev : data[0].id));
+          setSelectedModel((prev) =>
+            data.some((m) => m.id === prev) ? prev : data[0].id,
+          );
         }
       })
       .catch(() => {
         // use fallback models
       });
   }, [assistantOpen]);
+
+  const loadSessions = useCallback(async () => {
+    try {
+      const data = await unwrap<ChatSessionDto[]>(api.get("/assistant/sessions"));
+      if (data) {
+        setSessions(
+          data.map((s) => ({
+            id: s.id,
+            title: s.title || "Untitled Chat",
+            updatedAt: formatTimeAgo(s.updated_date || s.created_date),
+          })),
+        );
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Fetch sessions from backend
   useEffect(() => {
@@ -488,7 +507,7 @@ export function AssistantDrawer() {
         className="pointer-events-none absolute inset-0 overflow-hidden"
         aria-hidden="true"
       >
-        <div className="absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[100px]" />
+        <div className="absolute left-1/2 top-1/3 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl" />
       </div>
 
       {/* ── Top Header (56px) ───────────────────────────────────────── */}

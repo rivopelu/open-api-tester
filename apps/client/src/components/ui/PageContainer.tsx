@@ -4,9 +4,9 @@ import { cn } from '../../lib/utils';
 type PageSize = 'sm' | 'md' | 'lg' | 'fluid';
 
 const sizeClasses: Record<PageSize, string> = {
-  sm: 'max-w-[640px]',
-  md: 'max-w-[860px]',
-  lg: 'max-w-[1200px]',
+  sm: 'max-w-160',
+  md: 'max-w-215',
+  lg: 'max-w-300',
   fluid: 'max-w-none',
 };
 
