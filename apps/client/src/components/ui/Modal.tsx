@@ -40,9 +40,9 @@ export interface ModalProps {
 }
 
 const sizeClasses = {
-  sm: 'max-w-[400px]',
-  md: 'max-w-[480px]',
-  lg: 'max-w-[640px]',
+  sm: 'max-w-100',
+  md: 'max-w-120',
+  lg: 'max-w-160',
 };
 
 export function Modal({
@@ -109,7 +109,7 @@ export function Modal({
   return createPortal(
     <div
       role="presentation"
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-1000 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fadeIn"
       onMouseDown={closeFromBackdrop}
     >
       <ModalContext.Provider value={{ titleId, descriptionId, onClose }}>

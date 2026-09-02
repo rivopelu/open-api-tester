@@ -48,7 +48,7 @@ export function DesignerPanel() {
                     <MousePointerClick className="h-7 w-7 text-primary" aria-hidden="true" />
                   </span>
                   <Typography variant="heading-sm" tone="secondary">No Endpoint Selected</Typography>
-                  <Typography variant="body-sm" tone="muted" className="max-w-[300px]">
+                  <Typography variant="body-sm" tone="muted" className="max-w-75">
                     Select an endpoint from the sidebar or click “+ Add Endpoint” to start designing.
                   </Typography>
                 </div>

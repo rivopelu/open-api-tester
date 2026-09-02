@@ -69,11 +69,13 @@ function buildApp(
   app.use('/api/*', authMiddleware())
   registerControllers(
     app,
-    [createProjectsController(
-      service ?? fakeService(),
-      endpointService ?? fakeEndpointService(),
-      endpointFolderService ?? fakeEndpointFolderService(),
-    )],
+    [
+      createProjectsController(
+        service ?? fakeService(),
+        endpointService ?? fakeEndpointService(),
+        endpointFolderService ?? fakeEndpointFolderService(),
+      ),
+    ],
     '/api',
   )
   return app
@@ -154,17 +156,19 @@ describe('ProjectsController', () => {
 
   test('GET /api/projects/:id excludes specData from endpoint summaries', async () => {
     const endpointService = fakeEndpointService()
-    vi.mocked(endpointService.listSummaryByProject).mockResolvedValue([{
-      id: 'endpoint-1',
-      projectId: 'proj-1',
-      folderId: null,
-      path: '/customers',
-      method: 'GET',
-      summary: 'List customers',
-      sortOrder: 0,
-      createdAt: new Date(1000).toISOString(),
-      updatedAt: null,
-    }])
+    vi.mocked(endpointService.listSummaryByProject).mockResolvedValue([
+      {
+        id: 'endpoint-1',
+        projectId: 'proj-1',
+        folderId: null,
+        path: '/customers',
+        method: 'GET',
+        summary: 'List customers',
+        sortOrder: 0,
+        createdAt: new Date(1000).toISOString(),
+        updatedAt: null,
+      },
+    ])
     const app = buildApp(undefined, endpointService)
     const token = await makeToken()
     const res = await app.request('/api/projects/proj-1', {

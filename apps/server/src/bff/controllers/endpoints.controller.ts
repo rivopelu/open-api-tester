@@ -47,9 +47,10 @@ export class EndpointsController {
       path: typeof body.path === 'string' ? body.path : undefined,
       method: typeof body.method === 'string' ? body.method : undefined,
       summary: typeof body.summary === 'string' ? body.summary : undefined,
-      specData: typeof body.specData === 'object' && body.specData !== null
-        ? body.specData as Record<string, unknown>
-        : undefined,
+      specData:
+        typeof body.specData === 'object' && body.specData !== null
+          ? (body.specData as Record<string, unknown>)
+          : undefined,
     })
     return c.json(ResponseHelper.data(endpoint, 'Endpoint created successfully'), 201)
   }
@@ -76,7 +77,10 @@ export class EndpointsController {
       if (group.folderId !== null && typeof group.folderId !== 'string') {
         throw new BadRequestError('folderId must be a string or null')
       }
-      if (!Array.isArray(group.endpointIds) || group.endpointIds.some((id) => typeof id !== 'string')) {
+      if (
+        !Array.isArray(group.endpointIds) ||
+        group.endpointIds.some((id) => typeof id !== 'string')
+      ) {
         throw new BadRequestError('endpointIds must be an array of strings')
       }
       return {
@@ -100,15 +104,15 @@ export class EndpointsController {
     }
 
     const endpoint = await this.endpointService.update(c.req.param('id')!, {
-      folderId: body.folderId === null || typeof body.folderId === 'string'
-        ? body.folderId
-        : undefined,
+      folderId:
+        body.folderId === null || typeof body.folderId === 'string' ? body.folderId : undefined,
       path: typeof body.path === 'string' ? body.path : undefined,
       method: typeof body.method === 'string' ? body.method : undefined,
       summary: typeof body.summary === 'string' ? body.summary : undefined,
-      specData: typeof body.specData === 'object' && body.specData !== null
-        ? body.specData as Record<string, unknown>
-        : undefined,
+      specData:
+        typeof body.specData === 'object' && body.specData !== null
+          ? (body.specData as Record<string, unknown>)
+          : undefined,
     })
     return c.json(ResponseHelper.data(endpoint, 'Endpoint updated successfully'))
   }
@@ -123,13 +127,19 @@ export class EndpointsController {
       throw new BadRequestError('Invalid JSON body')
     }
     if (!Array.isArray(body.responses)) throw new BadRequestError('responses must be an array')
-    if (body.requestBody !== undefined && (typeof body.requestBody !== 'object' || body.requestBody === null)) {
+    if (
+      body.requestBody !== undefined &&
+      (typeof body.requestBody !== 'object' || body.requestBody === null)
+    ) {
       throw new BadRequestError('requestBody must be an object')
     }
     const requestExamples = (body.requestBody as RequestBodyDefinition | undefined)?.examples ?? []
-    const responseExamples = (body.responses as ResponseDefinition[]).flatMap((response) => response.examples ?? [])
+    const responseExamples = (body.responses as ResponseDefinition[]).flatMap(
+      (response) => response.examples ?? [],
+    )
     for (const example of [...requestExamples, ...responseExamples]) {
-      if (!example || typeof example.value !== 'string') throw new BadRequestError('Example value must be a JSON string')
+      if (!example || typeof example.value !== 'string')
+        throw new BadRequestError('Example value must be a JSON string')
       try {
         JSON.parse(example.value)
       } catch {

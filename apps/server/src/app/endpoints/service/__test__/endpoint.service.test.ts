@@ -105,10 +105,12 @@ describe('EndpointService ordering', () => {
     })
 
     expect(repository.nextSortOrder).toHaveBeenCalledWith(row.project_id, folder.id)
-    expect(repository.insert).toHaveBeenCalledWith(expect.objectContaining({
-      folder_id: folder.id,
-      sort_order: 3,
-    }))
+    expect(repository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folder_id: folder.id,
+        sort_order: 3,
+      }),
+    )
     expect(result.sortOrder).toBe(3)
   })
 
@@ -134,10 +136,7 @@ describe('EndpointService ordering', () => {
   })
 
   test('replaces a complete same-folder order', async () => {
-    const endpoints = [
-      endpoint('endpoint-1', null, 0),
-      endpoint('endpoint-2', null, 1),
-    ]
+    const endpoints = [endpoint('endpoint-1', null, 0), endpoint('endpoint-2', null, 1)]
     const repository = {
       findByProject: vi.fn(async () => endpoints),
       replaceOrder: vi.fn(async () => undefined),
@@ -157,7 +156,8 @@ describe('EndpointService ordering', () => {
       endpoint('endpoint-1', folder.id, 1),
     ]
     const repository = {
-      findByProject: vi.fn()
+      findByProject: vi
+        .fn()
         .mockResolvedValueOnce([
           endpoint('endpoint-1', null, 0),
           endpoint('endpoint-2', null, 1),
@@ -215,18 +215,18 @@ describe('EndpointService ordering', () => {
     }
     const service = makeService(repository)
 
-    await expect(service.replaceOrder(row.project_id, [
-      { folderId: null, endpointIds: ['endpoint-1'] },
-    ])).rejects.toThrow('Endpoint groups must include every endpoint in the affected folders')
+    await expect(
+      service.replaceOrder(row.project_id, [{ folderId: null, endpointIds: ['endpoint-1'] }]),
+    ).rejects.toThrow('Endpoint groups must include every endpoint in the affected folders')
   })
 
   test('rejects an endpoint from another project', async () => {
     const repository = { findByProject: vi.fn(async () => [row]) }
     const service = makeService(repository)
 
-    await expect(service.replaceOrder(row.project_id, [
-      { folderId: null, endpointIds: ['endpoint-foreign'] },
-    ])).rejects.toThrow('Endpoint does not belong to this project')
+    await expect(
+      service.replaceOrder(row.project_id, [{ folderId: null, endpointIds: ['endpoint-foreign'] }]),
+    ).rejects.toThrow('Endpoint does not belong to this project')
   })
 
   test('rejects a folder from another project', async () => {
@@ -235,8 +235,8 @@ describe('EndpointService ordering', () => {
       findById: vi.fn(async () => ({ ...folder, project_id: 'project-2' })),
     })
 
-    await expect(service.replaceOrder(row.project_id, [
-      { folderId: folder.id, endpointIds: [] },
-    ])).rejects.toThrow('Folder does not belong to this project')
+    await expect(
+      service.replaceOrder(row.project_id, [{ folderId: folder.id, endpointIds: [] }]),
+    ).rejects.toThrow('Folder does not belong to this project')
   })
 })

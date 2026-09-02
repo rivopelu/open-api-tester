@@ -56,7 +56,7 @@ export function EnvironmentSelector({ compact = false }: { compact?: boolean }) 
             className={`flex h-8 items-center gap-2 border px-2.5 text-xs font-semibold transition-colors ${open ? 'border-primary/50 bg-primary/10 text-primary' : 'border-border bg-overlay text-text-secondary hover:text-text-primary'}`}
           >
             <CircleDot className={`h-3.5 w-3.5 ${active ? 'text-success' : 'text-text-muted'}`} />
-            {!compact && <span className="max-w-[130px] truncate">{active?.name ?? 'No environment'}</span>}
+            {!compact && <span className="max-w-32.5 truncate">{active?.name ?? 'No environment'}</span>}
             <ChevronDown className="h-3 w-3 text-text-muted" />
           </button>
         )}
@@ -101,7 +101,7 @@ export function EnvironmentSelector({ compact = false }: { compact?: boolean }) 
           <ModalTitle>Environment settings</ModalTitle>
           <ModalDescription>Variables are global and available in requests as {'{{variable}}'}.</ModalDescription>
         </ModalHeader>
-        <ModalBody className="grid min-h-[360px] grid-cols-[180px_minmax(0,1fr)] gap-0 p-0">
+        <ModalBody className="grid min-h-90 grid-cols-[180px_minmax(0,1fr)] gap-0 p-0">
           <aside className="border-r border-border bg-overlay p-2">
             {environments.map((environment) => (
               <button

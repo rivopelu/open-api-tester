@@ -63,10 +63,17 @@ export class AccountService {
   async getEnvironments(id: string) {
     const account = await this.repository.findById(id)
     if (!account) throw new NotFoundError('Account not found')
-    return { environments: account.environments, activeEnvironmentId: account.active_environment_id }
+    return {
+      environments: account.environments,
+      activeEnvironmentId: account.active_environment_id,
+    }
   }
 
-  async saveEnvironments(id: string, environments: Array<{ id: string; name: string; variables: Record<string, string> }>, activeEnvironmentId: string | null): Promise<void> {
+  async saveEnvironments(
+    id: string,
+    environments: Array<{ id: string; name: string; variables: Record<string, string> }>,
+    activeEnvironmentId: string | null,
+  ): Promise<void> {
     await this.repository.update(id, { environments, active_environment_id: activeEnvironmentId })
   }
 

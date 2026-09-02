@@ -84,7 +84,9 @@ describe('ProjectRepository', () => {
   })
 
   test('update returns updated row with updated_date', async () => {
-    const repo = new ProjectRepository(updateMock({ ...mockRow, name: 'Updated', updated_date: 3000 }) as any)
+    const repo = new ProjectRepository(
+      updateMock({ ...mockRow, name: 'Updated', updated_date: 3000 }) as any,
+    )
     const row = await repo.update('proj-1', { name: 'Updated' })
     expect(row.name).toBe('Updated')
     expect(row.updated_date).toBe(3000)
@@ -96,7 +98,9 @@ describe('ProjectRepository', () => {
   })
 
   test('softDelete marks row inactive', async () => {
-    const repo = new ProjectRepository(updateMock({ ...mockRow, active: false, deleted_date: 3000 }) as any)
+    const repo = new ProjectRepository(
+      updateMock({ ...mockRow, active: false, deleted_date: 3000 }) as any,
+    )
     const row = await repo.softDelete('proj-1', 'user-1')
     expect(row.active).toBe(false)
     expect(row.deleted_date).toBe(3000)

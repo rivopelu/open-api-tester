@@ -8,7 +8,14 @@ const SUPPORTED = ['en', 'id'] as const
 export type Locale = (typeof SUPPORTED)[number]
 
 function resolve(locale: string) {
-  return join(fileURLToPath(new URL('.', import.meta.url)), '..', '..', 'resources', 'lang', `${locale}.json`)
+  return join(
+    fileURLToPath(new URL('.', import.meta.url)),
+    '..',
+    '..',
+    'resources',
+    'lang',
+    `${locale}.json`,
+  )
 }
 
 export function isSupported(locale: string): locale is Locale {

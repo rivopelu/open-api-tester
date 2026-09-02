@@ -29,6 +29,13 @@
       "when": 1786442106485,
       "tag": "0003_thick_lord_tyger",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788347132157,
+      "tag": "0004_furry_nekra",
+      "breakpoints": true
     }
   ]
 }

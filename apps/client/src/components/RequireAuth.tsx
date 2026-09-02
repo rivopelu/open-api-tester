@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
+import { AssistantDrawer } from './assistant/AssistantDrawer';
 
 export default function RequireAuth() {
   const { user, initializing, init } = useAuthStore();
@@ -20,5 +21,12 @@ export default function RequireAuth() {
     return <Navigate to="/auth/sign-in" replace />;
   }
 
-  return <Outlet />;
+  return (
+    <div className="flex h-screen w-screen overflow-hidden bg-base">
+      <div className="flex flex-1 flex-col min-w-0 h-full overflow-hidden">
+        <Outlet />
+      </div>
+      <AssistantDrawer />
+    </div>
+  );
 }

@@ -96,8 +96,8 @@ export class EndpointService {
     await this.assertFolder(input.projectId, input.folderId ?? null)
 
     const folderId = input.folderId ?? null
-    const sortOrder = input.sortOrder
-      ?? await this.repository.nextSortOrder(input.projectId, folderId)
+    const sortOrder =
+      input.sortOrder ?? (await this.repository.nextSortOrder(input.projectId, folderId))
     const row = await this.repository.insert({
       project_id: input.projectId,
       folder_id: folderId,
@@ -165,10 +165,12 @@ export class EndpointService {
       .filter((endpoint) => affectedScopes.has(endpoint.folder_id))
       .map((endpoint) => endpoint.id)
     if (
-      currentAffectedIds.length !== endpointIds.size
-      || currentAffectedIds.some((endpointId) => !endpointIds.has(endpointId))
+      currentAffectedIds.length !== endpointIds.size ||
+      currentAffectedIds.some((endpointId) => !endpointIds.has(endpointId))
     ) {
-      throw new BadRequestError('Endpoint groups must include every endpoint in the affected folders')
+      throw new BadRequestError(
+        'Endpoint groups must include every endpoint in the affected folders',
+      )
     }
 
     await this.repository.replaceOrder(projectId, groups)

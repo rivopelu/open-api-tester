@@ -12,6 +12,7 @@ import {
   Play,
   Redo2,
   ShieldCheck,
+  Bot,
   Undo2,
   X,
   Zap,
@@ -19,11 +20,12 @@ import {
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useApiSpecStore } from '../store/useApiSpecStore';
+import { useUiStore } from '../store/useUiStore';
 import { router } from '../routes';
 import { apiSpecToOpenApi3 } from '@modern-api-studio/utils';
 import { SaveConflictError, getErrorMessage } from '../lib/api';
 import toast from 'react-hot-toast';
-import { Button, Typography } from './ui';
+import { Button, ThemeToggle, Typography } from './ui';
 
 const NAV_ITEMS = [
   { panel: 'home', label: 'Home', icon: Home },
@@ -73,11 +75,11 @@ function ConflictDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="conflict-title"
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-2000 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
       onClick={onDismiss}
     >
       <div
-        className="w-[440px] max-w-[95vw] rounded-none border border-danger/40 bg-surface p-7 animate-slideIn"
+        className="w-110 max-w-[95vw] rounded-none border border-danger/40 bg-surface p-7 animate-slideIn"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-start justify-between gap-4">
@@ -131,6 +133,7 @@ export function Header() {
     saveProject, loadProject,
     lastSavedAt,
   } = useApiSpecStore();
+  const { toggleAssistant } = useUiStore();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -199,7 +202,7 @@ export function Header() {
 
   return (
     <>
-      <header className="z-[100] flex h-[52px] shrink-0 items-center border-b border-border bg-surface px-4">
+      <header className="z-100 flex h-14 shrink-0 items-center border-b border-border bg-surface px-4">
         {/* Logo / Back */}
         <div className="mr-6 flex items-center gap-2.5">
           <Button
@@ -304,6 +307,21 @@ export function Header() {
             <Play className="h-3.5 w-3.5" aria-hidden="true" />
             Preview
           </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={toggleAssistant}
+            className="gap-1.5"
+            data-tooltip="AI Assistant"
+          >
+            <Bot className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="hidden md:inline">AI Assistant</span>
+          </Button>
+
+          <span aria-hidden="true" className="mx-1 h-5 w-px bg-border" />
+
+          <ThemeToggle />
         </div>
       </header>
 

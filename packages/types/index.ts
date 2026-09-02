@@ -132,6 +132,13 @@ export interface SecurityScheme {
   };
 }
 
+export interface EndpointAuthConfig {
+  type: 'none' | 'bearer' | 'basic';
+  bearerToken?: string;
+  basicUser?: string;
+  basicPass?: string;
+}
+
 // ============================================================
 // Endpoint
 // ============================================================
@@ -146,6 +153,7 @@ export interface Endpoint {
   tags: string[];
   deprecated: boolean;
   security?: string[]; // references to SecurityScheme ids
+  auth?: EndpointAuthConfig;
   parameters: EndpointParameter[];
   requestBody?: RequestBodyDefinition;
   responses: ResponseDefinition[];

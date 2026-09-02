@@ -105,6 +105,156 @@ export function getErrorMessage(err: unknown, fallback = 'Request failed'): stri
   return data?.response?.data?.message ?? data?.message ?? fallback;
 }
 
+export interface LlmModelDto {
+  id: string;
+  label: string;
+  provider: string;
+}
+
+export interface ChatSessionDto {
+  id: string;
+  title: string | null;
+  created_by?: string | null;
+  created_date: number;
+  updated_date?: number | null;
+}
+
+export interface ChatMessageDto {
+  id: string;
+  session_id: string;
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string;
+  created_date: number;
+}
+
+export interface ChatResultDto {
+  reply: string;
+  threadId: string;
+  sessionTitle?: string;
+}
+
+export interface AssistantContextDto {
+  pathname?: string;
+  projectId?: string;
+  endpointId?: string;
+  tab?: string;
+  exampleId?: string;
+  mentionedEndpointIds?: string[];
+}
+
+export interface AssistantUiEffectDto {
+  type: 'navigate' | 'highlight' | 'tab_change';
+  projectId?: string;
+  endpointId?: string;
+  tab?: string;
+  exampleId?: string;
+  target?: 'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples' | 'docs';
+}
+
+export type AssistantStreamEventDto =
+  | { type: 'token'; delta: string }
+  | { type: 'tool_call_start'; toolId: string; toolName: string; args?: Record<string, unknown> }
+  | { type: 'tool_call_complete'; toolId: string; toolName: string; resultSummary?: string }
+  | { type: 'tool_call_error'; toolId: string; toolName: string; resultSummary?: string }
+  | {
+      type: 'tool_confirmation_request';
+      confirmationId: string;
+      toolId: string;
+      toolName: string;
+      args: Record<string, unknown>;
+      summary: string;
+    }
+  | { type: 'ui_effect'; effect: AssistantUiEffectDto }
+  | { type: 'session_info'; threadId: string; sessionTitle?: string }
+  | { type: 'done'; fullReply: string; threadId: string }
+  | { type: 'error'; message: string };
+
+export async function confirmAssistantTool(
+  confirmationId: string,
+  approved: boolean
+): Promise<{ resolved: boolean }> {
+  return unwrap<{ resolved: boolean }>(
+    api.post('/assistant/confirm', { confirmationId, approved })
+  );
+}
+
+export async function chatStream(
+  payload: {
+    message: string;
+    threadId?: string;
+    model?: string;
+    context?: AssistantContextDto;
+  },
+  onEvent: (event: AssistantStreamEventDto) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${BASE_URL}/api/assistant/chat/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+    signal,
+  });
+
+  if (!res.ok) {
+    let errMsg = 'Failed to connect to assistant stream';
+    try {
+      const errJson = await res.json();
+      errMsg = errJson.message || errMsg;
+    } catch {
+      // ignore
+    }
+    throw new Error(errMsg);
+  }
+
+  if (!res.body) {
+    throw new Error('ReadableStream not supported in this browser environment');
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    let currentEventName = 'message';
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        currentEventName = 'message';
+        continue;
+      }
+      if (trimmed.startsWith('event:')) {
+        currentEventName = trimmed.slice(6).trim();
+        continue;
+      }
+      if (trimmed.startsWith('data:')) {
+        const dataStr = trimmed.slice(5).trim();
+        if (dataStr === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(dataStr) as AssistantStreamEventDto;
+          onEvent(parsed);
+        } catch {
+          // If raw text or non-json data
+          if (currentEventName === 'token') {
+            onEvent({ type: 'token', delta: dataStr });
+          }
+        }
+      }
+    }
+  }
+}
+
 export class SaveConflictError extends Error {
   serverUpdatedAt: string;
 

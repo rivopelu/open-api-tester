@@ -12,7 +12,10 @@ export const envSchema = z.object({
   DB_USER: z.string().default('postgres'),
   DB_PASSWORD: z.string().default(''),
   DB_NAME: z.string().default('reel_cut'),
-  DB_SSL: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
+  DB_SSL: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((value) => value === 'true'),
   JWT_SECRET: z.string().default('dev-secret-change-in-production'),
   BCRYPT_ROUNDS: z.coerce.number().default(10),
   JWT_ISSUER: z.string().default('reel-cut'),
@@ -22,6 +25,8 @@ export const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().default(process.env.VITE_GOOGLE_CLIENT_ID ?? ''),
   GOOGLE_CLIENT_SECRET: z.string().default(''),
   GOOGLE_REDIRECT_URI: z.string().optional(),
+  LLM_BASE_URL: z.string().url().optional(),
+  LLM_API_KEY: z.string().optional(),
 })
 
 export function validateEnv() {

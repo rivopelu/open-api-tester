@@ -2,8 +2,8 @@
   "name": "@modern-api-studio/server",
   "private": true,
   "scripts": {
-    "dev": "node --env-file=../../.env --watch --import tsx src/index.ts",
-    "start": "node --env-file=../../.env --import tsx src/index.ts",
+    "dev": "node --env-file=../../.env.local --watch --import tsx src/index.ts",
+    "start": "node --env-file=../../.env.local --import tsx src/index.ts",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --check src/",
@@ -16,7 +16,9 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.56",
     "@hono/node-server": "^1.19.9",
+    "@mastra/core": "^1.63.2",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@modern-api-studio/types": "workspace:*",
     "bcryptjs": "^3.0.3",
@@ -24,6 +26,7 @@
     "handlebars": "^4.7.9",
     "hono": "^4.12.30",
     "jose": "^6.2.3",
+    "mastra": "^1.27.2",
     "pg": "^8.22.0",
     "winston": "^3.19.0",
     "zod": "^4.4.3"

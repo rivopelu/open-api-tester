@@ -83,7 +83,7 @@ export class EndpointFolderService {
     return this.toItem(row)
   }
 
-  async delete(id: string, deletedBy?: string): Promise<void> {
+  async delete(id: string, deletedBy?: string): Promise<{ projectId: string }> {
     const existing = await this.repository.findById(id)
     if (!existing) throw new NotFoundError('Folder not found')
     const folders = await this.repository.findByProject(existing.project_id)
@@ -91,6 +91,7 @@ export class EndpointFolderService {
       throw new BadRequestError('Delete nested folders first')
     }
     await this.repository.softDelete(id, deletedBy)
+    return { projectId: existing.project_id }
   }
 
   private async assertParent(projectId: string, parentId: string | null): Promise<void> {

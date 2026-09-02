@@ -270,7 +270,7 @@ export function McpConnectionPanel() {
                 ? `Add this server to your ${clientLabels[client]} MCP configuration.`
                 : "Run this command in your terminal."}
             </p>
-            <div className="relative min-h-[150px] border border-border bg-base p-4 pr-12">
+            <div className="relative min-h-37.5 border border-border bg-base p-4 pr-12">
               <pre className="overflow-x-auto whitespace-pre-wrap break-all font-mono text-[11px] leading-6 text-text-secondary">
                 {config}
               </pre>

@@ -26,8 +26,18 @@ describe('resolveMock', () => {
     const payload = resolveMock(
       {
         responses: [
-          { id: 'r1', statusCode: '200', description: '', examples: [{ id: 'a', name: 'x', value: '"ok"' }] },
-          { id: 'r2', statusCode: '404', description: '', examples: [{ id: 'b', name: 'err', value: '{"error":"missing"}' }] },
+          {
+            id: 'r1',
+            statusCode: '200',
+            description: '',
+            examples: [{ id: 'a', name: 'x', value: '"ok"' }],
+          },
+          {
+            id: 'r2',
+            statusCode: '404',
+            description: '',
+            examples: [{ id: 'b', name: 'err', value: '{"error":"missing"}' }],
+          },
         ],
       },
       { exampleId: 'b' },
@@ -40,7 +50,12 @@ describe('resolveMock', () => {
     const payload = resolveMock(
       {
         responses: [
-          { id: 'r1', statusCode: '201', description: '', examples: [{ id: 'a', name: 'created', value: '[1,2,3]' }] },
+          {
+            id: 'r1',
+            statusCode: '201',
+            description: '',
+            examples: [{ id: 'a', name: 'created', value: '[1,2,3]' }],
+          },
         ],
       },
       { exampleId: 'created' },
@@ -53,8 +68,18 @@ describe('resolveMock', () => {
     const payload = resolveMock(
       {
         responses: [
-          { id: 'r1', statusCode: '200', description: '', examples: [{ id: 'a', name: 'x', value: '1' }] },
-          { id: 'r2', statusCode: '422', description: '', examples: [{ id: 'b', name: 'y', value: '{"field":"required"}' }] },
+          {
+            id: 'r1',
+            statusCode: '200',
+            description: '',
+            examples: [{ id: 'a', name: 'x', value: '1' }],
+          },
+          {
+            id: 'r2',
+            statusCode: '422',
+            description: '',
+            examples: [{ id: 'b', name: 'y', value: '{"field":"required"}' }],
+          },
         ],
       },
       { status: '422' },
@@ -65,7 +90,15 @@ describe('resolveMock', () => {
 
   test('uses response.example when no named examples exist', () => {
     const payload = resolveMock({
-      responses: [{ id: 'r1', statusCode: '204', description: '', contentType: 'text/plain', example: 'pong' }],
+      responses: [
+        {
+          id: 'r1',
+          statusCode: '204',
+          description: '',
+          contentType: 'text/plain',
+          example: 'pong',
+        },
+      ],
     })
     expect(payload.statusCode).toBe(204)
     expect(payload.contentType).toBe('text/plain')
@@ -84,7 +117,13 @@ describe('resolveMock', () => {
             { name: 'id', type: 'integer', example: 42, required: true, nullable: false },
             { name: 'email', type: 'string', required: true, nullable: false },
             { name: 'active', type: 'boolean', required: false, nullable: false },
-            { name: 'role', type: 'string', enum: ['admin', 'user'], required: false, nullable: false },
+            {
+              name: 'role',
+              type: 'string',
+              enum: ['admin', 'user'],
+              required: false,
+              nullable: false,
+            },
           ],
         },
       ],
@@ -135,7 +174,12 @@ describe('collectMockExamples', () => {
     ])
 
     expect(entries).toHaveLength(3)
-    expect(entries[0]).toMatchObject({ endpointId: 'ep-1', responseStatus: '200', exampleId: 'a', scope: 'example' })
+    expect(entries[0]).toMatchObject({
+      endpointId: 'ep-1',
+      responseStatus: '200',
+      exampleId: 'a',
+      scope: 'example',
+    })
     expect(entries[1]).toMatchObject({ endpointId: 'ep-1', responseStatus: '200', exampleId: 'b' })
     expect(entries[2]).toMatchObject({ endpointId: 'ep-1', responseStatus: '500', exampleId: null })
   })

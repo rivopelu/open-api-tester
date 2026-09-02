@@ -1,8 +1,9 @@
-import { ChevronDown, LogOut, User, Upload, Plus } from 'lucide-react';
+import { ChevronDown, LogOut, User, Upload, Plus, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
+import { useUiStore } from '../store/useUiStore';
 import { router } from '../routes';
-import { Avatar, Button, Popover, Typography } from './ui';
+import { Avatar, Button, Popover, ThemeToggle, Typography } from './ui';
 import { EnvironmentSelector } from './EnvironmentSelector';
 
 export interface DashboardTopbarProps {
@@ -13,6 +14,7 @@ export interface DashboardTopbarProps {
 /** Top bar for the dashboard shell: brand + actions (left), profile popover (right). */
 export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopbarProps) {
   const { user, signOut } = useAuthStore();
+  const { toggleAssistant } = useUiStore();
   const navigate = useNavigate();
 
   const initials = user?.name
@@ -22,7 +24,7 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
   const openProfileSettings = () => navigate(router.settings.profile());
 
   return (
-    <header className="flex h-[60px] shrink-0 items-center gap-2 border-b border-border bg-surface px-4">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-surface px-4">
       {/* Brand + actions (left) */}
       <div className="flex items-center gap-2">
         <img
@@ -49,6 +51,19 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
       {/* Spacer */}
       <div className="flex-1" />
 
+      {/* AI Assistant button */}
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={toggleAssistant}
+        className="gap-1.5"
+      >
+        <Bot className="h-3.5 w-3.5" aria-hidden="true" />
+        <span className="hidden sm:inline">AI Assistant</span>
+      </Button>
+
+      <ThemeToggle />
+
       <EnvironmentSelector />
 
       {/* Profile (right) */}
@@ -66,7 +81,7 @@ export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopb
               fallback={initials}
               size="sm"
             />
-            <span className="hidden max-w-[140px] truncate text-sm font-medium text-text-primary md:inline">
+            <span className="hidden max-w-35 truncate text-sm font-medium text-text-primary md:inline">
               {user?.name}
             </span>
             <ChevronDown

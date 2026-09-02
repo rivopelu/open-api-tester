@@ -14,11 +14,14 @@ interface UiStore {
   testActiveServer: string;
   testAuthToken: string;
   endpointTestUrls: Record<string, string>;
+  assistantOpen: boolean;
 
   setEditorMode: (m: EditorMode) => void;
   toggleDarkMode: () => void;
   toggleSidebar: () => void;
   toggleRightPanel: () => void;
+  toggleAssistant: () => void;
+  setAssistantOpen: (open: boolean) => void;
   setConverterMode: (v: boolean) => void;
   setConverterDirection: (d: UiStore['converterDirection']) => void;
   setShowValidation: (v: boolean) => void;
@@ -40,11 +43,14 @@ export const useUiStore = create<UiStore>()((set) => ({
   testActiveServer: '',
   testAuthToken: '',
   endpointTestUrls: {},
+  assistantOpen: false,
 
   setEditorMode: (m) => set({ editorMode: m }),
   toggleDarkMode: () => set((s) => ({ darkMode: !s.darkMode })),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),
+  toggleAssistant: () => set((s) => ({ assistantOpen: !s.assistantOpen })),
+  setAssistantOpen: (open) => set({ assistantOpen: open }),
   setConverterMode: (v) => set({ isConverterMode: v }),
   setConverterDirection: (d) => set({ converterDirection: d }),
   setShowValidation: (v) => set({ showValidationPanel: v }),

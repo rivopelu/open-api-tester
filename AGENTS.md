@@ -50,6 +50,7 @@ Single server test: `bun test src/lib/__test__/i18n.test.ts`. Client "build" inc
 
 - `DESIGN.md` is the required design system: Catppuccin-style dark palette, Sora/Manrope/JetBrains Mono fonts, 4px spacing base, 8/12px radii, 150-220ms motion. Reference it for any client UI work.
 - Client: Zustand for state (local spec persisted to storage), Tailwind v4 + framer-motion. Auth via backend JWT (Hono), no Supabase client-side auth.
+- **Tailwind CSS Utility Conventions**: Prefer canonical/standard utility classes over arbitrary bracket values when a Tailwind canonical class exists (e.g. use `h-14` instead of `h-[56px]`, `max-w-35` instead of `max-w-[140px]`, `min-h-90` instead of `min-h-[360px]`, `w-110` instead of `w-[440px]`, and standard `z-100`/`z-1000`/`z-2000` instead of `z-[100]`/`z-[1000]`/`z-[2000]`). Avoid arbitrary pixel bracket values whenever standard steps apply.
 
 ### Layout components
 

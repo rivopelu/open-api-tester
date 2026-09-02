@@ -122,10 +122,10 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
+      className="fixed inset-0 z-1000 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
       onClick={(e) => { if (e.target === e.currentTarget && step !== 'saving') onClose(); }}
     >
-      <div className="flex max-h-[90vh] w-[620px] max-w-[95vw] flex-col overflow-hidden rounded-none border border-border bg-surface animate-slideIn">
+      <div className="flex max-h-[90vh] w-155 max-w-[95vw] flex-col overflow-hidden rounded-none border border-border bg-surface animate-slideIn">
         {/* Header */}
         <header className="flex items-center justify-between gap-3 border-b border-border bg-linear-to-br from-primary/10 via-transparent to-purple/10 px-6 py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -238,7 +238,7 @@ export function ImportYamlModal({ onClose, onImported }: ImportYamlModalProps) {
                 onChange={(e) => { setRawText(e.target.value); setFileName(null); }}
                 placeholder={'openapi: 3.0.3\ninfo:\n  title: My API\n  version: 1.0.0\npaths:\n  /users:\n    get:\n      summary: List users\n      responses:\n        \'200\':\n          description: OK'}
                 spellCheck={false}
-                className="input input-mono min-h-[200px] w-full resize-y"
+                className="input input-mono min-h-50 w-full resize-y"
               />
             </div>
 

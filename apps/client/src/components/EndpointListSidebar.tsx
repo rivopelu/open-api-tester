@@ -180,7 +180,7 @@ function FolderRow({ folder, depth, expanded, onToggle, onContextMenu }: FolderR
       className={cn(
         'flex w-full touch-none items-center gap-1.5 py-1.5 pr-3 text-xs font-semibold text-text-secondary hover:bg-overlay',
         'cursor-grab active:cursor-grabbing',
-        droppable.isOver && !draggable.isDragging && 'bg-primary/15 text-primary outline outline-1 outline-inset outline-primary/50',
+        droppable.isOver && !draggable.isDragging && 'bg-primary/15 text-primary outline-1 outline-inset outline-primary/50',
       )}
       style={{ ...getDragStyle(draggable.transform, draggable.isDragging), paddingLeft: 10 + depth * 14 }}
       {...draggable.listeners}
@@ -527,7 +527,7 @@ export function EndpointListSidebar({
       onDragCancel={() => setActiveDrag(null)}
       onDragEnd={handleDragEnd}
     >
-    <aside className={cn('flex w-[280px] shrink-0 flex-col border-r border-border bg-surface', className)}>
+    <aside className={cn('flex w-70 shrink-0 flex-col border-r border-border bg-surface', className)}>
       <div className="border-b border-border p-2.5">
         <Input size="sm" leadingIcon={<Search className="h-3.5 w-3.5" />} placeholder="Search endpoints..." value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
       </div>
@@ -539,7 +539,7 @@ export function EndpointListSidebar({
       </div>
 
       {menu && (
-        <div ref={menuRef} role="menu" className="fixed z-[200] min-w-[190px] border border-border bg-surface p-1.5" style={{ left: menu.x, top: menu.y }}>
+        <div ref={menuRef} role="menu" className="fixed z-200 min-w-47.5 border border-border bg-surface p-1.5" style={{ left: menu.x, top: menu.y }}>
           {(menu.type === 'root' || menu.type === 'folder') && (
             <>
               <button
