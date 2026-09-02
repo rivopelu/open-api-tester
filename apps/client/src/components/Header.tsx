@@ -202,7 +202,7 @@ export function Header() {
 
   return (
     <>
-      <header className="z-[100] flex h-[52px] shrink-0 items-center border-b border-border bg-surface px-4">
+      <header className="z-[100] flex h-[56px] shrink-0 items-center border-b border-border bg-surface px-4">
         {/* Logo / Back */}
         <div className="mr-6 flex items-center gap-2.5">
           <Button
