@@ -26,7 +26,7 @@ import { MockServerModal } from "../../components/MockServerModal";
 export default function ProjectDetailPage() {
   const page = useProjectDetailPage();
   const navigate = useNavigate();
-  const { toggleAssistant, assistantOpen } = useUiStore();
+  const { toggleAssistant } = useUiStore();
   const [mockOpen, setMockOpen] = useState(false);
 
   // Build tag groups for overview section

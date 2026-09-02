@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
-  Check,
   CornerDownLeft,
   History,
   MessageSquare,
@@ -10,27 +10,23 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { api, chatStream, unwrap, type AssistantContextDto, type ChatMessageDto, type ChatSessionDto, type LlmModelDto } from '../../lib/api';
 import { useUiStore } from '../../store/useUiStore';
 import { Button, Select, type SelectOption } from '../ui';
 import { AssistantResponseView, type ToolCallEvent } from './AssistantResponseView';
 
-// Model list matching server constants
-const DUMMY_MODELS = [
-  { id: 'cx/gpt-5.6-luna', label: 'GPT-5.6 Luna', provider: 'OpenAI' },
-  { id: 'cx/gpt-5.6-terra', label: 'GPT-5.6 Terra', provider: 'OpenAI' },
+// Fallback model list matching server constants
+const FALLBACK_MODELS: LlmModelDto[] = [
   { id: 'ag/gemini-3.7-flash-high', label: 'Gemini 3.7 Flash High', provider: 'Google' },
   { id: 'ag/gemini-3.7-flash-low', label: 'Gemini 3.7 Flash Low', provider: 'Google' },
   { id: 'ag/gemini-3.6-flash-high', label: 'Gemini 3.6 Flash High', provider: 'Google' },
+  { id: 'cx/gpt-5.6-luna', label: 'GPT-5.6 Luna', provider: 'OpenAI' },
+  { id: 'cx/gpt-5.6-terra', label: 'GPT-5.6 Terra', provider: 'OpenAI' },
   { id: 'oc/big-pickle', label: 'Big Pickle', provider: 'OpenCode' },
   { id: 'oc/mimo-v2.5-free', label: 'MiMo v2.5', provider: 'Xiaomi' },
   { id: 'oc/laguna-s-2.1-free', label: 'Laguna S 2.1', provider: 'Poolside' },
 ];
-
-const SELECT_OPTIONS: SelectOption[] = DUMMY_MODELS.map((m) => ({
-  value: m.id,
-  label: m.label,
-  description: m.provider,
-}));
 
 const SUGGESTIONS = [
   { label: 'Check upcoming API breaking changes', prompt: 'Periksa potensi breaking changes pada endpoint saya' },
@@ -42,7 +38,7 @@ export interface ChatSessionItem {
   id: string;
   title: string;
   updatedAt: string;
-  messagesCount: number;
+  messagesCount?: number;
 }
 
 interface ChatItem {
@@ -50,64 +46,144 @@ interface ChatItem {
   role: 'user' | 'assistant';
   content: string;
   status?: 'idle' | 'loading' | 'streaming' | 'error';
+  errorMessage?: string;
   modelLabel?: string;
   modelProvider?: string;
   toolEvents?: ToolCallEvent[];
 }
 
-const INITIAL_SESSIONS: ChatSessionItem[] = [
-  {
-    id: 's-1',
-    title: 'Desain CRUD User Management & Roles',
-    updatedAt: '10m ago',
-    messagesCount: 4,
-  },
-  {
-    id: 's-2',
-    title: 'Audit Keamanan Bearer Token & CORS',
-    updatedAt: '2h ago',
-    messagesCount: 6,
-  },
-  {
-    id: 's-3',
-    title: 'Skema OpenAPI DTO Order & Payment',
-    updatedAt: 'Yesterday',
-    messagesCount: 2,
-  },
-];
+function formatTimeAgo(timestamp?: number | null): string {
+  if (!timestamp) return 'Recently';
+  const diff = Math.floor((Date.now() - timestamp) / 1000);
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
 
 export function AssistantDrawer() {
   const { assistantOpen, setAssistantOpen } = useUiStore();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
   const [viewMode, setViewMode] = useState<'chat' | 'sessions'>('chat');
-  const [sessions, setSessions] = useState<ChatSessionItem[]>(INITIAL_SESSIONS);
+  const [models, setModels] = useState<LlmModelDto[]>(FALLBACK_MODELS);
+  const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
-  const [selectedModel, setSelectedModel] = useState(DUMMY_MODELS[2].id);
+  const [selectedModel, setSelectedModel] = useState<string>(FALLBACK_MODELS[0].id);
   const [messages, setMessages] = useState<ChatItem[]>([]);
   const [inputVal, setInputVal] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  if (!assistantOpen) return null;
+  // Compute current page context from URL and search params
+  const currentContext: AssistantContextDto = useMemo(() => {
+    const pathname = location.pathname;
+    let projectId: string | undefined;
 
-  const currentModelObj = DUMMY_MODELS.find((m) => m.id === selectedModel) || DUMMY_MODELS[0];
+    // Match /projects/:projectId or /projects/:projectId/*
+    const projectMatch = pathname.match(/\/projects\/([^/]+)/);
+    if (projectMatch && projectMatch[1]) {
+      projectId = projectMatch[1];
+    }
 
-  const handleSelectSession = (session: ChatSessionItem) => {
+    const endpointId = searchParams.get('endpoint') ?? undefined;
+    const tab = searchParams.get('tab') ?? undefined;
+    const exampleId = searchParams.get('example') ?? undefined;
+
+    return {
+      pathname,
+      projectId,
+      endpointId,
+      tab,
+      exampleId,
+    };
+  }, [location.pathname, searchParams]);
+
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = useCallback((smooth = false) => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    } else if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom(false);
+  }, [messages, scrollToBottom]);
+
+  // Fetch models from backend
+  useEffect(() => {
+    if (!assistantOpen) return;
+    unwrap<LlmModelDto[]>(api.get('/assistant/models'))
+      .then((data) => {
+        if (data && data.length > 0) {
+          setModels(data);
+          if (!data.some((m) => m.id === selectedModel)) {
+            setSelectedModel(data[0].id);
+          }
+        }
+      })
+      .catch(() => {
+        // use fallback models
+      });
+  }, [assistantOpen]);
+
+  // Fetch sessions from backend
+  const loadSessions = useCallback(async () => {
+    try {
+      const data = await unwrap<ChatSessionDto[]>(api.get('/assistant/sessions'));
+      if (data) {
+        setSessions(
+          data.map((s) => ({
+            id: s.id,
+            title: s.title || 'Untitled Chat',
+            updatedAt: formatTimeAgo(s.updated_date || s.created_date),
+          }))
+        );
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (assistantOpen) {
+      loadSessions();
+    }
+  }, [assistantOpen, loadSessions]);
+
+  const selectOptions: SelectOption[] = models.map((m) => ({
+    value: m.id,
+    label: m.label,
+    description: m.provider,
+  }));
+
+  const currentModelObj = models.find((m) => m.id === selectedModel) || models[0] || FALLBACK_MODELS[0];
+
+  const handleSelectSession = async (session: ChatSessionItem) => {
     setActiveSessionId(session.id);
     setViewMode('chat');
-    // Load dummy conversation for that session
-    setMessages([
-      {
-        id: '1',
-        role: 'user',
-        content: `Buka riwayat percakapan: ${session.title}`,
-      },
-      {
-        id: '2',
-        role: 'assistant',
-        content: `Melanjutkan sesi **${session.title}** menggunakan model **${currentModelObj.label}**. Silakan lanjutkan pertanyaan Anda!`,
-        modelLabel: currentModelObj.label,
-        modelProvider: currentModelObj.provider,
-      },
-    ]);
+    try {
+      const fetchedMessages = await unwrap<ChatMessageDto[]>(
+        api.get(`/assistant/sessions/${session.id}/messages`)
+      );
+      setMessages(
+        fetchedMessages.map((m) => ({
+          id: m.id,
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          status: 'idle',
+          modelLabel: currentModelObj.label,
+          modelProvider: currentModelObj.provider,
+        }))
+      );
+    } catch (err: unknown) {
+      toast.error('Failed to load session history');
+    }
   };
 
   const handleNewChat = () => {
@@ -116,20 +192,28 @@ export function AssistantDrawer() {
     setViewMode('chat');
   };
 
-  const handleDeleteSession = (id: string, e: React.MouseEvent) => {
+  const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setSessions((prev) => prev.filter((s) => s.id !== id));
-    if (activeSessionId === id) {
-      handleNewChat();
+    try {
+      await unwrap(api.delete(`/assistant/sessions/${id}`));
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      if (activeSessionId === id) {
+        handleNewChat();
+      }
+      toast.success('Chat session deleted');
+    } catch {
+      toast.error('Failed to delete session');
     }
   };
 
-  const handleSendPrompt = (textToSend: string) => {
-    const text = textToSend.trim();
-    if (!text) return;
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-    const userMsgId = Date.now().toString();
-    const assistantMsgId = (Date.now() + 1).toString();
+  const handleSendPrompt = async (textToSend: string) => {
+    const text = textToSend.trim();
+    if (!text || isLoading) return;
+
+    const userMsgId = `u-${Date.now()}`;
+    const assistantMsgId = `a-${Date.now() + 1}`;
 
     const userMsg: ChatItem = {
       id: userMsgId,
@@ -137,61 +221,145 @@ export function AssistantDrawer() {
       content: text,
     };
 
-    // If starting a fresh session, add to sessions list
-    if (!activeSessionId && messages.length === 0) {
-      const newSession: ChatSessionItem = {
-        id: `s-${Date.now()}`,
-        title: text.length > 38 ? `${text.slice(0, 38)}…` : text,
-        updatedAt: 'Just now',
-        messagesCount: 2,
-      };
-      setSessions((prev) => [newSession, ...prev]);
-      setActiveSessionId(newSession.id);
-    }
+    const pendingAssistantMsg: ChatItem = {
+      id: assistantMsgId,
+      role: 'assistant',
+      content: '',
+      status: 'loading',
+      modelLabel: currentModelObj.label,
+      modelProvider: currentModelObj.provider,
+      toolEvents: [],
+    };
 
-    const sampleAssistantReply =
-      `Pong! Ready when you are.\n\n` +
-      `Berikut adalah contoh ringkasan spesifikasi endpoint API Anda:\n\n` +
-      `| Method | Path | Status | Auth |\n` +
-      `| :--- | :--- | :--- | :--- |\n` +
-      `| \`GET\` | \`/api/users\` | 200 OK | Bearer JWT |\n` +
-      `| \`POST\` | \`/api/users\` | 201 Created | Bearer JWT |\n` +
-      `| \`DELETE\` | \`/api/users/:id\` | 204 No Content | Admin Only |\n\n` +
-      `\`\`\`json\n` +
-      `{\n` +
-      `  "status": "success",\n` +
-      `  "model": "${currentModelObj.label}",\n` +
-      `  "provider": "${currentModelObj.provider}"\n` +
-      `}\n` +
-      `\`\`\``;
-
-    setMessages((prev) => [
-      ...prev,
-      userMsg,
-      {
-        id: assistantMsgId,
-        role: 'assistant',
-        content: sampleAssistantReply,
-        status: 'idle',
-        modelLabel: currentModelObj.label,
-        modelProvider: currentModelObj.provider,
-        toolEvents: [
-          {
-            id: 't-1',
-            name: 'list_projects',
-            status: 'completed',
-            resultSummary: 'Loaded 4 projects',
-          },
-          {
-            id: 't-2',
-            name: 'get_endpoints_by_project',
-            status: 'completed',
-            resultSummary: 'Inspected 12 endpoints',
-          },
-        ],
-      },
-    ]);
+    setMessages((prev) => [...prev, userMsg, pendingAssistantMsg]);
     setInputVal('');
+    setIsLoading(true);
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    try {
+      await chatStream(
+        {
+          message: text,
+          threadId: activeSessionId || undefined,
+          model: selectedModel,
+          context: currentContext,
+        },
+        (evt) => {
+          if (evt.type === 'token') {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId
+                  ? {
+                      ...msg,
+                      content: msg.content + evt.delta,
+                      status: 'streaming',
+                    }
+                  : msg
+              )
+            );
+          } else if (evt.type === 'tool_call_start') {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId
+                  ? {
+                      ...msg,
+                      toolEvents: [
+                        ...(msg.toolEvents || []),
+                        {
+                          id: `${evt.toolId}-${Date.now()}`,
+                          name: evt.toolName,
+                          args: evt.args,
+                          status: 'running',
+                        },
+                      ],
+                    }
+                  : msg
+              )
+            );
+          } else if (evt.type === 'tool_call_complete') {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId
+                  ? {
+                      ...msg,
+                      toolEvents: (msg.toolEvents || []).map((t) =>
+                        t.name === evt.toolName && t.status === 'running'
+                          ? { ...t, status: 'completed', resultSummary: evt.resultSummary }
+                          : t
+                      ),
+                    }
+                  : msg
+              )
+            );
+          } else if (evt.type === 'tool_call_error') {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId
+                  ? {
+                      ...msg,
+                      toolEvents: (msg.toolEvents || []).map((t) =>
+                        t.name === evt.toolName && t.status === 'running'
+                          ? { ...t, status: 'failed', resultSummary: evt.resultSummary }
+                          : t
+                      ),
+                    }
+                  : msg
+              )
+            );
+          } else if (evt.type === 'session_info') {
+            setActiveSessionId(evt.threadId);
+            loadSessions();
+          } else if (evt.type === 'done') {
+            setActiveSessionId(evt.threadId);
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId
+                  ? {
+                      ...msg,
+                      content: evt.fullReply || msg.content,
+                      status: 'idle',
+                    }
+                  : msg
+              )
+            );
+            loadSessions();
+          } else if (evt.type === 'error') {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMsgId
+                  ? {
+                      ...msg,
+                      status: 'error',
+                      errorMessage: evt.message,
+                    }
+                  : msg
+              )
+            );
+          }
+        },
+        abortController.signal
+      );
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Error generating response';
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMsgId
+            ? {
+                ...msg,
+                status: 'error',
+                errorMessage: errMsg,
+              }
+            : msg
+        )
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -201,6 +369,7 @@ export function AssistantDrawer() {
     }
   };
 
+  if (!assistantOpen) return null;
   const hasMessages = messages.length > 0;
 
   return (
@@ -253,14 +422,17 @@ export function AssistantDrawer() {
                 iconOnly
                 aria-label="Chat sessions"
                 title="Chat History"
-                onClick={() => setViewMode('sessions')}
+                onClick={() => {
+                  loadSessions();
+                  setViewMode('sessions');
+                }}
               >
                 <History className="h-4 w-4 text-text-secondary hover:text-text-primary" />
               </Button>
 
               <div className="w-56">
                 <Select
-                  options={SELECT_OPTIONS}
+                  options={selectOptions}
                   value={selectedModel}
                   onChange={(val) => setSelectedModel(val)}
                   size="sm"
@@ -339,7 +511,7 @@ export function AssistantDrawer() {
                         {session.title}
                       </span>
                       <span className="text-[11px] text-text-muted mt-0.5">
-                        {session.updatedAt} · {session.messagesCount} messages
+                        {session.updatedAt}
                       </span>
                     </div>
                   </div>
@@ -362,7 +534,7 @@ export function AssistantDrawer() {
       ) : (
         /* Chat View */
         <>
-          <div className="relative z-10 flex flex-1 flex-col overflow-y-auto px-5 py-6">
+          <div ref={scrollContainerRef} className="relative z-10 flex flex-1 flex-col overflow-y-auto px-5 py-6">
             {!hasMessages ? (
               /* Empty / Welcome State */
               <div className="my-auto flex flex-col items-center text-center">
@@ -403,11 +575,12 @@ export function AssistantDrawer() {
                           </div>
                         </div>
                       ) : (
-                        /* Dedicated Assistant Response View (Markdown, Tables, CodeBlocks, Tool Events) */
+                        /* Dedicated Assistant Response View (Markdown, Tables, CodeBlocks) */
                         <AssistantResponseView
                           id={msg.id}
                           content={msg.content}
                           status={msg.status}
+                          errorMessage={msg.errorMessage}
                           modelLabel={msg.modelLabel}
                           modelProvider={msg.modelProvider}
                           toolEvents={msg.toolEvents}
@@ -417,6 +590,7 @@ export function AssistantDrawer() {
                     </div>
                   );
                 })}
+                <div ref={messagesEndRef} className="h-2" />
               </div>
             )}
           </div>
@@ -443,7 +617,8 @@ export function AssistantDrawer() {
                   size="sm"
                   iconOnly
                   aria-label="Send message"
-                  disabled={!inputVal.trim()}
+                  disabled={!inputVal.trim() || isLoading}
+                  loading={isLoading}
                   onClick={() => handleSendPrompt(inputVal)}
                   className="h-7 w-7 shrink-0"
                 >

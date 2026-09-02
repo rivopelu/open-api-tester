@@ -11,6 +11,23 @@ export class ChatSessionRepository {
     return result[0]
   }
 
+  async update(id: string, input: Partial<NewChatSession>): Promise<ChatSession | null> {
+    const result = await this.database
+      .update(ChatSessionEntity)
+      .set(input)
+      .where(eq(ChatSessionEntity.id, id))
+      .returning()
+    return result[0] ?? null
+  }
+
+  async delete(id: string): Promise<boolean> {
+    const result = await this.database
+      .delete(ChatSessionEntity)
+      .where(eq(ChatSessionEntity.id, id))
+      .returning()
+    return result.length > 0
+  }
+
   async findById(id: string): Promise<ChatSession | null> {
     const result = await this.database
       .select()

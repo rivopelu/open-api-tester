@@ -133,7 +133,7 @@ export function Header() {
     saveProject, loadProject,
     lastSavedAt,
   } = useApiSpecStore();
-  const { toggleAssistant, assistantOpen } = useUiStore();
+  const { toggleAssistant } = useUiStore();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 

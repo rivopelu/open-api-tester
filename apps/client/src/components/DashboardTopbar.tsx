@@ -14,7 +14,7 @@ export interface DashboardTopbarProps {
 /** Top bar for the dashboard shell: brand + actions (left), profile popover (right). */
 export function DashboardTopbar({ onCreateProject, onOpenImport }: DashboardTopbarProps) {
   const { user, signOut } = useAuthStore();
-  const { toggleAssistant, assistantOpen } = useUiStore();
+  const { toggleAssistant } = useUiStore();
   const navigate = useNavigate();
 
   const initials = user?.name

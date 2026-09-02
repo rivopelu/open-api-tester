@@ -482,7 +482,7 @@ export function EndpointContractExamples({
   ) => {
     if (
       target.scope === from.scope &&
-      (target.scope === "request" || target.responseId === from.responseId)
+      (target.scope === "request" || (target.scope === "response" && from.scope === "response" && target.responseId === from.responseId))
     ) {
       return;
     }

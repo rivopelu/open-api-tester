@@ -8,7 +8,6 @@ import {
   Loader2,
   MoreHorizontal,
   RotateCcw,
-  Sparkles,
   ThumbsDown,
   ThumbsUp,
   Wrench,
@@ -37,7 +36,7 @@ export interface AssistantResponseProps {
 }
 
 export function AssistantResponseView({
-  id,
+  id: _id,
   content,
   status = 'idle',
   errorMessage,
@@ -49,7 +48,7 @@ export function AssistantResponseView({
 }: AssistantResponseProps) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null);
-  const [eventsOpen, setEventsOpen] = useState(true);
+  const [eventsOpen, setEventsOpen] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
@@ -63,12 +62,48 @@ export function AssistantResponseView({
   };
 
   const isLoading = status === 'loading' || status === 'streaming';
+  const runningTools = toolEvents.filter((t) => t.status === 'running');
+  const lastRunningTool = runningTools[runningTools.length - 1];
 
   return (
     <div className="flex flex-col items-start space-y-3 w-full">
-      {/* ── Tool Call Execution Events (if any) ────────────────────── */}
+      {/* ── Main Response Content (Markdown) ───────────────────────── */}
+      <div className="w-full">
+        {content ? (
+          <MarkdownRenderer content={content} />
+        ) : null}
+
+        {/* ── Live Thinking / Status Indicator (Under the message / when starting) ── */}
+        {isLoading && (
+          <div className="flex items-center gap-2.5 py-1.5 text-xs text-text-muted select-none">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+            <span className="font-medium text-text-secondary animate-pulse text-[13px]">
+              {lastRunningTool
+                ? `Running tool: ${lastRunningTool.name}…`
+                : content
+                  ? 'Thinking and generating…'
+                  : 'Thinking…'}
+            </span>
+          </div>
+        )}
+
+        {/* Streaming Cursor */}
+        {status === 'streaming' && (
+          <span className="inline-block h-3.5 w-1.5 ml-1 animate-pulse bg-primary align-middle" />
+        )}
+
+        {/* Error State */}
+        {status === 'error' && errorMessage && (
+          <div className="mt-2 border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
+            <p className="font-semibold">Failed to generate response</p>
+            <p className="mt-0.5 opacity-90">{errorMessage}</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Tool Call Execution Events (Placed below response, subtle & collapsible) ── */}
       {toolEvents.length > 0 && (
-        <div className="w-full border border-border bg-surface text-xs">
+        <div className="w-full border border-border/70 bg-surface/70 text-xs">
           <button
             type="button"
             onClick={() => setEventsOpen(!eventsOpen)}
@@ -77,7 +112,7 @@ export function AssistantResponseView({
             <div className="flex items-center gap-2">
               <Wrench className="h-3.5 w-3.5 text-primary" />
               <span className="font-semibold text-[11px] tracking-wide uppercase">
-                Tools & Actions ({toolEvents.length})
+                Tools Used ({toolEvents.length})
               </span>
             </div>
             {eventsOpen ? (
@@ -88,7 +123,7 @@ export function AssistantResponseView({
           </button>
 
           {eventsOpen && (
-            <div className="divide-y divide-border/60 border-t border-border px-3 py-1.5 bg-base/50">
+            <div className="divide-y divide-border/60 border-t border-border/70 px-3 py-1.5 bg-base/60">
               {toolEvents.map((evt) => (
                 <div key={evt.id} className="flex items-center justify-between py-1.5 text-[11px]">
                   <div className="flex items-center gap-2">
@@ -110,36 +145,6 @@ export function AssistantResponseView({
           )}
         </div>
       )}
-
-      {/* ── Main Response Content (Markdown) ───────────────────────── */}
-      <div className="w-full">
-        {content ? (
-          <MarkdownRenderer content={content} />
-        ) : isLoading ? (
-          /* Shimmer / Skeleton Loading State */
-          <div className="flex flex-col space-y-2 py-1">
-            <div className="flex items-center gap-2 text-xs text-text-muted">
-              <Sparkles className="h-3.5 w-3.5 animate-pulse text-primary" />
-              <span className="animate-pulse font-medium">Thinking & generating response…</span>
-            </div>
-            <div className="h-3.5 w-3/4 animate-pulse bg-surface" />
-            <div className="h-3.5 w-1/2 animate-pulse bg-surface" />
-          </div>
-        ) : null}
-
-        {/* Streaming Cursor Dot */}
-        {status === 'streaming' && (
-          <span className="inline-block h-3.5 w-1.5 ml-1 animate-pulse bg-primary align-middle" />
-        )}
-
-        {/* Error State */}
-        {status === 'error' && errorMessage && (
-          <div className="mt-2 border border-danger/30 bg-danger/10 p-3 text-xs text-danger">
-            <p className="font-semibold">Failed to generate response</p>
-            <p className="mt-0.5 opacity-90">{errorMessage}</p>
-          </div>
-        )}
-      </div>
 
       {/* ── Action Toolbar (Design System Button Component) ────────── */}
       {!isLoading && content && (
