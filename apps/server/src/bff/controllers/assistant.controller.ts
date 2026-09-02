@@ -84,6 +84,11 @@ export class AssistantController {
     if (!user) throw new UnauthorizedError()
     const { message, threadId, model, context } = ChatRequestSchema.parse(await c.req.json())
 
+    // Tell reverse proxies (nginx) not to buffer this response, or the whole
+    // SSE stream arrives in one chunk at the end instead of incrementally.
+    c.header('X-Accel-Buffering', 'no')
+    c.header('Cache-Control', 'no-cache, no-transform')
+
     return streamSSE(c, async (stream) => {
       try {
         await this.chatService.chatStream(
