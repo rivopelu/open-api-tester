@@ -1125,11 +1125,13 @@ export function EndpointContractExamples({
                           }
                           aria-pressed={
                             selected?.scope === "response" &&
+                            selected.responseId === response.id &&
                             selected.id === example.id
                           }
                           className={cn(
                             "flex h-8 w-full items-center gap-2 border-l-2 px-3 pl-5 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
                             selected?.scope === "response" &&
+                              selected.responseId === response.id &&
                               selected.id === example.id
                               ? "border-primary bg-primary/10 text-primary"
                               : "border-transparent text-text-secondary hover:bg-surface hover:text-text-primary",

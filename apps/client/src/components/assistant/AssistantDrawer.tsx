@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
+import type { Endpoint } from "@modern-api-studio/types";
 import {
   AlertTriangle,
   ArrowLeft,
   Check,
   CornerDownLeft,
+  FileJson2,
+  Hash,
   History,
   MessageSquare,
   Plus,
@@ -23,13 +26,16 @@ import {
   type ChatSessionDto,
   type LlmModelDto,
 } from "../../lib/api";
+import { useApiSpecStore } from "../../store/useApiSpecStore";
 import { useAssistantEffectStore } from "../../store/useAssistantEffectStore";
 import { useUiStore } from "../../store/useUiStore";
+import { formatToolLabel } from "../../lib/toolLabels";
 import { Button, Select, type SelectOption } from "../ui";
 import {
   AssistantResponseView,
   type ToolCallEvent,
 } from "./AssistantResponseView";
+import { EndpointMentionDropdown } from "./EndpointMentionDropdown";
 
 // Fallback model list matching server constants
 const FALLBACK_MODELS: LlmModelDto[] = [
@@ -126,7 +132,25 @@ export function AssistantDrawer() {
     PendingToolConfirmation[]
   >([]);
 
+  const specEndpoints = useApiSpecStore((s) => s.spec.endpoints);
+
+  // Mention / attachment state
+  const [mentionedEndpointIds, setMentionedEndpointIds] = useState<string[]>(
+    [],
+  );
+  const [dismissedActiveEndpointId, setDismissedActiveEndpointId] = useState<
+    string | null
+  >(null);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
+  const [mentionTriggerStart, setMentionTriggerStart] = useState<
+    number | null
+  >(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
   // Compute current page context from URL and search params
+  const rawActiveEndpointId = searchParams.get("endpoint") ?? undefined;
+
   const currentContext: AssistantContextDto = useMemo(() => {
     const pathname = location.pathname;
     let projectId: string | undefined;
@@ -137,7 +161,10 @@ export function AssistantDrawer() {
       projectId = projectMatch[1];
     }
 
-    const endpointId = searchParams.get("endpoint") ?? undefined;
+    const endpointId =
+      rawActiveEndpointId && rawActiveEndpointId !== dismissedActiveEndpointId
+        ? rawActiveEndpointId
+        : undefined;
     const tab = searchParams.get("tab") ?? undefined;
     const exampleId = searchParams.get("example") ?? undefined;
 
@@ -147,8 +174,102 @@ export function AssistantDrawer() {
       endpointId,
       tab,
       exampleId,
+      mentionedEndpointIds:
+        mentionedEndpointIds.length > 0 ? mentionedEndpointIds : undefined,
     };
-  }, [location.pathname, searchParams]);
+  }, [
+    location.pathname,
+    searchParams,
+    rawActiveEndpointId,
+    dismissedActiveEndpointId,
+    mentionedEndpointIds,
+  ]);
+
+  const activeContextEndpoint =
+    rawActiveEndpointId && rawActiveEndpointId !== dismissedActiveEndpointId
+      ? specEndpoints.find((ep) => ep.id === rawActiveEndpointId)
+      : undefined;
+
+  const mentionedEndpoints = mentionedEndpointIds
+    .map((id) => specEndpoints.find((ep) => ep.id === id))
+    .filter((ep): ep is Endpoint => Boolean(ep));
+
+  const mentionResults = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.trim().toLowerCase();
+    const pool = specEndpoints.filter(
+      (ep) => !mentionedEndpointIds.includes(ep.id),
+    );
+    const filtered = q
+      ? pool.filter(
+          (ep) =>
+            ep.path.toLowerCase().includes(q) ||
+            (ep.summary?.toLowerCase().includes(q) ?? false) ||
+            ep.method.toLowerCase().includes(q),
+        )
+      : pool;
+    return filtered.slice(0, 20);
+  }, [mentionQuery, specEndpoints, mentionedEndpointIds]);
+
+  const mentionClampedIndex = Math.min(
+    mentionActiveIndex,
+    Math.max(mentionResults.length - 1, 0),
+  );
+
+  const closeMentionDropdown = useCallback(() => {
+    setMentionQuery(null);
+    setMentionTriggerStart(null);
+    setMentionActiveIndex(0);
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInputVal(value);
+
+    const cursor = e.target.selectionStart ?? value.length;
+    const uptoCursor = value.slice(0, cursor);
+    const hashIndex = uptoCursor.lastIndexOf("#");
+
+    if (hashIndex === -1) {
+      closeMentionDropdown();
+      return;
+    }
+
+    const between = uptoCursor.slice(hashIndex + 1, cursor);
+    if (/\s/.test(between)) {
+      closeMentionDropdown();
+      return;
+    }
+
+    setMentionTriggerStart(hashIndex);
+    setMentionQuery(between);
+    setMentionActiveIndex(0);
+  };
+
+  const selectMention = (endpoint: Endpoint) => {
+    if (mentionTriggerStart !== null) {
+      const cursor = textareaRef.current?.selectionStart ?? inputVal.length;
+      const before = inputVal.slice(0, mentionTriggerStart);
+      const after = inputVal.slice(cursor);
+      const nextVal = `${before}${after}`;
+      setInputVal(nextVal);
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          const pos = before.length;
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(pos, pos);
+        }
+      });
+    }
+    setMentionedEndpointIds((prev) =>
+      prev.includes(endpoint.id) ? prev : [...prev, endpoint.id],
+    );
+    closeMentionDropdown();
+  };
+
+  const removeMentionedEndpoint = (id: string) => {
+    setMentionedEndpointIds((prev) => prev.filter((mid) => mid !== id));
+  };
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -306,6 +427,8 @@ export function AssistantDrawer() {
 
     setMessages((prev) => [...prev, userMsg, pendingAssistantMsg]);
     setInputVal("");
+    setMentionedEndpointIds([]);
+    closeMentionDropdown();
     setIsLoading(true);
 
     if (abortControllerRef.current) {
@@ -488,6 +611,37 @@ export function AssistantDrawer() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery !== null) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionActiveIndex((i) =>
+          mentionResults.length ? (i + 1) % mentionResults.length : 0,
+        );
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionActiveIndex((i) =>
+          mentionResults.length
+            ? (i - 1 + mentionResults.length) % mentionResults.length
+            : 0,
+        );
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        if (mentionResults[mentionClampedIndex]) {
+          e.preventDefault();
+          selectMention(mentionResults[mentionClampedIndex]);
+          return;
+        }
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeMentionDropdown();
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendPrompt(inputVal);
@@ -754,19 +908,12 @@ export function AssistantDrawer() {
                             Konfirmasi Aksi
                           </span>
                           <span className="font-mono text-[10px] text-text-muted">
-                            {conf.toolName}
+                            {formatToolLabel(conf.toolName)}
                           </span>
                         </div>
                         <p className="mt-1 text-xs font-medium text-text-primary leading-snug">
                           {conf.summary}
                         </p>
-                        {conf.args && Object.keys(conf.args).length > 0 && (
-                          <div className="mt-2 max-h-24 overflow-y-auto bg-base/80 p-2 font-mono text-[10px] text-text-secondary border border-border/60">
-                            <pre className="whitespace-pre-wrap break-all">
-                              {JSON.stringify(conf.args, null, 2)}
-                            </pre>
-                          </div>
-                        )}
                         <div className="mt-3 flex items-center justify-end gap-2">
                           <Button
                             type="button"
@@ -799,12 +946,73 @@ export function AssistantDrawer() {
               </div>
             )}
 
-            <div className="border border-border bg-surface focus-within:border-primary transition-colors shadow-sm">
+            {(activeContextEndpoint || mentionedEndpoints.length > 0) && (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {activeContextEndpoint && (
+                  <span className="flex items-center gap-1.5 border border-primary/40 bg-primary/10 py-1 pl-2 pr-1 text-[10.5px] text-primary">
+                    <Hash className="h-3 w-3 shrink-0" />
+                    <span className="font-mono font-semibold">
+                      {activeContextEndpoint.method}
+                    </span>
+                    <span className="max-w-40 truncate font-mono">
+                      {activeContextEndpoint.path}
+                    </span>
+                    <span className="text-primary/70">Active</span>
+                    <button
+                      type="button"
+                      aria-label="Remove active endpoint context"
+                      onClick={() =>
+                        setDismissedActiveEndpointId(activeContextEndpoint.id)
+                      }
+                      className="ml-0.5 rounded-full p-0.5 hover:bg-primary/20"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+                {mentionedEndpoints.map((ep) => (
+                  <span
+                    key={ep.id}
+                    className="flex items-center gap-1.5 border border-border bg-overlay py-1 pl-2 pr-1 text-[10.5px] text-text-secondary"
+                  >
+                    <FileJson2 className="h-3 w-3 shrink-0" />
+                    <span className="font-mono font-semibold">
+                      {ep.method}
+                    </span>
+                    <span className="max-w-40 truncate font-mono">
+                      {ep.path}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${ep.path} mention`}
+                      onClick={() => removeMentionedEndpoint(ep.id)}
+                      className="ml-0.5 rounded-full p-0.5 hover:bg-border/60"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="relative border border-border bg-surface focus-within:border-primary transition-colors shadow-sm">
+              {mentionQuery !== null && (
+                <EndpointMentionDropdown
+                  endpoints={mentionResults}
+                  activeIndex={mentionClampedIndex}
+                  onSelect={selectMention}
+                  onHoverIndex={setMentionActiveIndex}
+                />
+              )}
               <textarea
+                ref={textareaRef}
                 value={inputVal}
-                onChange={(e) => setInputVal(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask Studio Assistant..."
+                onBlur={() => {
+                  window.setTimeout(() => closeMentionDropdown(), 150);
+                }}
+                placeholder="Ask Studio Assistant... (type # to mention an endpoint)"
                 rows={hasMessages ? 2 : 3}
                 className="w-full resize-none bg-transparent p-3 text-[13px] text-text-primary placeholder:text-text-muted focus:outline-none"
               />

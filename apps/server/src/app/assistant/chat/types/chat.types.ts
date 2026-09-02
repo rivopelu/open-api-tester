@@ -6,6 +6,7 @@ export const AssistantContextSchema = z.object({
   endpointId: z.string().optional(),
   tab: z.string().optional(),
   exampleId: z.string().optional(),
+  mentionedEndpointIds: z.array(z.string()).optional(),
 })
 
 export type AssistantContext = z.infer<typeof AssistantContextSchema>

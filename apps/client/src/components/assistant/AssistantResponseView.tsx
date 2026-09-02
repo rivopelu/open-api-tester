@@ -13,6 +13,8 @@ import {
   Wrench,
 } from 'lucide-react';
 import { Button } from '../ui';
+import { formatToolLabel } from '../../lib/toolLabels';
+import { cn } from '../../lib/utils';
 import { MarkdownRenderer } from './MarkdownRenderer';
 
 export interface ToolCallEvent {
@@ -78,7 +80,7 @@ export function AssistantResponseView({
             <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
             <span className="font-medium text-text-secondary animate-pulse text-[13px]">
               {lastRunningTool
-                ? `Running tool: ${lastRunningTool.name}…`
+                ? `${formatToolLabel(lastRunningTool.name)}…`
                 : content
                   ? 'Thinking and generating…'
                   : 'Thinking…'}
@@ -122,33 +124,48 @@ export function AssistantResponseView({
           </button>
 
           {eventsOpen && (
-            <div className="divide-y divide-border/60 border-t border-border/70 px-3 py-1.5 bg-base/60">
-              {toolEvents.map((evt) => (
-                <div key={evt.id} className="flex flex-col gap-1 py-1.5 text-[11px]">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      {evt.status === 'running' ? (
-                        <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />
-                      ) : evt.status === 'completed' ? (
-                        <Check className="h-3 w-3 text-success shrink-0" />
-                      ) : (
-                        <span className="h-2 w-2 bg-danger rounded-none shrink-0" />
+            <div className="border-t border-border/70 px-3 py-2.5 bg-base/60">
+              {toolEvents.map((evt, index) => {
+                const isLast = index === toolEvents.length - 1;
+                return (
+                  <div key={evt.id} className="flex gap-2.5">
+                    <div className="flex w-3 shrink-0 flex-col items-center">
+                      <span
+                        className={cn(
+                          'mt-1 h-1.5 w-1.5 shrink-0 rounded-full',
+                          evt.status === 'running'
+                            ? 'bg-primary animate-pulse'
+                            : evt.status === 'completed'
+                              ? 'bg-success'
+                              : 'bg-danger',
+                        )}
+                      />
+                      {!isLast && (
+                        <span className="w-px flex-1 bg-border/70" aria-hidden="true" />
                       )}
-                      <span className="font-mono text-text-primary">{evt.name}</span>
                     </div>
-                    {evt.status !== 'failed' && (
-                      <span className="text-text-muted truncate">
-                        {evt.resultSummary || (evt.status === 'running' ? 'Executing…' : 'Done')}
-                      </span>
-                    )}
+                    <div className={cn('min-w-0 flex-1', !isLast && 'pb-3')}>
+                      <div className="flex items-center gap-1.5">
+                        {evt.status === 'running' && (
+                          <Loader2 className="h-3 w-3 animate-spin text-primary shrink-0" />
+                        )}
+                        <span className="text-[11px] font-semibold text-text-primary">
+                          {formatToolLabel(evt.name)}
+                        </span>
+                      </div>
+                      <p
+                        className={cn(
+                          'mt-0.5 truncate text-[10.5px]',
+                          evt.status === 'failed' ? 'text-danger' : 'text-text-muted',
+                        )}
+                      >
+                        {evt.resultSummary ||
+                          (evt.status === 'running' ? 'Executing…' : 'Done')}
+                      </p>
+                    </div>
                   </div>
-                  {evt.status === 'failed' && evt.resultSummary && (
-                    <div className="ml-5 border-l-2 border-danger/60 pl-2 text-[10px] text-danger/90">
-                      {evt.resultSummary}
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

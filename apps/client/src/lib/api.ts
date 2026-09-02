@@ -139,6 +139,7 @@ export interface AssistantContextDto {
   endpointId?: string;
   tab?: string;
   exampleId?: string;
+  mentionedEndpointIds?: string[];
 }
 
 export interface AssistantUiEffectDto {

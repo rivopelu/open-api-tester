@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import type { EndpointExample, RequestBodyDefinition, ResponseDefinition } from '@modern-api-studio/types'
+import type {
+  EndpointExample,
+  RequestBodyDefinition,
+  ResponseDefinition,
+} from '@modern-api-studio/types'
 import { EndpointFolderService } from '../../../endpoint-folders/service/endpoint-folder.service'
 import { EndpointRepository } from '../../../endpoints/repository/endpoint.repository'
 import { EndpointService } from '../../../endpoints/service/endpoint.service'
@@ -115,10 +119,15 @@ export const domainTools: DomainToolDefinition[] = [
     inputSchema: z.object({
       projectId: z.string().min(1).describe('The target project ID'),
       name: z.string().trim().min(1).describe('The name of the folder'),
-      parentId: z.string().nullable().optional().describe('Parent folder ID if nested, or null/omitted for root'),
+      parentId: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('Parent folder ID if nested, or null/omitted for root'),
     }),
     requiresConfirmation: true,
-    formatConfirmation: ({ name, projectId }) => `Create folder "${name}" in project (${projectId})`,
+    formatConfirmation: ({ name, projectId }) =>
+      `Create folder "${name}" in project (${projectId})`,
     execute: async (input, ctx) => {
       const created = await folderService.create({
         ...input,
@@ -142,11 +151,16 @@ export const domainTools: DomainToolDefinition[] = [
     inputSchema: z.object({
       folderId: z.string().min(1).describe('The folder ID to update'),
       name: z.string().trim().min(1).optional().describe('New name of the folder'),
-      parentId: z.string().nullable().optional().describe('New parent folder ID or null to move to root'),
+      parentId: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('New parent folder ID or null to move to root'),
       sortOrder: z.number().int().min(0).optional().describe('Order index for sorting'),
     }),
     requiresConfirmation: true,
-    formatConfirmation: ({ name, folderId }) => `Update folder ${name ? `"${name}"` : `ID ${folderId}`}`,
+    formatConfirmation: ({ name, folderId }) =>
+      `Update folder ${name ? `"${name}"` : `ID ${folderId}`}`,
     execute: async ({ folderId, ...changes }) => {
       return folderService.update(folderId, changes)
     },
@@ -158,7 +172,8 @@ export const domainTools: DomainToolDefinition[] = [
 
   defineTool({
     name: 'delete_folder',
-    description: 'Delete an active folder. Nested folders must be deleted first; contained endpoints move to the project root.',
+    description:
+      'Delete an active folder. Nested folders must be deleted first; contained endpoints move to the project root.',
     inputSchema: z.object({
       folderId: z.string().min(1).describe('The folder ID to delete'),
     }),
@@ -175,13 +190,20 @@ export const domainTools: DomainToolDefinition[] = [
   // ── Endpoint Tools ─────────────────────────────────────────────────────────
   defineTool({
     name: 'get_endpoints_by_project',
-    description: 'Search and inspect active endpoints in a project with optional method/folder/query filters.',
+    description:
+      'Search and inspect active endpoints in a project with optional method/folder/query filters.',
     inputSchema: z.object({
       projectId: z.string().min(1).describe('The project ID'),
       method: z.string().optional().describe('HTTP method filter: GET, POST, PUT, DELETE, etc.'),
       folderId: z.string().optional().describe('Folder ID filter'),
       query: z.string().optional().describe('Search query matching path or summary'),
-      limit: z.number().int().min(1).max(200).optional().describe('Max number of endpoints to return'),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(200)
+        .optional()
+        .describe('Max number of endpoints to return'),
     }),
     readOnly: true,
     execute: async (input) => {
@@ -192,7 +214,8 @@ export const domainTools: DomainToolDefinition[] = [
 
   defineTool({
     name: 'get_endpoint_detail',
-    description: 'Read the complete OpenAPI specification and configuration of a specific endpoint by ID.',
+    description:
+      'Read the complete OpenAPI specification and configuration of a specific endpoint by ID.',
     inputSchema: z.object({
       endpointId: z.string().min(1).describe('The unique ID of the endpoint'),
     }),
@@ -201,7 +224,11 @@ export const domainTools: DomainToolDefinition[] = [
       return endpointService.get(endpointId)
     },
     formatSummary: (result) => {
-      const res = result as { endpoint?: { method?: string; path?: string }; method?: string; path?: string } | null
+      const res = result as {
+        endpoint?: { method?: string; path?: string }
+        method?: string
+        path?: string
+      } | null
       const method = res?.endpoint?.method || res?.method
       const path = res?.endpoint?.path || res?.path
       return method && path ? `Endpoint [${method}] ${path} loaded` : 'Endpoint loaded'
@@ -214,13 +241,17 @@ export const domainTools: DomainToolDefinition[] = [
     inputSchema: z.object({
       projectId: z.string().min(1).describe('The target project ID'),
       folderId: z.string().nullable().optional().describe('Folder ID or null for root level'),
-      method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'TRACE']).describe('HTTP method'),
+      method: z
+        .enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'TRACE'])
+        .describe('HTTP method'),
       path: z.string().min(1).describe('Endpoint URL path, e.g. /users/{id}'),
       summary: z.string().optional().describe('Short summary of what this endpoint does'),
       specData: z
         .record(z.string(), z.unknown())
         .optional()
-        .describe('OpenAPI operation fields: parameters, requestBody, responses, tags, security, description, operationId.'),
+        .describe(
+          'OpenAPI operation fields: parameters, requestBody, responses, tags, security, description, operationId.',
+        ),
     }),
     requiresConfirmation: true,
     formatConfirmation: (input) => `Create new endpoint [${input.method}] ${input.path} in project`,
@@ -248,19 +279,27 @@ export const domainTools: DomainToolDefinition[] = [
 
   defineTool({
     name: 'update_endpoint_contract',
-    description: 'Update endpoint method, path, summary, folder, or merge OpenAPI operation fields into its contract.',
+    description:
+      'Update endpoint method, path, summary, folder, or merge OpenAPI operation fields into its contract.',
     inputSchema: z.object({
       endpointId: z.string().min(1).describe('The unique endpoint ID'),
       folderId: z.string().nullable().optional().describe('Target folder ID or null for root'),
-      method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'TRACE']).optional().describe('New HTTP method'),
+      method: z
+        .enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD', 'TRACE'])
+        .optional()
+        .describe('New HTTP method'),
       path: z.string().min(1).optional().describe('New path'),
       summary: z.string().optional().describe('New summary description'),
-      specData: z.record(z.string(), z.unknown()).optional().describe('Partial or full OpenAPI specData object to merge'),
+      specData: z
+        .record(z.string(), z.unknown())
+        .optional()
+        .describe('Partial or full OpenAPI specData object to merge'),
     }),
     requiresConfirmation: true,
     formatConfirmation: (input) => {
       const parts: string[] = []
-      if (input.method || input.path) parts.push(`[${input.method || 'METHOD'}] ${input.path || 'path'}`)
+      if (input.method || input.path)
+        parts.push(`[${input.method || 'METHOD'}] ${input.path || 'path'}`)
       if (input.summary) parts.push(`summary: "${input.summary}"`)
       if (input.specData?.description) parts.push(`markdown documentation`)
       if (input.specData?.requestBody) parts.push(`request body`)
@@ -350,7 +389,8 @@ export const domainTools: DomainToolDefinition[] = [
 
   defineTool({
     name: 'move_endpoint',
-    description: 'Move an endpoint into a folder, or set folderId to null to move it to the project root.',
+    description:
+      'Move an endpoint into a folder, or set folderId to null to move it to the project root.',
     inputSchema: z.object({
       endpointId: z.string().min(1).describe('The endpoint ID'),
       folderId: z.string().nullable().describe('Folder ID to move to, or null for root level'),
@@ -374,8 +414,13 @@ export const domainTools: DomainToolDefinition[] = [
     description: 'Add a JSON example to an endpoint request body or one response status.',
     inputSchema: z.object({
       endpointId: z.string().min(1).describe('The endpoint ID'),
-      scope: z.enum(['request', 'response']).describe('Whether this example is for a request body or response body'),
-      responseStatus: z.string().optional().describe('Required for response examples, for example 200 or 404.'),
+      scope: z
+        .enum(['request', 'response'])
+        .describe('Whether this example is for a request body or response body'),
+      responseStatus: z
+        .string()
+        .optional()
+        .describe('Required for response examples, for example 200 or 404.'),
       name: z.string().trim().min(1).describe('Example name label'),
       summary: z.string().optional().describe('Description of the example scenario'),
       value: z.unknown().describe('JSON value payload. It will be stored as formatted JSON text.'),
@@ -388,7 +433,7 @@ export const domainTools: DomainToolDefinition[] = [
       const spec = endpoint.specData
       const exampleId = randomUUID()
 
-      let formattedValue = ''
+      let formattedValue: string
       if (typeof value === 'string') {
         try {
           const parsed = JSON.parse(value)
@@ -404,7 +449,9 @@ export const domainTools: DomainToolDefinition[] = [
 
       const example: EndpointExample = { id: exampleId, name, summary, value: formattedValue }
       const requestBody = spec.requestBody as RequestBodyDefinition | undefined
-      const responses = Array.isArray(spec.responses) ? (spec.responses as ResponseDefinition[]) : []
+      const responses = Array.isArray(spec.responses)
+        ? (spec.responses as ResponseDefinition[])
+        : []
 
       let updatedResult
       if (scope === 'request') {
@@ -423,7 +470,9 @@ export const domainTools: DomainToolDefinition[] = [
         const response = responses.find((item) => item.statusCode === responseStatus)
         const nextResponses = response
           ? responses.map((item) =>
-              item.id === response.id ? { ...item, examples: [...(item.examples ?? []), example] } : item
+              item.id === response.id
+                ? { ...item, examples: [...(item.examples ?? []), example] }
+                : item,
             )
           : [
               ...responses,
@@ -436,7 +485,10 @@ export const domainTools: DomainToolDefinition[] = [
               },
             ]
 
-        updatedResult = await endpointService.updateExamples(endpointId, { requestBody, responses: nextResponses })
+        updatedResult = await endpointService.updateExamples(endpointId, {
+          requestBody,
+          responses: nextResponses,
+        })
       }
 
       ctx.onUiEffect?.({
@@ -460,10 +512,14 @@ export const domainTools: DomainToolDefinition[] = [
   // ── Mock Server Tools ──────────────────────────────────────────────────────
   defineTool({
     name: 'list_mock_examples',
-    description: 'List all available mock responses, examples, and status code simulations configured across endpoints.',
+    description:
+      'List all available mock responses, examples, and status code simulations configured across endpoints.',
     inputSchema: z.object({
       projectId: z.string().optional().describe('Filter mock examples by project ID (optional)'),
-      endpointId: z.string().optional().describe('Filter mock examples for a specific endpoint (optional)'),
+      endpointId: z
+        .string()
+        .optional()
+        .describe('Filter mock examples for a specific endpoint (optional)'),
     }),
     readOnly: true,
     execute: async (input) => {
@@ -496,7 +552,7 @@ export const domainTools: DomainToolDefinition[] = [
           mockUrl: entry.exampleId
             ? `/api/mock/${entry.endpointId}/ex/${entry.exampleId}`
             : `/api/mock/${entry.endpointId}/${entry.responseStatus}`,
-        }))
+        })),
       )
     },
     formatSummary: (result) => `Found ${(result as unknown[]).length} mock examples`,
@@ -504,10 +560,14 @@ export const domainTools: DomainToolDefinition[] = [
 
   defineTool({
     name: 'simulate_mock_response',
-    description: 'Simulate and inspect what payload and status code the Mock Server would return for an endpoint.',
+    description:
+      'Simulate and inspect what payload and status code the Mock Server would return for an endpoint.',
     inputSchema: z.object({
       endpointId: z.string().min(1).describe('The endpoint ID'),
-      statusCode: z.string().optional().describe('Specific HTTP status code to simulate (e.g. 200, 404)'),
+      statusCode: z
+        .string()
+        .optional()
+        .describe('Specific HTTP status code to simulate (e.g. 200, 404)'),
       exampleId: z.string().optional().describe('Specific example ID to simulate'),
     }),
     readOnly: true,

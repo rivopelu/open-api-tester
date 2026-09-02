@@ -44,6 +44,12 @@ export class ChatService {
       instructions +=
         '\nWhen the user refers to "this endpoint", "this project", "the current example", or asks what is missing/wrong with the active endpoint or project, prioritize the Active IDs above and use get_endpoint_detail / get_project to inspect them automatically. ' +
         'However, if the user explicitly mentions another project or asks to create/edit another endpoint/project, execute their request for that target regardless of the current page.'
+
+      if (context.mentionedEndpointIds && context.mentionedEndpointIds.length > 0) {
+        instructions +=
+          `\n\n### USER-MENTIONED ENDPOINTS:\nThe user explicitly attached these endpoint IDs to this message using @/# mention: ${context.mentionedEndpointIds.join(', ')}. ` +
+          'Call get_endpoint_detail for each of them before answering, since the user wants your response grounded in their actual contract, not just the active endpoint.'
+      }
     }
 
     return instructions
