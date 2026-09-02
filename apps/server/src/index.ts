@@ -9,6 +9,9 @@ import { logger } from './configs/logger'
 import { pool } from './configs/database.config'
 
 const logo = readFileSync(new URL('../public/logo.svg', import.meta.url))
+// Assumes this process runs with cwd = apps/server, so the client build sits at ../client/dist.
+const clientDistRoot = '../client/dist'
+const isProduction = env.APP_ENV === 'production'
 
 app.get('/favicon.ico', (_c) => {
   return new Response(logo, {
@@ -16,7 +19,11 @@ app.get('/favicon.ico', (_c) => {
   })
 })
 
-app.get('/', async (c) => {
+// Root: the built client's index.html in production, the backend status page otherwise.
+app.get('/', async (c, next) => {
+  if (isProduction) {
+    return serveStatic({ path: `${clientDistRoot}/index.html` })(c, next)
+  }
   const svg = logo.toString()
   const locale = detectLocale(c.req.header('Accept-Language'))
   return c.html(
@@ -24,14 +31,10 @@ app.get('/', async (c) => {
   )
 })
 
-// Production only: serve the built client (apps/client/dist) alongside the API.
-// Assumes this process runs with cwd = apps/server, so the client build sits at ../client/dist.
-if (env.APP_ENV === 'production') {
-  const clientDistRoot = '../client/dist'
+// Production only: serve the rest of the built client (assets + SPA fallback) alongside the API.
+if (isProduction) {
   app.use('/*', async (c, next) => {
-    if (c.req.path.startsWith(env.API_PREFIX) || c.req.path === '/' || c.req.path === '/favicon.ico') {
-      return next()
-    }
+    if (c.req.path.startsWith(env.API_PREFIX)) return next()
     return serveStatic({ root: clientDistRoot })(c, next)
   })
   app.get('*', async (c, next) => {
