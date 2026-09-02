@@ -1,4 +1,5 @@
 import { serve } from '@hono/node-server'
+import { serveStatic } from 'hono/bun'
 import { readFileSync } from 'node:fs'
 import app from './app'
 import { env } from './configs/env'
@@ -22,6 +23,22 @@ app.get('/', async (c) => {
     renderHome({ appName: env.APP_NAME, appEnv: env.APP_ENV, port: env.PORT, svg, locale }),
   )
 })
+
+// Production only: serve the built client (apps/client/dist) alongside the API.
+// Assumes this process runs with cwd = apps/server, so the client build sits at ../client/dist.
+if (env.APP_ENV === 'production') {
+  const clientDistRoot = '../client/dist'
+  app.use('/*', async (c, next) => {
+    if (c.req.path.startsWith(env.API_PREFIX) || c.req.path === '/' || c.req.path === '/favicon.ico') {
+      return next()
+    }
+    return serveStatic({ root: clientDistRoot })(c, next)
+  })
+  app.get('*', async (c, next) => {
+    if (c.req.path.startsWith(env.API_PREFIX)) return next()
+    return serveStatic({ path: `${clientDistRoot}/index.html` })(c, next)
+  })
+}
 
 const server = serve({
   fetch: app.fetch,
