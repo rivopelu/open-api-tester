@@ -94,10 +94,17 @@ function sanitizeExampleValue(val: unknown): string {
 }
 
 function normalizeExamples(examples: EndpointExample[]): EndpointExample[] {
-  return examples.map((ex) => ({
-    ...ex,
-    value: sanitizeExampleValue(ex.value),
-  }));
+  const seenIds = new Set<string>();
+  return examples.map((ex) => {
+    let id = ex.id;
+    if (!id || seenIds.has(id)) id = crypto.randomUUID();
+    seenIds.add(id);
+    return {
+      ...ex,
+      id,
+      value: sanitizeExampleValue(ex.value),
+    };
+  });
 }
 
 function normalizeResponses(responses: ResponseDefinition[]): ResponseDefinition[] {

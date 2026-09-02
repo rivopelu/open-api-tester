@@ -161,8 +161,13 @@ export const domainTools: DomainToolDefinition[] = [
     requiresConfirmation: true,
     formatConfirmation: ({ name, folderId }) =>
       `Update folder ${name ? `"${name}"` : `ID ${folderId}`}`,
-    execute: async ({ folderId, ...changes }) => {
-      return folderService.update(folderId, changes)
+    execute: async ({ folderId, ...changes }, ctx) => {
+      const updated = await folderService.update(folderId, changes)
+      ctx.onUiEffect?.({
+        type: 'highlight',
+        projectId: updated.projectId,
+      })
+      return updated
     },
     formatSummary: (result) => {
       const res = result as { name?: string }
@@ -181,7 +186,11 @@ export const domainTools: DomainToolDefinition[] = [
     requiresConfirmation: true,
     formatConfirmation: ({ folderId }) => `Permanently delete folder (ID: ${folderId})`,
     execute: async ({ folderId }, ctx) => {
-      await folderService.delete(folderId, ctx.accountId)
+      const { projectId } = await folderService.delete(folderId, ctx.accountId)
+      ctx.onUiEffect?.({
+        type: 'highlight',
+        projectId,
+      })
       return { success: true }
     },
     formatSummary: () => 'Folder deleted',
