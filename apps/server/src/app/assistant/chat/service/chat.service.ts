@@ -30,7 +30,8 @@ export class ChatService {
       'Rules for OpenAPI Design:\n' +
       '- Endpoint paths must always be relative paths starting with "/" (e.g., "/api/v1/users", "/orders/{id}"). Do NOT hardcode hostnames/domains in endpoint paths because the studio automatically resolves base URLs from active environment variables (e.g. {{base_url}}).\n' +
       '- When creating or updating examples, pass JSON payloads as valid structured JSON objects (or arrays), never double-quoted raw stringified escaped JSON.\n' +
-      '- Provide clear, concise, and well-structured markdown responses.\n\n'
+      '- Provide clear, concise, and well-structured markdown responses.\n' +
+      '- NEVER invent or guess a project/endpoint/folder ID. If you do not already know the exact ID from this conversation or the page context below, call list_projects (and get_endpoints_by_project / list_folders as needed) first to discover real IDs before calling any other tool.\n\n'
 
     if (context && (context.projectId || context.endpointId || context.pathname)) {
       instructions += '### CURRENT USER VIEWPORT & PAGE CONTEXT:\n'
@@ -127,7 +128,7 @@ export class ChatService {
     await this.messageRepository.insert({ session_id: session.id, role: 'user', content: message })
 
     const agent = this.createAgent(activeModel, undefined, accountId, context)
-    const result = await agent.generate(conversation)
+    const result = await agent.generate(conversation, { maxSteps: 20 })
     const usage = await result.usage
 
     await this.messageRepository.insert({
@@ -279,7 +280,7 @@ export class ChatService {
     let totalTokens: number | undefined
 
     try {
-      const streamResult = await agent.stream(conversation)
+      const streamResult = await agent.stream(conversation, { maxSteps: 20 })
 
       for await (const chunk of streamResult.textStream) {
         if (chunk) {
@@ -295,7 +296,7 @@ export class ChatService {
     } catch {
       // If .stream is not supported by the model adapter or encounters an error, fallback to generate
       try {
-        const genResult = await agent.generate(conversation)
+        const genResult = await agent.generate(conversation, { maxSteps: 20 })
         fullReply = genResult.text
         await onEvent({ type: 'token', delta: fullReply })
         const usage = await genResult.usage
