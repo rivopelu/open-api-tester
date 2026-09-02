@@ -147,7 +147,7 @@ export interface AssistantUiEffectDto {
   endpointId?: string;
   tab?: string;
   exampleId?: string;
-  target?: 'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples';
+  target?: 'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples' | 'docs';
 }
 
 export type AssistantStreamEventDto =

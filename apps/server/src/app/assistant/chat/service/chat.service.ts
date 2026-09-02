@@ -1,11 +1,19 @@
 import { Agent } from '@mastra/core/agent'
 import { NotFoundError } from '../../../../configs/exception'
 import { DEFAULT_MODEL, llmService } from '../../../llm/service/llm.service'
-import { createAssistantTools, type AssistantToolEventListener } from '../../tools/service/assistant-tools.service'
+import {
+  createAssistantTools,
+  type AssistantToolEventListener,
+} from '../../tools/service/assistant-tools.service'
 import { ChatMessageRepository } from '../repository/chat-message.repository'
 import { ChatSessionRepository } from '../repository/chat-session.repository'
 import { confirmationManager } from './confirmation.manager'
-import type { AssistantContext, AssistantStreamEvent, AssistantUiEffectDto, ChatResult } from '../types/chat.types'
+import type {
+  AssistantContext,
+  AssistantStreamEvent,
+  AssistantUiEffectDto,
+  ChatResult,
+} from '../types/chat.types'
 
 export class ChatService {
   constructor(
@@ -28,9 +36,11 @@ export class ChatService {
       instructions += '### CURRENT USER VIEWPORT & PAGE CONTEXT:\n'
       if (context.pathname) instructions += `- Current URL Path: ${context.pathname}\n`
       if (context.projectId) instructions += `- Active Project ID: ${context.projectId}\n`
-      if (context.endpointId) instructions += `- Active / Selected Endpoint ID: ${context.endpointId}\n`
+      if (context.endpointId)
+        instructions += `- Active / Selected Endpoint ID: ${context.endpointId}\n`
       if (context.tab) instructions += `- Active UI Tab: ${context.tab}\n`
-      if (context.exampleId) instructions += `- Active / Selected Example ID: ${context.exampleId}\n`
+      if (context.exampleId)
+        instructions += `- Active / Selected Example ID: ${context.exampleId}\n`
       instructions +=
         '\nWhen the user refers to "this endpoint", "this project", "the current example", or asks what is missing/wrong with the active endpoint or project, prioritize the Active IDs above and use get_endpoint_detail / get_project to inspect them automatically. ' +
         'However, if the user explicitly mentions another project or asks to create/edit another endpoint/project, execute their request for that target regardless of the current page.'
@@ -114,7 +124,11 @@ export class ChatService {
     const result = await agent.generate(conversation)
     const usage = await result.usage
 
-    await this.messageRepository.insert({ session_id: session.id, role: 'assistant', content: result.text })
+    await this.messageRepository.insert({
+      session_id: session.id,
+      role: 'assistant',
+      content: result.text,
+    })
 
     await llmService.recordUsage({
       accountId,
@@ -170,7 +184,9 @@ export class ChatService {
 
     const history = await this.messageRepository.findBySession(session.id)
     // Exclude the message we just inserted from history to build conversation
-    const prevHistory = history.filter((h) => h.content !== message || h.role !== 'user' || h.id !== history[history.length - 1].id)
+    const prevHistory = history.filter(
+      (h) => h.content !== message || h.role !== 'user' || h.id !== history[history.length - 1].id,
+    )
     const conversation = [
       ...prevHistory.map((row) => ({ role: row.role, content: row.content })),
       { role: 'user' as const, content: message },
@@ -287,7 +303,11 @@ export class ChatService {
       }
     }
 
-    await this.messageRepository.insert({ session_id: session.id, role: 'assistant', content: fullReply })
+    await this.messageRepository.insert({
+      session_id: session.id,
+      role: 'assistant',
+      content: fullReply,
+    })
 
     await llmService.recordUsage({
       accountId,

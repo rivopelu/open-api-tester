@@ -13,6 +13,7 @@ import {
   Code2,
   Copy,
   FileJson,
+  FileText,
   Plus,
   RotateCcw,
   Send,
@@ -30,6 +31,7 @@ import {
   useEnvironmentStore,
 } from "../store/useEnvironmentStore";
 import { EndpointContractExamples } from "./EndpointContractExamples";
+import { MarkdownRenderer } from "./assistant/MarkdownRenderer";
 
 interface KvRow {
   id: string;
@@ -38,7 +40,7 @@ interface KvRow {
   enabled: boolean;
 }
 
-type RequestTab = "params" | "authorization" | "headers" | "body" | "examples";
+type RequestTab = "params" | "authorization" | "headers" | "body" | "docs" | "examples";
 type ResponseTab = "body" | "headers";
 
 interface EndpointDetailViewProps {
@@ -53,7 +55,10 @@ interface EndpointDetailViewProps {
     contract: Pick<Endpoint, "requestBody" | "responses">,
   ) => Promise<void>;
   onSaveRequest?: (
-    request: Pick<Endpoint, "path" | "parameters" | "requestBody" | "auth">,
+    request: Pick<
+      Endpoint,
+      "path" | "parameters" | "requestBody" | "auth" | "description"
+    >,
   ) => Promise<void>;
 }
 
@@ -73,6 +78,7 @@ const requestTabs: { id: RequestTab; label: string }[] = [
   { id: "authorization", label: "Authorization" },
   { id: "headers", label: "Headers" },
   { id: "body", label: "Body" },
+  { id: "docs", label: "Docs" },
   { id: "examples", label: "Examples" },
 ];
 
@@ -305,6 +311,7 @@ function getInitialEndpointForm(endpoint: Endpoint) {
       : rowsFrom(parameters, "query"),
     headerRows: rowsFrom(parameters, "header"),
     bodyText: initialBody(endpoint.requestBody),
+    docsText: endpoint.description ?? "",
     nameText: endpoint.summary || "",
     authType: auth.type ?? "none",
     bearerToken: auth.bearerToken ?? "",
@@ -381,6 +388,8 @@ export default function EndpointDetailView({
   const [queryRows, setQueryRows] = useState<KvRow[]>(initialForm.queryRows);
   const [headerRows, setHeaderRows] = useState<KvRow[]>(initialForm.headerRows);
   const [bodyText, setBodyText] = useState(initialForm.bodyText);
+  const [docsText, setDocsText] = useState(initialForm.docsText);
+  const [docsViewMode, setDocsViewMode] = useState<"edit" | "preview" | "split">("split");
   const [authType, setAuthType] = useState<"none" | "bearer" | "basic">(
     initialForm.authType,
   );
@@ -403,11 +412,43 @@ export default function EndpointDetailView({
   const [nameText, setNameText] = useState(initialForm.nameText);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isAiTypingDocs, setIsAiTypingDocs] = useState(false);
 
   // Assistant field highlight effects
   const activeHighlight = useAssistantEffectStore((state) => state.activeHighlight);
-  const isHighlighted = (target: 'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples') =>
+  const isHighlighted = (target: 'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples' | 'docs') =>
     activeHighlight?.target === target && (!activeHighlight.endpointId || activeHighlight.endpointId === endpoint.id);
+
+  // Play a fast typewriter animation into the Docs tab when the assistant writes documentation
+  const docsTyping = useAssistantEffectStore((state) => state.docsTyping);
+  const consumeDocsTyping = useAssistantEffectStore((state) => state.consumeDocsTyping);
+  useEffect(() => {
+    if (!docsTyping || docsTyping.endpointId !== endpoint.id) return;
+    const target = endpoint.description ?? "";
+    if (target === docsText) return; // wait for the refetched endpoint to carry the new text
+
+    consumeDocsTyping();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDocsViewMode((mode) => (mode === "edit" ? "split" : mode));
+    setIsAiTypingDocs(true);
+    setDocsText("");
+
+    let i = 0;
+    const stepSize = Math.max(1, Math.ceil(target.length / 100));
+    const interval = window.setInterval(() => {
+      i += stepSize;
+      if (i >= target.length) {
+        setDocsText(target);
+        setIsAiTypingDocs(false);
+        window.clearInterval(interval);
+      } else {
+        setDocsText(target.slice(0, i));
+      }
+    }, 10);
+
+    return () => window.clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docsTyping, endpoint.id, endpoint.description]);
 
   // Render-phase sync saat active endpoint berganti (tanpa useEffect setState)
   if (prevEndpointId !== endpoint.id) {
@@ -419,6 +460,7 @@ export default function EndpointDetailView({
     setQueryRows(nextForm.queryRows);
     setHeaderRows(nextForm.headerRows);
     setBodyText(nextForm.bodyText);
+    setDocsText(nextForm.docsText);
     setNameText(nextForm.nameText);
     setAuthType(nextForm.authType);
     setBearerToken(nextForm.bearerToken);
@@ -484,12 +526,15 @@ export default function EndpointDetailView({
     basicUser !== (initialAuth.basicUser ?? "") ||
     basicPass !== (initialAuth.basicPass ?? "");
 
+  const docsDirty = docsText !== (endpoint.description ?? "");
+
   const requestDirty =
     rawUrl(urlText) !== endpoint.path ||
     JSON.stringify(requestParameters) !==
       JSON.stringify(endpoint.parameters ?? []) ||
     bodyText !== initialBody(endpoint.requestBody) ||
-    authDirty;
+    authDirty ||
+    docsDirty;
   const endpointDirty = requestDirty || examplesDirty;
 
   const saveRequest = useCallback(async () => {
@@ -505,6 +550,7 @@ export default function EndpointDetailView({
           basicUser,
           basicPass,
         },
+        description: docsText,
         requestBody: bodyText.trim()
           ? {
               required: endpoint.requestBody?.required ?? false,
@@ -525,6 +571,7 @@ export default function EndpointDetailView({
     basicUser,
     bearerToken,
     bodyText,
+    docsText,
     endpoint.requestBody,
     onSaveRequest,
     requestDirty,
@@ -1270,6 +1317,87 @@ export default function EndpointDetailView({
                 label={endpoint.requestBody?.contentType || "application/json"}
                 className="h-full min-h-60"
               />
+            )}
+
+            {activeTab === "docs" && (
+              <div
+                className={cn(
+                  "flex h-full min-h-0 flex-col bg-base transition-all",
+                  isHighlighted("docs") &&
+                    "ring-2 ring-primary ring-offset-2 ring-offset-base animate-pulse",
+                )}
+              >
+                <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border bg-overlay px-3">
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-text-secondary">
+                    Docs
+                  </span>
+                  {isAiTypingDocs && (
+                    <span className="flex items-center gap-1.5 text-[10px] font-semibold text-primary">
+                      <span className="flex gap-0.5">
+                        <span className="h-1 w-1 animate-pulse rounded-full bg-primary [animation-delay:-0.3s]" />
+                        <span className="h-1 w-1 animate-pulse rounded-full bg-primary [animation-delay:-0.15s]" />
+                        <span className="h-1 w-1 animate-pulse rounded-full bg-primary" />
+                      </span>
+                      AI is writing…
+                    </span>
+                  )}
+                  <div className="ml-auto flex items-center gap-1">
+                    {(
+                      [
+                        ["edit", "Edit"],
+                        ["split", "Split"],
+                        ["preview", "Preview"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setDocsViewMode(value)}
+                        className={cn(
+                          "px-2 py-1 text-[10px] font-semibold transition-colors",
+                          docsViewMode === value
+                            ? "bg-primary/15 text-primary"
+                            : "text-text-muted hover:text-text-secondary",
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="grid min-h-0 flex-1 grid-cols-1 divide-x divide-border xl:grid-cols-2">
+                  {docsViewMode !== "preview" && (
+                    <CodeEditor
+                      value={docsText}
+                      onChange={setDocsText}
+                      language="markdown"
+                      label="Markdown"
+                      readOnly={isAiTypingDocs}
+                      className={cn(
+                        "min-h-0 border-0",
+                        docsViewMode === "edit" && "xl:col-span-2",
+                      )}
+                    />
+                  )}
+                  {docsViewMode !== "edit" && (
+                    <div
+                      className={cn(
+                        "scroll-y min-h-0 bg-base p-4",
+                        docsViewMode === "preview" && "xl:col-span-2",
+                      )}
+                    >
+                      {docsText.trim() ? (
+                        <MarkdownRenderer content={docsText} />
+                      ) : (
+                        <p className="text-xs text-text-muted">
+                          Nothing documented yet.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
 
             {activeTab === "examples" && (

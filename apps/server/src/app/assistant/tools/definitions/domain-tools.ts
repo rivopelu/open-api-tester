@@ -262,6 +262,7 @@ export const domainTools: DomainToolDefinition[] = [
       const parts: string[] = []
       if (input.method || input.path) parts.push(`[${input.method || 'METHOD'}] ${input.path || 'path'}`)
       if (input.summary) parts.push(`summary: "${input.summary}"`)
+      if (input.specData?.description) parts.push(`markdown documentation`)
       if (input.specData?.requestBody) parts.push(`request body`)
       if (input.specData?.responses) parts.push(`responses`)
       if (input.specData?.parameters) parts.push(`parameters`)
@@ -324,6 +325,18 @@ export const domainTools: DomainToolDefinition[] = [
           type: 'highlight',
           endpointId,
           target: 'params',
+        })
+      } else if (specData?.description !== undefined) {
+        ctx.onUiEffect?.({
+          type: 'tab_change',
+          endpointId,
+          tab: 'docs',
+          target: 'docs',
+        })
+        ctx.onUiEffect?.({
+          type: 'highlight',
+          endpointId,
+          target: 'docs',
         })
       }
 

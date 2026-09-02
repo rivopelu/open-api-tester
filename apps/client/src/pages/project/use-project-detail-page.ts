@@ -207,12 +207,32 @@ export function useProjectDetailPage() {
     },
   });
   const saveRequestMutation = useMutation({
-    mutationFn: ({ endpointId, path, parameters, requestBody, auth }: { endpointId: string; path: string; parameters: Endpoint['parameters']; requestBody?: Endpoint['requestBody']; auth?: Endpoint['auth'] }) => {
+    mutationFn: ({
+      endpointId,
+      path,
+      parameters,
+      requestBody,
+      auth,
+      description,
+    }: {
+      endpointId: string;
+      path: string;
+      parameters: Endpoint['parameters'];
+      requestBody?: Endpoint['requestBody'];
+      auth?: Endpoint['auth'];
+      description?: string;
+    }) => {
       const current = endpointDetailQuery.data;
       if (!current) throw new Error('Endpoint is not loaded');
       return endpointRepository.update(endpointId, {
         path,
-        specData: { ...current.specData, parameters, requestBody, ...(auth ? { auth } : {}) },
+        specData: {
+          ...current.specData,
+          parameters,
+          requestBody,
+          ...(auth ? { auth } : {}),
+          ...(description !== undefined ? { description } : {}),
+        },
       });
     },
     onSuccess: async (endpoint) => {
@@ -334,7 +354,7 @@ export function useProjectDetailPage() {
         responses: contract.responses,
       }).then(() => undefined);
     },
-    saveRequest: (request: Pick<Endpoint, 'path' | 'parameters' | 'requestBody' | 'auth'>) => {
+    saveRequest: (request: Pick<Endpoint, 'path' | 'parameters' | 'requestBody' | 'auth' | 'description'>) => {
       if (!selectedEndpointId) return Promise.resolve();
       return saveRequestMutation.mutateAsync({ endpointId: selectedEndpointId, ...request }).then(() => undefined);
     },
