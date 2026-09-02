@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Check, Copy } from 'lucide-react';
+import { Button } from '../ui';
 
 interface MarkdownRendererProps {
   content: string;
@@ -39,10 +40,11 @@ function CodeBlock({ className, children, ...props }: React.HTMLAttributes<HTMLE
         <span className="font-semibold uppercase tracking-wider text-text-secondary">
           {language || 'code'}
         </span>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={handleCopy}
-          className="flex items-center gap-1 text-[11px] text-text-muted transition-colors hover:text-text-primary"
+          className="h-6 px-2 text-[11px] gap-1 font-normal text-text-muted hover:text-text-primary"
         >
           {copied ? (
             <>
@@ -55,7 +57,7 @@ function CodeBlock({ className, children, ...props }: React.HTMLAttributes<HTMLE
               <span>Copy</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
       <div className="overflow-x-auto p-3 text-text-primary">
         <pre className="m-0 leading-relaxed">
@@ -79,7 +81,7 @@ export function MarkdownRenderer({ content, className = '' }: MarkdownRendererPr
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="my-2.5 font-heading text-base font-semibold text-text-primary">
+            <h2 className="my-2.5 font-heading text-[15px] font-semibold text-text-primary">
               {children}
             </h2>
           ),
