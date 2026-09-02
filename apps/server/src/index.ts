@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server'
-import { serveStatic } from 'hono/bun'
+import { serveStatic } from '@hono/node-server/serve-static'
 import { readFileSync } from 'node:fs'
 import app from './app'
 import { env } from './configs/env'

@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { secureHeaders } from 'hono/secure-headers'
 import { accountController } from './bff/controllers/account.controller'
+import { assistantController } from './bff/controllers/assistant.controller'
 import { authController } from './bff/controllers/auth.controller'
 import { endpointsController } from './bff/controllers/endpoints.controller'
 import { createMockApp } from './bff/controllers/mock.controller'
@@ -35,6 +36,7 @@ registerControllers(
     projectsController,
     endpointFoldersController,
     endpointsController,
+    assistantController,
   ],
   env.API_PREFIX,
 )

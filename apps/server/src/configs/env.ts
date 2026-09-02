@@ -22,6 +22,8 @@ export const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().default(process.env.VITE_GOOGLE_CLIENT_ID ?? ''),
   GOOGLE_CLIENT_SECRET: z.string().default(''),
   GOOGLE_REDIRECT_URI: z.string().optional(),
+  LLM_BASE_URL: z.string().url().optional(),
+  LLM_API_KEY: z.string().optional(),
 })
 
 export function validateEnv() {
