@@ -1,7 +1,11 @@
 import { and, asc, eq, ilike, isNull, or, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { db as defaultDb } from '../../../configs/database.config'
-import { EndpointsEntity, type EndpointRecord, type NewEndpointRecord } from '../entity/endpoint.entity'
+import {
+  EndpointsEntity,
+  type EndpointRecord,
+  type NewEndpointRecord,
+} from '../entity/endpoint.entity'
 
 export class EndpointRepository {
   constructor(private database: NodePgDatabase = defaultDb) {}
@@ -37,12 +41,18 @@ export class EndpointRepository {
     query?: string
     limit?: number
   }): Promise<EndpointRecord[]> {
-    const conditions = [eq(EndpointsEntity.project_id, input.projectId), eq(EndpointsEntity.active, true)]
-    if (input.method) conditions.push(sql`upper(${EndpointsEntity.method}) = ${input.method.toUpperCase()}`)
+    const conditions = [
+      eq(EndpointsEntity.project_id, input.projectId),
+      eq(EndpointsEntity.active, true),
+    ]
+    if (input.method)
+      conditions.push(sql`upper(${EndpointsEntity.method}) = ${input.method.toUpperCase()}`)
     if (input.folderId) conditions.push(eq(EndpointsEntity.folder_id, input.folderId))
     if (input.query) {
       const pattern = `%${input.query.trim()}%`
-      conditions.push(or(ilike(EndpointsEntity.path, pattern), ilike(EndpointsEntity.summary, pattern))!)
+      conditions.push(
+        or(ilike(EndpointsEntity.path, pattern), ilike(EndpointsEntity.summary, pattern))!,
+      )
     }
     return this.database
       .select()
@@ -66,18 +76,21 @@ export class EndpointRepository {
   }
 
   async findByScope(projectId: string, folderId: string | null): Promise<EndpointRecord[]> {
-    const folderCondition = folderId === null
-      ? isNull(EndpointsEntity.folder_id)
-      : eq(EndpointsEntity.folder_id, folderId)
+    const folderCondition =
+      folderId === null
+        ? isNull(EndpointsEntity.folder_id)
+        : eq(EndpointsEntity.folder_id, folderId)
 
     return this.database
       .select()
       .from(EndpointsEntity)
-      .where(and(
-        eq(EndpointsEntity.project_id, projectId),
-        folderCondition,
-        eq(EndpointsEntity.active, true),
-      ))
+      .where(
+        and(
+          eq(EndpointsEntity.project_id, projectId),
+          folderCondition,
+          eq(EndpointsEntity.active, true),
+        ),
+      )
       .orderBy(
         asc(EndpointsEntity.sort_order),
         asc(EndpointsEntity.created_date),
@@ -105,11 +118,13 @@ export class EndpointRepository {
               sort_order: sortOrder,
               updated_date: Date.now(),
             })
-            .where(and(
-              eq(EndpointsEntity.id, endpointId),
-              eq(EndpointsEntity.project_id, projectId),
-              eq(EndpointsEntity.active, true),
-            ))
+            .where(
+              and(
+                eq(EndpointsEntity.id, endpointId),
+                eq(EndpointsEntity.project_id, projectId),
+                eq(EndpointsEntity.active, true),
+              ),
+            )
         }
       }
     })

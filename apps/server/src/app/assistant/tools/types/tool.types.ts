@@ -24,7 +24,8 @@ export interface AssistantUiEffect {
   endpointId?: string
   tab?: string
   exampleId?: string
-  target?: 'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples' | 'docs'
+  target?:
+    'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples' | 'docs'
 }
 
 export type UiEffectEventListener = (effect: AssistantUiEffect) => void

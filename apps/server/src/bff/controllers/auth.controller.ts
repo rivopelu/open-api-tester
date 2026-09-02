@@ -46,10 +46,11 @@ export class AuthController {
     const configuredOrigins = env.ALLOWED_ORIGINS.split(',')
       .map((value) => value.trim())
       .filter(Boolean)
-    const clientUrl = env.CLIENT_URL?.replace(/\/$/, '')
-      ?? configuredOrigins.find((origin) => origin !== '*' && !origin.includes('localhost'))
-      ?? configuredOrigins.find((origin) => origin !== '*')
-      ?? requestOrigin
+    const clientUrl =
+      env.CLIENT_URL?.replace(/\/$/, '') ??
+      configuredOrigins.find((origin) => origin !== '*' && !origin.includes('localhost')) ??
+      configuredOrigins.find((origin) => origin !== '*') ??
+      requestOrigin
     const error = c.req.query('error')
     const code = c.req.query('code')
     const state = c.req.query('state')

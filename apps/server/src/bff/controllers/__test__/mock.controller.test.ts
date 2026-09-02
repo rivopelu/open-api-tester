@@ -52,7 +52,9 @@ describe('mock server routes', () => {
     const app = createMockApp(repoWith([record('ep-1', spec)]))
     const response = await app.request('/')
     expect(response.status).toBe(200)
-    const body = (await response.json()) as { response_data: Array<{ url: string; exampleId: string | null }> }
+    const body = (await response.json()) as {
+      response_data: Array<{ url: string; exampleId: string | null }>
+    }
     expect(body.response_data).toHaveLength(2)
     expect(body.response_data[0].url).toBe('/api/mock/ep-1/ex/a')
     expect(body.response_data[1].url).toBe('/api/mock/ep-1/ex/b')
@@ -104,7 +106,13 @@ describe('mock server routes', () => {
       repoWith([
         record('ep-xml', {
           responses: [
-            { id: 'r1', statusCode: '200', description: '', contentType: 'application/xml', examples: [{ id: 'a', name: 'x', value: '<root/>' }] },
+            {
+              id: 'r1',
+              statusCode: '200',
+              description: '',
+              contentType: 'application/xml',
+              examples: [{ id: 'a', name: 'x', value: '<root/>' }],
+            },
           ],
         }),
       ]),

@@ -15,10 +15,12 @@ export class EndpointFolderRepository {
     return this.database
       .select()
       .from(EndpointFoldersEntity)
-      .where(and(
-        eq(EndpointFoldersEntity.project_id, projectId),
-        eq(EndpointFoldersEntity.active, true),
-      ))
+      .where(
+        and(
+          eq(EndpointFoldersEntity.project_id, projectId),
+          eq(EndpointFoldersEntity.active, true),
+        ),
+      )
       .orderBy(EndpointFoldersEntity.sort_order)
   }
 

@@ -6,7 +6,10 @@ import { UnauthorizedError } from '../../configs/exception'
 import { getUser } from '../../lib/get-user'
 import { ChatService } from '../../app/assistant/chat/service/chat.service'
 import { confirmationManager } from '../../app/assistant/chat/service/confirmation.manager'
-import { ChatRequestSchema, ConfirmationResponseSchema } from '../../app/assistant/chat/types/chat.types'
+import {
+  ChatRequestSchema,
+  ConfirmationResponseSchema,
+} from '../../app/assistant/chat/types/chat.types'
 import { LLM_MODELS } from '../../app/llm/constants/data'
 
 @Controller()

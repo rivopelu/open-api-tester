@@ -1,10 +1,6 @@
 import { ProjectRepository } from '../repository/project.repository'
 import { NotFoundError, BadRequestError } from '../../../configs/exception'
-import type {
-  CreateProjectInput,
-  UpdateProjectInput,
-  ProjectItem,
-} from '../types/project.types'
+import type { CreateProjectInput, UpdateProjectInput, ProjectItem } from '../types/project.types'
 import type { Project } from '../entity/project.entity'
 
 export class ProjectService {

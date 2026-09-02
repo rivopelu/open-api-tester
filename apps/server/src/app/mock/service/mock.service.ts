@@ -1,8 +1,4 @@
-import type {
-    EndpointExample,
-    HttpMethod,
-    ResponseDefinition
-} from '@modern-api-studio/types'
+import type { EndpointExample, HttpMethod, ResponseDefinition } from '@modern-api-studio/types'
 import { NotFoundError } from '../../../configs/exception'
 
 export interface MockExampleRef {

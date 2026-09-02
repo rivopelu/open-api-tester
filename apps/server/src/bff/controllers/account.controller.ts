@@ -55,9 +55,17 @@ export class AccountController {
   async saveEnvironments(c: Context) {
     const user = getUser(c)
     if (!user) throw new UnauthorizedError()
-    const body = await c.req.json().catch(() => null) as { environments?: Array<{ id: string; name: string; variables: Record<string, string> }>; activeEnvironmentId?: string | null } | null
-    if (!body || !Array.isArray(body.environments)) throw new BadRequestError('Invalid environments')
-    await this.accountBffService.saveEnvironments(user.sub, body.environments, body.activeEnvironmentId ?? null)
+    const body = (await c.req.json().catch(() => null)) as {
+      environments?: Array<{ id: string; name: string; variables: Record<string, string> }>
+      activeEnvironmentId?: string | null
+    } | null
+    if (!body || !Array.isArray(body.environments))
+      throw new BadRequestError('Invalid environments')
+    await this.accountBffService.saveEnvironments(
+      user.sub,
+      body.environments,
+      body.activeEnvironmentId ?? null,
+    )
     return c.json(ResponseHelper.success('Environments saved successfully'))
   }
 }

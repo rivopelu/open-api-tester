@@ -23,9 +23,8 @@ export class EndpointFoldersController {
     const body = await this.readBody(c)
     const folder = await this.folderService.create({
       projectId: typeof body.projectId === 'string' ? body.projectId : undefined,
-      parentId: body.parentId === null || typeof body.parentId === 'string'
-        ? body.parentId
-        : undefined,
+      parentId:
+        body.parentId === null || typeof body.parentId === 'string' ? body.parentId : undefined,
       name: typeof body.name === 'string' ? body.name : undefined,
       sortOrder: typeof body.sortOrder === 'number' ? body.sortOrder : undefined,
     })
@@ -37,9 +36,8 @@ export class EndpointFoldersController {
   async update(c: Context) {
     const body = await this.readBody(c)
     const folder = await this.folderService.update(c.req.param('id')!, {
-      parentId: body.parentId === null || typeof body.parentId === 'string'
-        ? body.parentId
-        : undefined,
+      parentId:
+        body.parentId === null || typeof body.parentId === 'string' ? body.parentId : undefined,
       name: typeof body.name === 'string' ? body.name : undefined,
       sortOrder: typeof body.sortOrder === 'number' ? body.sortOrder : undefined,
     })

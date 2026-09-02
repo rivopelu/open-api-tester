@@ -5,7 +5,9 @@ import { AccountService } from './app/account/service/account.service'
 import { domainTools } from './app/assistant/tools/definitions/domain-tools'
 
 const accountService = new AccountService()
-const json = (value: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }] })
+const json = (value: unknown) => ({
+  content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
+})
 
 export function createMcpServer(accountId: string) {
   const server = new McpServer({ name: 'modern-api-studio', version: '1.0.0' })

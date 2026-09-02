@@ -1,7 +1,11 @@
 import { desc, eq } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { db as defaultDb } from '../../../../configs/database.config'
-import { ChatSessionEntity, type ChatSession, type NewChatSession } from '../entity/chat-session.entity'
+import {
+  ChatSessionEntity,
+  type ChatSession,
+  type NewChatSession,
+} from '../entity/chat-session.entity'
 
 export class ChatSessionRepository {
   constructor(private database: NodePgDatabase = defaultDb) {}
