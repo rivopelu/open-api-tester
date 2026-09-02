@@ -13,3 +13,4 @@ export * from './Spinner';
 export * from './Tooltip';
 export * from './Typography';
 export * from './GridPanel';
+export * from './ThemeToggle';

@@ -6,15 +6,19 @@ import type {
 } from "@modern-api-studio/types";
 import {
   AlertCircle,
+  ArrowDownUp,
   Check,
+  ChevronDown,
   Copy,
+  ExternalLink,
   FileJson2,
   Globe,
+  GripVertical,
   Plus,
   Save,
   Trash2,
 } from "lucide-react";
-import { Button, CodeEditor, Typography } from "./ui";
+import { Button, CodeEditor, Popover, Typography } from "./ui";
 import { cn } from "../lib/utils";
 import { buildMockUrl } from "../repositories/mock.repository";
 
@@ -38,6 +42,27 @@ type Feedback = {
   target?: "name" | "payload";
   type: "validation" | "save";
 };
+
+type DragPayload = {
+  id: string;
+  name: string;
+  summary?: string;
+  value: string;
+  fromScope: "request" | "response";
+  fromResponseId?: string;
+};
+
+const COMMON_STATUS_CODES = [
+  { code: "200", description: "OK" },
+  { code: "201", description: "Created" },
+  { code: "204", description: "No Content" },
+  { code: "400", description: "Bad Request" },
+  { code: "401", description: "Unauthorized" },
+  { code: "403", description: "Forbidden" },
+  { code: "404", description: "Not Found" },
+  { code: "422", description: "Unprocessable Entity" },
+  { code: "500", description: "Internal Server Error" },
+];
 
 const newExample = (examples: EndpointExample[]): EndpointExample => {
   const usedNames = new Set(examples.map((example) => example.name.trim()));
@@ -203,6 +228,8 @@ export function EndpointContractExamples({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [activeDragTarget, setActiveDragTarget] = useState<string | null>(null);
+  const [newStatusCode, setNewStatusCode] = useState("");
   const savedTimer = useRef<number | undefined>(undefined);
   const endpointId = useRef(endpoint.id);
   const persistedRequestExamples = endpoint.requestBody?.examples ?? [];
@@ -368,6 +395,46 @@ export function EndpointContractExamples({
     selectExample({ scope: "response", responseId, id: example.id });
   };
 
+  const addResponseDefinition = (code?: string, description?: string) => {
+    const status = (code || newStatusCode || "200").trim();
+    if (!status) return;
+
+    const existing = responses.find((r) => r.statusCode === status);
+    if (existing) {
+      addResponse(existing.id);
+      return;
+    }
+
+    const defaultDesc =
+      description ||
+      COMMON_STATUS_CODES.find((item) => item.code === status)?.description ||
+      "Response";
+
+    const newResp: ResponseDefinition = {
+      id: crypto.randomUUID(),
+      statusCode: status,
+      description: defaultDesc,
+      schema: [],
+      examples: [
+        {
+          id: crypto.randomUUID(),
+          name: "example_1",
+          summary: "",
+          value: "{\n  \n}",
+        },
+      ],
+    };
+
+    markChanged();
+    setResponses((prev) => [...prev, newResp]);
+    setNewStatusCode("");
+    selectExample({
+      scope: "response",
+      responseId: newResp.id,
+      id: newResp.examples![0].id,
+    });
+  };
+
   const removeActive = () => {
     if (!selected) return;
     markChanged();
@@ -406,6 +473,143 @@ export function EndpointContractExamples({
       : firstSelection(requestExamples, nextResponses);
     setResponses(nextResponses);
     selectExample(nextSelection);
+  };
+
+  const moveExample = (
+    example: EndpointExample,
+    target: { scope: "request" } | { scope: "response"; responseId?: string },
+    from: { scope: "request" } | { scope: "response"; responseId?: string },
+  ) => {
+    if (
+      target.scope === from.scope &&
+      (target.scope === "request" || target.responseId === from.responseId)
+    ) {
+      return;
+    }
+
+    markChanged();
+
+    let cleanedRequest = requestExamples;
+    let cleanedResponses = responses;
+
+    if (from.scope === "request") {
+      cleanedRequest = requestExamples.filter((item) => item.id !== example.id);
+    } else if (from.responseId) {
+      cleanedResponses = responses.map((res) =>
+        res.id === from.responseId
+          ? {
+              ...res,
+              examples: (res.examples ?? []).filter((item) => item.id !== example.id),
+            }
+          : res,
+      );
+    }
+
+    if (target.scope === "request") {
+      const nextRequest = [...cleanedRequest, example];
+      setRequestExamples(nextRequest);
+      setResponses(cleanedResponses);
+      selectExample({ scope: "request", id: example.id });
+    } else {
+      let targetResponseId = target.responseId;
+
+      // Jika belum ada response sama sekali, buatkan 200 OK secara otomatis
+      if (!targetResponseId || !cleanedResponses.some((r) => r.id === targetResponseId)) {
+        if (cleanedResponses.length === 0) {
+          const auto200: ResponseDefinition = {
+            id: crypto.randomUUID(),
+            statusCode: "200",
+            description: "OK",
+            schema: [],
+            examples: [example],
+          };
+          setRequestExamples(cleanedRequest);
+          setResponses([auto200]);
+          selectExample({
+            scope: "response",
+            responseId: auto200.id,
+            id: example.id,
+          });
+          return;
+        }
+        targetResponseId = cleanedResponses[0].id;
+      }
+
+      const nextResponses = cleanedResponses.map((res) =>
+        res.id === targetResponseId
+          ? {
+              ...res,
+              examples: [...(res.examples ?? []), example],
+            }
+          : res,
+      );
+      setRequestExamples(cleanedRequest);
+      setResponses(nextResponses);
+      selectExample({
+        scope: "response",
+        responseId: targetResponseId,
+        id: example.id,
+      });
+    }
+  };
+
+  const handleDragStart = (
+    e: React.DragEvent,
+    example: EndpointExample,
+    fromScope: "request" | "response",
+    fromResponseId?: string,
+  ) => {
+    const payload: DragPayload = {
+      id: example.id,
+      name: example.name,
+      summary: example.summary,
+      value: example.value,
+      fromScope,
+      fromResponseId,
+    };
+    const jsonStr = JSON.stringify(payload);
+    e.dataTransfer.setData("application/json", jsonStr);
+    e.dataTransfer.setData("text/plain", jsonStr);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDrop = (
+    e: React.DragEvent,
+    target: { scope: "request" } | { scope: "response"; responseId?: string },
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setActiveDragTarget(null);
+
+    let raw = "";
+    try {
+      raw = e.dataTransfer.getData("application/json") || e.dataTransfer.getData("text/plain") || "";
+    } catch {
+      raw = "";
+    }
+    if (!raw) return;
+
+    try {
+      const payload: DragPayload = JSON.parse(raw);
+      if (!payload.id) return;
+
+      const example: EndpointExample = {
+        id: payload.id,
+        name: payload.name,
+        summary: payload.summary,
+        value: payload.value,
+      };
+
+      moveExample(
+        example,
+        target,
+        payload.fromScope === "request"
+          ? { scope: "request" }
+          : { scope: "response", responseId: payload.fromResponseId },
+      );
+    } catch {
+      // ignore invalid drag payload
+    }
   };
 
   const save = useCallback(async () => {
@@ -485,7 +689,7 @@ export function EndpointContractExamples({
           : "All contract examples are saved.";
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 overflow-auto bg-base lg:grid-cols-[248px_minmax(0,1fr)] lg:overflow-hidden">
+    <div className="grid h-full min-h-0 grid-cols-1 overflow-auto bg-base lg:grid-cols-[260px_minmax(0,1fr)] lg:overflow-hidden">
       <aside className="flex max-h-72 min-h-0 flex-col border-b border-border bg-overlay/50 lg:max-h-none lg:border-b-0 lg:border-r">
         <div className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
           <div className="min-w-0 flex-1">
@@ -503,6 +707,83 @@ export function EndpointContractExamples({
               aria-label="Unsaved changes"
             />
           )}
+
+          {/* Add menu with choice: Request vs Response */}
+          <Popover
+            align="end"
+            className="w-56 p-1"
+            trigger={({ open }) => (
+              <Button
+                variant="ghost"
+                size="sm"
+                iconOnly
+                aria-label="Add example"
+                title="Add request or response example"
+                className={cn(open && "bg-overlay text-primary")}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
+          >
+            {({ close }) => (
+              <div className="flex flex-col gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    addRequest();
+                    close();
+                  }}
+                  className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-overlay hover:text-primary"
+                >
+                  <Plus className="h-3.5 w-3.5 text-primary" />
+                  <span>Add Request Example</span>
+                </button>
+                <div className="my-1 border-t border-border" />
+                <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                  Add Response Example
+                </div>
+                {responses.length === 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      addResponseDefinition("200", "OK");
+                      close();
+                    }}
+                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-success hover:bg-overlay"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Create 200 Response</span>
+                  </button>
+                ) : (
+                  responses.map((resp) => (
+                    <button
+                      key={resp.id}
+                      type="button"
+                      onClick={() => {
+                        addResponse(resp.id);
+                        close();
+                      }}
+                      className="flex w-full items-center justify-between px-2.5 py-1.5 text-left text-xs text-text-secondary hover:bg-overlay hover:text-text-primary"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "border px-1 py-0.5 font-mono text-[9px] font-bold",
+                            statusTone(resp.statusCode),
+                          )}
+                        >
+                          {resp.statusCode}
+                        </span>
+                        <span className="truncate">{resp.description || "Response"}</span>
+                      </span>
+                      <Plus className="h-3 w-3 text-text-muted" />
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </Popover>
+
           <Button
             variant="ghost"
             size="sm"
@@ -521,7 +802,28 @@ export function EndpointContractExamples({
         </div>
 
         <div className="scroll-y min-h-0 flex-1 py-2">
-          <section aria-labelledby="request-examples-heading">
+          {/* REQUEST DROP ZONE */}
+          <section
+            aria-labelledby="request-examples-heading"
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              if (activeDragTarget !== "request") setActiveDragTarget("request");
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              setActiveDragTarget("request");
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+              setActiveDragTarget(null);
+            }}
+            onDrop={(e) => handleDrop(e, { scope: "request" })}
+            className={cn(
+              "rounded-none transition-all p-1.5 border border-transparent",
+              activeDragTarget === "request" && "border-primary bg-primary/10",
+            )}
+          >
             <div className="flex h-8 items-center justify-between px-3">
               <span
                 id="request-examples-heading"
@@ -538,6 +840,7 @@ export function EndpointContractExamples({
                 <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
+
             {requestExamples.length === 0 ? (
               <button
                 type="button"
@@ -548,47 +851,175 @@ export function EndpointContractExamples({
               </button>
             ) : (
               requestExamples.map((example) => (
-                <button
+                <div
                   key={example.id}
-                  type="button"
-                  onClick={() =>
-                    selectExample({ scope: "request", id: example.id })
-                  }
-                  aria-pressed={
-                    selected?.scope === "request" && selected.id === example.id
-                  }
-                  className={cn(
-                    "flex h-8 w-full items-center gap-2 border-l-2 px-3 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
-                    selected?.scope === "request" && selected.id === example.id
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-transparent text-text-secondary hover:bg-surface hover:text-text-primary",
-                  )}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, example, "request")}
+                  className="group/item relative flex items-center"
                 >
-                  <FileJson2 className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">
-                    {example.name || "Unnamed example"}
-                  </span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      selectExample({ scope: "request", id: example.id })
+                    }
+                    aria-pressed={
+                      selected?.scope === "request" && selected.id === example.id
+                    }
+                    className={cn(
+                      "flex h-8 w-full items-center gap-2 border-l-2 px-3 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
+                      selected?.scope === "request" && selected.id === example.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-transparent text-text-secondary hover:bg-surface hover:text-text-primary",
+                    )}
+                  >
+                    <GripVertical className="h-3 w-3 shrink-0 cursor-grab text-text-muted opacity-40 group-hover/item:opacity-100" />
+                    <FileJson2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">
+                      {example.name || "Unnamed example"}
+                    </span>
+                  </button>
+                </div>
               ))
             )}
           </section>
 
-          <div className="mx-3 my-2 border-t border-border" />
-          <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
-            Responses
+          <div className="mx-3 my-3 border-t border-border" />
+
+          {/* RESPONSES SECTION & DEFINITION CREATION */}
+          <div className="flex h-8 items-center justify-between px-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted">
+              Responses
+            </span>
+            <Popover
+              align="end"
+              className="w-56 p-2"
+              trigger={({ open }) => (
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-1 p-1 text-[10px] font-semibold text-primary transition-colors hover:bg-surface hover:text-primary-dark focus-visible:outline-none",
+                    open && "text-primary-dark",
+                  )}
+                  aria-label="Add Response Definition"
+                  title="Add response status code"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Response
+                </button>
+              )}
+            >
+              {({ close }) => (
+                <div>
+                  <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                    Quick Add Status
+                  </div>
+                  <div className="mb-3 grid grid-cols-3 gap-1.5">
+                    {COMMON_STATUS_CODES.map((s) => (
+                      <button
+                        key={s.code}
+                        type="button"
+                        onClick={() => {
+                          addResponseDefinition(s.code, s.description);
+                          close();
+                        }}
+                        className={cn(
+                          "border px-1.5 py-1 text-center font-mono text-[10px] font-bold transition-colors hover:bg-overlay",
+                          statusTone(s.code),
+                        )}
+                      >
+                        {s.code}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="border-t border-border pt-2">
+                    <div className="mb-1 text-[10px] text-text-muted">Custom status code</div>
+                    <div className="flex gap-1.5">
+                      <input
+                        value={newStatusCode}
+                        onChange={(e) => setNewStatusCode(e.target.value.replace(/\D/g, ""))}
+                        placeholder="200"
+                        maxLength={3}
+                        className="h-7 w-20 border border-border bg-base px-2 font-mono text-xs text-text-primary outline-none focus:border-primary"
+                      />
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={!newStatusCode.trim()}
+                        onClick={() => {
+                          addResponseDefinition();
+                          close();
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </Popover>
           </div>
+
           {responses.length === 0 ? (
-            <p className="px-3 py-2 text-[10px] leading-4 text-text-muted">
-              Add a response definition before creating response examples.
-            </p>
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (activeDragTarget !== "responses-empty") setActiveDragTarget("responses-empty");
+              }}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                setActiveDragTarget("responses-empty");
+              }}
+              onDragLeave={(e) => {
+                if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                setActiveDragTarget(null);
+              }}
+              onDrop={(e) => handleDrop(e, { scope: "response" })}
+              className={cn(
+                "mx-2 my-1 border border-dashed border-border p-3 text-center transition-all",
+                activeDragTarget === "responses-empty" && "border-primary bg-primary/10 ring-2 ring-primary",
+              )}
+            >
+              <p className="mb-2 text-[11px] leading-4 text-text-muted">
+                No response definitions yet. Drop payload here to create 200 OK Response.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => addResponseDefinition("200", "OK")}
+                className="w-full text-xs"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add 200 OK Response
+              </Button>
+            </div>
           ) : (
             responses.map((response) => {
               const examples = response.examples ?? [];
+              const isDragOver = activeDragTarget === `response-${response.id}`;
+
               return (
                 <section
                   key={response.id}
-                  className="mb-2"
                   aria-labelledby={`response-${response.id}-heading`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    const targetId = `response-${response.id}`;
+                    if (activeDragTarget !== targetId) setActiveDragTarget(targetId);
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    setActiveDragTarget(`response-${response.id}`);
+                  }}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                    setActiveDragTarget(null);
+                  }}
+                  onDrop={(e) => handleDrop(e, { scope: "response", responseId: response.id })}
+                  className={cn(
+                    "mb-2 rounded-none p-1.5 transition-all border border-transparent",
+                    isDragOver && "border-primary bg-primary/10",
+                  )}
                 >
                   <div className="flex min-h-8 items-center gap-2 px-3">
                     <span
@@ -612,43 +1043,61 @@ export function EndpointContractExamples({
                       <Plus className="h-3.5 w-3.5" />
                     </button>
                   </div>
+
                   {examples.length === 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => addResponse(response.id)}
-                      className="mx-3 block text-[10px] text-text-muted transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        setActiveDragTarget(`response-${response.id}`);
+                      }}
+                      onDrop={(e) => handleDrop(e, { scope: "response", responseId: response.id })}
+                      className="mx-2 my-1 border border-dashed border-border px-3 py-2 text-center text-[10px] text-text-muted transition-colors hover:border-primary/60 hover:text-primary"
                     >
-                      No examples · Add one
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => addResponse(response.id)}
+                        className="w-full text-left"
+                      >
+                        No examples · Drop payload here or + Add
+                      </button>
+                    </div>
                   ) : (
                     examples.map((example) => (
-                      <button
+                      <div
                         key={example.id}
-                        type="button"
-                        onClick={() =>
-                          selectExample({
-                            scope: "response",
-                            responseId: response.id,
-                            id: example.id,
-                          })
-                        }
-                        aria-pressed={
-                          selected?.scope === "response" &&
-                          selected.id === example.id
-                        }
-                        className={cn(
-                          "flex h-8 w-full items-center gap-2 border-l-2 px-3 pl-5 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
-                          selected?.scope === "response" &&
-                            selected.id === example.id
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-transparent text-text-secondary hover:bg-surface hover:text-text-primary",
-                        )}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, example, "response", response.id)}
+                        className="group/item relative flex items-center"
                       >
-                        <FileJson2 className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">
-                          {example.name || "Unnamed example"}
-                        </span>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            selectExample({
+                              scope: "response",
+                              responseId: response.id,
+                              id: example.id,
+                            })
+                          }
+                          aria-pressed={
+                            selected?.scope === "response" &&
+                            selected.id === example.id
+                          }
+                          className={cn(
+                            "flex h-8 w-full items-center gap-2 border-l-2 px-3 pl-5 font-mono text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
+                            selected?.scope === "response" &&
+                              selected.id === example.id
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-transparent text-text-secondary hover:bg-surface hover:text-text-primary",
+                          )}
+                        >
+                          <GripVertical className="h-3 w-3 shrink-0 cursor-grab text-text-muted opacity-40 group-hover/item:opacity-100" />
+                          <FileJson2 className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">
+                            {example.name || "Unnamed example"}
+                          </span>
+                        </button>
+                      </div>
                     ))
                   )}
                 </section>
@@ -680,7 +1129,7 @@ export function EndpointContractExamples({
                 <Plus className="h-3.5 w-3.5" />
                 Add request example
               </Button>
-              {responses[0] && (
+              {responses[0] ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -688,6 +1137,15 @@ export function EndpointContractExamples({
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Add {responses[0].statusCode} response
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addResponseDefinition("200", "OK")}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Create 200 Response
                 </Button>
               )}
             </div>
@@ -705,31 +1163,80 @@ export function EndpointContractExamples({
                     ? `Request · ${endpoint.requestBody?.contentType ?? "application/json"}`
                     : `Response ${activeResponse?.statusCode ?? ""} · ${activeResponse?.contentType ?? "application/json"}`}
                 </Typography>
-                {mockPath && (
-                  <button
-                    type="button"
-                    onClick={() => void copyMockUrl()}
-                    title="Copy mock URL"
-                    className="mt-0.5 flex max-w-full items-center gap-1 text-left font-mono text-[11px] text-primary/90 transition-colors hover:text-primary"
-                  >
-                    <Globe className="h-3 w-3 shrink-0" aria-hidden="true" />
-                    <span className="truncate underline decoration-dotted underline-offset-2">
-                      {buildMockUrl(mockPath)}
-                    </span>
-                    {copiedMock ? (
-                      <Check
-                        className="h-3 w-3 shrink-0 text-success"
-                        aria-label="Copied"
-                      />
-                    ) : (
-                      <Copy
-                        className="h-3 w-3 shrink-0 opacity-60"
-                        aria-hidden="true"
-                      />
-                    )}
-                  </button>
-                )}
               </div>
+
+              {/* Move/Transfer helper dropdown */}
+              <Popover
+                align="end"
+                className="w-64 p-1"
+                trigger={({ open }) => (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn("gap-1 text-xs", open && "bg-overlay text-primary")}
+                    title="Move example between Request and Responses"
+                  >
+                    <ArrowDownUp className="h-3.5 w-3.5" />
+                    <span>Move to…</span>
+                    <ChevronDown className="h-3 w-3 opacity-60" />
+                  </Button>
+                )}
+              >
+                {({ close }) => (
+                  <div className="flex flex-col gap-0.5">
+                    <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted">
+                      Move example payload to:
+                    </div>
+                    {selected?.scope !== "request" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          moveExample(active, { scope: "request" }, selected!);
+                          close();
+                        }}
+                        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-text-primary hover:bg-overlay hover:text-primary"
+                      >
+                        <FileJson2 className="h-3.5 w-3.5 text-primary" />
+                        <span>Request Body</span>
+                      </button>
+                    )}
+                    {responses.map((resp) => {
+                      const isCurrent =
+                        selected?.scope === "response" &&
+                        selected.responseId === resp.id;
+                      if (isCurrent) return null;
+                      return (
+                        <button
+                          key={resp.id}
+                          type="button"
+                          onClick={() => {
+                            moveExample(
+                              active,
+                              { scope: "response", responseId: resp.id },
+                              selected!,
+                            );
+                            close();
+                          }}
+                          className="flex w-full items-center justify-between px-2.5 py-1.5 text-left text-xs text-text-secondary hover:bg-overlay hover:text-text-primary"
+                        >
+                          <span className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                "border px-1 py-0.5 font-mono text-[9px] font-bold",
+                                statusTone(resp.statusCode),
+                              )}
+                            >
+                              {resp.statusCode}
+                            </span>
+                            <span className="truncate">{resp.description || "Response"}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </Popover>
+
               {selected?.scope === "response" && activeResponse && (
                 <span
                   className={cn(
@@ -750,6 +1257,53 @@ export function EndpointContractExamples({
                 Delete
               </Button>
             </div>
+
+            {/* Mock Server URL Dedicated Grid Panel */}
+            {mockPath && (
+              <div className="flex flex-col gap-2 border-b border-border bg-overlay/40 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <span className="flex items-center gap-1 text-[11px] font-bold text-text-muted">
+                    <Globe className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                    <span>Mock URL:</span>
+                  </span>
+                  <code className="min-w-0 flex-1 truncate bg-base px-2 py-1 font-mono text-[11px] text-text-primary border border-border">
+                    {buildMockUrl(mockPath)}
+                  </code>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-auto">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => void copyMockUrl()}
+                    className="h-7 px-2.5 text-xs gap-1.5 border border-border bg-base hover:bg-overlay"
+                    title="Copy Mock URL"
+                  >
+                    {copiedMock ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-success" />
+                        <span className="text-success">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>Copy URL</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.open(buildMockUrl(mockPath), "_blank", "noopener,noreferrer")}
+                    className="h-7 px-2.5 text-xs gap-1.5 border border-border bg-base hover:bg-overlay"
+                    title="Open mock URL in new tab"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    <span>Open</span>
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="grid shrink-0 border-b border-border bg-surface md:grid-cols-[minmax(160px,0.8fr)_minmax(220px,1.2fr)]">
               <label className="min-w-0 border-b border-border p-3 md:border-b-0 md:border-r">
@@ -845,3 +1399,4 @@ export function EndpointContractExamples({
     </div>
   );
 }
+

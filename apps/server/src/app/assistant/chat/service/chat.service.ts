@@ -1,7 +1,9 @@
-import { randomUUID } from 'node:crypto'
 import { Agent } from '@mastra/core/agent'
-import { llmService } from '../../../llm/service/llm.service'
+import { NotFoundError } from '../../../../configs/exception'
+import { DEFAULT_MODEL, llmService } from '../../../llm/service/llm.service'
 import { assistantTools } from '../../tools/service/assistant-tools.service'
+import { ChatMessageRepository } from '../repository/chat-message.repository'
+import { ChatSessionRepository } from '../repository/chat-session.repository'
 import type { ChatResult } from '../types/chat.types'
 
 export class ChatService {
@@ -16,12 +18,41 @@ export class ChatService {
     tools: assistantTools,
   })
 
-  // No Mastra memory store is configured yet, so threadId is only echoed back for the
-  // client to group messages by conversation — it isn't used to load prior history.
-  async chat(_accountId: string, message: string, threadId?: string): Promise<ChatResult> {
-    const resolvedThreadId = threadId ?? randomUUID()
-    const result = await this.agent.generate(message)
-    return { reply: result.text, threadId: resolvedThreadId }
+  constructor(
+    private sessionRepository: ChatSessionRepository = new ChatSessionRepository(),
+    private messageRepository: ChatMessageRepository = new ChatMessageRepository(),
+  ) {}
+
+  async chat(accountId: string, message: string, threadId?: string): Promise<ChatResult> {
+    const session = threadId
+      ? await this.sessionRepository.findById(threadId)
+      : await this.sessionRepository.insert({ title: message.slice(0, 80), created_by: accountId })
+    if (!session) throw new NotFoundError('Chat session not found')
+
+    const history = await this.messageRepository.findBySession(session.id)
+    // Cast to the broad MessageListInput shape Mastra expects: it's a discriminated union keyed
+    // on literal `role`, which TS can't verify against role values sourced from DB rows at runtime.
+    const conversation = [
+      ...history.map((row) => ({ role: row.role, content: row.content })),
+      { role: 'user' as const, content: message },
+    ] as Parameters<Agent['generate']>[0]
+    await this.messageRepository.insert({ session_id: session.id, role: 'user', content: message })
+
+    const result = await this.agent.generate(conversation)
+    const usage = await result.usage
+
+    await this.messageRepository.insert({ session_id: session.id, role: 'assistant', content: result.text })
+    await llmService.recordUsage({
+      accountId,
+      threadId: session.id,
+      model: DEFAULT_MODEL,
+      message,
+      promptTokens: usage?.inputTokens,
+      completionTokens: usage?.outputTokens,
+      totalTokens: usage?.totalTokens,
+    })
+
+    return { reply: result.text, threadId: session.id }
   }
 }
 
