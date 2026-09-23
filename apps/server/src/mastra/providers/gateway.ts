@@ -1,8 +1,8 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { env } from '../../configs/env'
-import { LLM_MODELS } from '../../app/llm/constants/data'
 
-export const DEFAULT_MODEL = 'ag/gemini-3.7-flash-high'
+/** Single combo model configured on the router; the assistant does not switch models. */
+export const ASSISTANT_MODEL = 'max-api-studio'
 
 /**
  * Some gateways answer with SSE even for non-streaming calls. Force `stream: false`
@@ -35,7 +35,7 @@ const gatewayFetch: typeof fetch = async (url, init) => {
   const text = await res.text()
   let fullContent = ''
   let finishReason = 'stop'
-  let model = DEFAULT_MODEL
+  let model = ASSISTANT_MODEL
   let usage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
 
   for (const line of text.split('\n')) {
@@ -89,10 +89,4 @@ const provider = createOpenAI({
   fetch: gatewayFetch,
 })
 
-export function resolveModelId(modelId?: string): string {
-  return modelId && LLM_MODELS.some((m) => m.id === modelId) ? modelId : DEFAULT_MODEL
-}
-
-export function resolveModel(modelId?: string) {
-  return provider.chat(resolveModelId(modelId))
-}
+export const assistantModel = provider.chat(ASSISTANT_MODEL)

@@ -25,42 +25,20 @@ import {
   type AssistantContextDto,
   type ChatMessageDto,
   type ChatSessionDto,
-  type LlmModelDto,
 } from "../../lib/api";
 import { useApiSpecStore } from "../../store/useApiSpecStore";
 import { useAssistantEffectStore } from "../../store/useAssistantEffectStore";
 import { useUiStore } from "../../store/useUiStore";
 import { formatToolLabel } from "../../lib/toolLabels";
-import { Button, Select, type SelectOption } from "../ui";
+import { Button } from "../ui";
 import {
   AssistantResponseView,
   type ToolCallEvent,
 } from "./AssistantResponseView";
 import { EndpointMentionDropdown } from "./EndpointMentionDropdown";
 
-// Fallback model list matching server constants
-const FALLBACK_MODELS: LlmModelDto[] = [
-  {
-    id: "ag/gemini-3.7-flash-high",
-    label: "Gemini 3.7 Flash High",
-    provider: "Google",
-  },
-  {
-    id: "ag/gemini-3.7-flash-low",
-    label: "Gemini 3.7 Flash Low",
-    provider: "Google",
-  },
-  {
-    id: "ag/gemini-3.6-flash-high",
-    label: "Gemini 3.6 Flash High",
-    provider: "Google",
-  },
-  { id: "cx/gpt-5.6-luna", label: "GPT-5.6 Luna", provider: "OpenAI" },
-  { id: "cx/gpt-5.6-terra", label: "GPT-5.6 Terra", provider: "OpenAI" },
-  { id: "oc/big-pickle", label: "Big Pickle", provider: "OpenCode" },
-  { id: "oc/mimo-v2.5-free", label: "MiMo v2.5", provider: "Xiaomi" },
-  { id: "oc/laguna-s-2.1-free", label: "Laguna S 2.1", provider: "Poolside" },
-];
+// The assistant always runs on the router's single combo model.
+const ASSISTANT_MODEL = { label: "Max API Studio", provider: "Combo" };
 
 const SUGGESTIONS = [
   {
@@ -122,13 +100,9 @@ export function AssistantDrawer() {
   const [searchParams] = useSearchParams();
 
   const [viewMode, setViewMode] = useState<"chat" | "sessions">("chat");
-  const [models, setModels] = useState<LlmModelDto[]>(FALLBACK_MODELS);
   const [sessions, setSessions] = useState<ChatSessionItem[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
 
-  const [selectedModel, setSelectedModel] = useState<string>(
-    FALLBACK_MODELS[0].id,
-  );
   const [messages, setMessages] = useState<ChatItem[]>([]);
   const [inputVal, setInputVal] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -293,23 +267,6 @@ export function AssistantDrawer() {
     scrollToBottom(false);
   }, [messages, scrollToBottom]);
 
-  // Fetch models from backend
-  useEffect(() => {
-    if (!assistantOpen) return;
-    unwrap<LlmModelDto[]>(api.get("/assistant/models"))
-      .then((data) => {
-        if (data && data.length > 0) {
-          setModels(data);
-          setSelectedModel((prev) =>
-            data.some((m) => m.id === prev) ? prev : data[0].id,
-          );
-        }
-      })
-      .catch(() => {
-        // use fallback models
-      });
-  }, [assistantOpen]);
-
   const loadSessions = useCallback(async () => {
     try {
       const data = await unwrap<ChatSessionDto[]>(api.get("/assistant/sessions"));
@@ -351,17 +308,6 @@ export function AssistantDrawer() {
     };
   }, [assistantOpen]);
 
-  const selectOptions: SelectOption[] = models.map((m) => ({
-    value: m.id,
-    label: m.label,
-    description: m.provider,
-  }));
-
-  const currentModelObj =
-    models.find((m) => m.id === selectedModel) ||
-    models[0] ||
-    FALLBACK_MODELS[0];
-
   const handleSelectSession = async (session: ChatSessionItem) => {
     setActiveSessionId(session.id);
     setViewMode("chat");
@@ -375,8 +321,8 @@ export function AssistantDrawer() {
           role: m.role as "user" | "assistant",
           content: m.content,
           status: "idle",
-          modelLabel: currentModelObj.label,
-          modelProvider: currentModelObj.provider,
+          modelLabel: ASSISTANT_MODEL.label,
+          modelProvider: ASSISTANT_MODEL.provider,
         })),
       );
     } catch {
@@ -543,8 +489,8 @@ export function AssistantDrawer() {
       role: "assistant",
       content: "",
       status: "loading",
-      modelLabel: currentModelObj.label,
-      modelProvider: currentModelObj.provider,
+      modelLabel: ASSISTANT_MODEL.label,
+      modelProvider: ASSISTANT_MODEL.provider,
       toolEvents: [],
     };
 
@@ -565,7 +511,6 @@ export function AssistantDrawer() {
         {
           message: text,
           threadId: activeSessionId || undefined,
-          model: selectedModel,
           context: currentContext,
         },
         handleStreamEvent(assistantMsgId),
@@ -618,7 +563,6 @@ export function AssistantDrawer() {
           runId: pending.runId,
           threadId: pending.threadId,
           approved,
-          model: selectedModel,
           context: currentContext,
         },
         handleStreamEvent(pending.assistantMsgId),
@@ -741,17 +685,6 @@ export function AssistantDrawer() {
               >
                 <History className="h-4 w-4 text-text-secondary hover:text-text-primary" />
               </Button>
-
-              <div className="w-56">
-                <Select
-                  options={selectOptions}
-                  value={selectedModel}
-                  onChange={(val) => setSelectedModel(val)}
-                  size="sm"
-                  searchable={false}
-                  className="w-full"
-                />
-              </div>
             </div>
 
             <div className="flex items-center gap-1 shrink-0">

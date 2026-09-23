@@ -14,7 +14,6 @@ export type AssistantContext = z.infer<typeof AssistantContextSchema>
 export const ChatRequestSchema = z.object({
   message: z.string().trim().min(1),
   threadId: z.string().optional(),
-  model: z.string().optional(),
   context: AssistantContextSchema.optional(),
 })
 
@@ -25,7 +24,6 @@ export const ConfirmationResponseSchema = z.object({
   runId: z.string().min(1),
   threadId: z.string().min(1),
   approved: z.boolean(),
-  model: z.string().optional(),
   context: AssistantContextSchema.optional(),
 })
 

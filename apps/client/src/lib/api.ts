@@ -105,12 +105,6 @@ export function getErrorMessage(err: unknown, fallback = 'Request failed'): stri
   return data?.response?.data?.message ?? data?.message ?? fallback;
 }
 
-export interface LlmModelDto {
-  id: string;
-  label: string;
-  provider: string;
-}
-
 export interface ChatSessionDto {
   id: string;
   title: string | null;
@@ -177,7 +171,6 @@ export async function confirmAssistantToolStream(
     runId: string;
     threadId: string;
     approved: boolean;
-    model?: string;
     context?: AssistantContextDto;
   },
   onEvent: (event: AssistantStreamEventDto) => void,
@@ -190,7 +183,6 @@ export async function chatStream(
   payload: {
     message: string;
     threadId?: string;
-    model?: string;
     context?: AssistantContextDto;
   },
   onEvent: (event: AssistantStreamEventDto) => void,

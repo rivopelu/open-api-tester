@@ -40,6 +40,20 @@ export function formatToolConfirmation(toolName: string, args: Record<string, un
   return def?.formatConfirmation ? def.formatConfirmation(args) : `Execute ${toolName}`
 }
 
+type ContextReader = { get(key: string): unknown } | undefined
+
+/**
+ * Agent runs set `accountId` on the request context; MCP requests carry it in
+ * `authInfo.extra` (set by the /mcp route after token auth).
+ */
+function resolveAccountId(requestContext: ContextReader): string | undefined {
+  const fromAgent = requestContext?.get('accountId' satisfies keyof AssistantRequestContext)
+  if (typeof fromAgent === 'string') return fromAgent
+  const authInfo = requestContext?.get('authInfo') as
+    { extra?: { accountId?: unknown } } | undefined
+  return typeof authInfo?.extra?.accountId === 'string' ? authInfo.extra.accountId : undefined
+}
+
 /** Built once; per-request data (accountId) comes from the request context. */
 export const assistantTools = Object.fromEntries(
   domainTools.map((toolDef) => [
@@ -49,12 +63,12 @@ export const assistantTools = Object.fromEntries(
       description: toolDef.description,
       inputSchema: toolDef.inputSchema,
       requireApproval: toolDef.requiresConfirmation ?? false,
+      mcp: {
+        annotations: { readOnlyHint: toolDef.readOnly, destructiveHint: toolDef.destructive },
+      },
       execute: async (input, { requestContext, writer }) => {
-        const ctx = requestContext as
-          | { get<K extends keyof AssistantRequestContext>(key: K): AssistantRequestContext[K] }
-          | undefined
         return toolDef.execute((input ?? {}) as Record<string, unknown>, {
-          accountId: ctx?.get('accountId'),
+          accountId: resolveAccountId(requestContext),
           onUiEffect: (effect: AssistantUiEffect) => {
             void writer?.custom({ type: UI_EFFECT_CHUNK, data: effect, transient: true })
           },
