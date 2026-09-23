@@ -75,6 +75,9 @@ jobs:
         run: |
           ssh "$SSH_USERNAME@$SSH_HOST" "
             set -e
+            # pm2 is installed globally with bun on the VM (~/.bun/bin); without this it is not on PATH.
+            export PATH=\"\$HOME/.bun/bin:\$PATH\"
+            command -v pm2 >/dev/null || { echo 'pm2 not found on PATH'; exit 1; }
             cd '$REMOTE_APP_DIR'
             echo \"node \$(node --version), pm2 \$(pm2 --version)\"
             # delete + start (not reload) so changes in ecosystem.config.cjs (interpreter, args) apply.
@@ -89,6 +92,7 @@ jobs:
           SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
         run: |
           ssh "$SSH_USERNAME@$SSH_HOST" "
+            export PATH=\"\$HOME/.bun/bin:\$PATH\"
             cd '$REMOTE_APP_DIR'
             PORT=\$(grep -E '^PORT=' .env | tail -1 | cut -d= -f2 | tr -d '\"[:space:]')
             PORT=\${PORT:-8888}
