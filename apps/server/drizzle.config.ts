@@ -17,6 +17,8 @@ export default defineConfig({
   schema: './src/app/**/entity/*.entity.ts',
   out: './drizzle',
   dialect: 'postgresql',
+  // Mastra owns the `mastra` schema (PostgresStore auto-migrates it); keep drizzle-kit out of it.
+  schemaFilter: ['public'],
   dbCredentials: {
     url,
     ssl,

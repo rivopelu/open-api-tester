@@ -5,7 +5,7 @@ pnpm monorepo (`pnpm-workspace.yaml`: `apps/*`, `packages/*`). No CI. No existin
 ## Layout & runtimes
 
 - `apps/client` — React 18 + Vite + TypeScript. Runs on Node. **No test script.**
-- `apps/server` — Hono + Drizzle **backend that runs on Bun, not Node**. Dev, tests, drizzle all run under `bun`.
+- `apps/server` — Hono + Drizzle backend on **Node** (`node --import tsx`, tests via vitest). LLM layer is **Mastra** (`src/mastra/`: agent, tools, Memory + PostgresStore in the `mastra` schema).
 - `packages/types` & `packages/utils` — shared packages (`@modern-api-studio/types`, `@modern-api-studio/utils`). **Exported as raw TypeScript source** (`main`/`types` point at `index.ts`), no build step — edits apply immediately. Keep them compatible with both Vite and Bun.
 
 ## Commands

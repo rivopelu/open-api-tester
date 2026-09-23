@@ -19,7 +19,8 @@ import toast from "react-hot-toast";
 import {
   api,
   chatStream,
-  confirmAssistantTool,
+  confirmAssistantToolStream,
+  type AssistantStreamEventDto,
   unwrap,
   type AssistantContextDto,
   type ChatMessageDto,
@@ -96,6 +97,9 @@ interface ChatItem {
 
 export interface PendingToolConfirmation {
   confirmationId: string;
+  runId: string;
+  threadId: string;
+  assistantMsgId: string;
   toolId: string;
   toolName: string;
   args: Record<string, unknown>;
@@ -402,6 +406,125 @@ export function AssistantDrawer() {
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const handleStreamEvent =
+    (assistantMsgId: string) => (evt: AssistantStreamEventDto) => {
+      if (evt.type === "token") {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  content: msg.content + evt.delta,
+                  status: "streaming",
+                }
+              : msg,
+          ),
+        );
+      } else if (evt.type === "tool_call_start") {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  toolEvents: [
+                    ...(msg.toolEvents || []),
+                    {
+                      id: `${evt.toolId}-${Date.now()}`,
+                      name: evt.toolName,
+                      args: evt.args,
+                      status: "running",
+                    },
+                  ],
+                }
+              : msg,
+          ),
+        );
+      } else if (evt.type === "tool_call_complete") {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  toolEvents: (msg.toolEvents || []).map((t) =>
+                    t.name === evt.toolName && t.status === "running"
+                      ? {
+                          ...t,
+                          status: "completed",
+                          resultSummary: evt.resultSummary,
+                        }
+                      : t,
+                  ),
+                }
+              : msg,
+          ),
+        );
+      } else if (evt.type === "tool_call_error") {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  toolEvents: (msg.toolEvents || []).map((t) =>
+                    t.name === evt.toolName && t.status === "running"
+                      ? {
+                          ...t,
+                          status: "failed",
+                          resultSummary: evt.resultSummary,
+                        }
+                      : t,
+                  ),
+                }
+              : msg,
+          ),
+        );
+      } else if (evt.type === "tool_confirmation_request") {
+        setPendingConfirmations((prev) => [
+          ...prev.filter((p) => p.confirmationId !== evt.confirmationId),
+          {
+            confirmationId: evt.confirmationId,
+            runId: evt.runId,
+            threadId: evt.threadId,
+            assistantMsgId,
+            toolId: evt.toolId,
+            toolName: evt.toolName,
+            args: evt.args,
+            summary: evt.summary,
+          },
+        ]);
+      } else if (evt.type === "ui_effect") {
+        useAssistantEffectStore.getState().dispatchEffect(evt.effect);
+      } else if (evt.type === "session_info") {
+        setActiveSessionId(evt.threadId);
+        loadSessions();
+      } else if (evt.type === "done") {
+        setActiveSessionId(evt.threadId);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  content: evt.fullReply || msg.content,
+                  status: "idle",
+                }
+              : msg,
+          ),
+        );
+        loadSessions();
+      } else if (evt.type === "error") {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId
+              ? {
+                  ...msg,
+                  status: "error",
+                  errorMessage: evt.message,
+                }
+              : msg,
+          ),
+        );
+      }
+    };
+
   const handleSendPrompt = async (textToSend: string) => {
     const text = textToSend.trim();
     if (!text || isLoading) return;
@@ -445,120 +568,7 @@ export function AssistantDrawer() {
           model: selectedModel,
           context: currentContext,
         },
-        (evt) => {
-          if (evt.type === "token") {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMsgId
-                  ? {
-                      ...msg,
-                      content: msg.content + evt.delta,
-                      status: "streaming",
-                    }
-                  : msg,
-              ),
-            );
-          } else if (evt.type === "tool_call_start") {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMsgId
-                  ? {
-                      ...msg,
-                      toolEvents: [
-                        ...(msg.toolEvents || []),
-                        {
-                          id: `${evt.toolId}-${Date.now()}`,
-                          name: evt.toolName,
-                          args: evt.args,
-                          status: "running",
-                        },
-                      ],
-                    }
-                  : msg,
-              ),
-            );
-          } else if (evt.type === "tool_call_complete") {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMsgId
-                  ? {
-                      ...msg,
-                      toolEvents: (msg.toolEvents || []).map((t) =>
-                        t.name === evt.toolName && t.status === "running"
-                          ? {
-                              ...t,
-                              status: "completed",
-                              resultSummary: evt.resultSummary,
-                            }
-                          : t,
-                      ),
-                    }
-                  : msg,
-              ),
-            );
-          } else if (evt.type === "tool_call_error") {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMsgId
-                  ? {
-                      ...msg,
-                      toolEvents: (msg.toolEvents || []).map((t) =>
-                        t.name === evt.toolName && t.status === "running"
-                          ? {
-                              ...t,
-                              status: "failed",
-                              resultSummary: evt.resultSummary,
-                            }
-                          : t,
-                      ),
-                    }
-                  : msg,
-              ),
-            );
-          } else if (evt.type === "tool_confirmation_request") {
-            setPendingConfirmations((prev) => [
-              ...prev.filter((p) => p.confirmationId !== evt.confirmationId),
-              {
-                confirmationId: evt.confirmationId,
-                toolId: evt.toolId,
-                toolName: evt.toolName,
-                args: evt.args,
-                summary: evt.summary,
-              },
-            ]);
-          } else if (evt.type === "ui_effect") {
-            useAssistantEffectStore.getState().dispatchEffect(evt.effect);
-          } else if (evt.type === "session_info") {
-            setActiveSessionId(evt.threadId);
-            loadSessions();
-          } else if (evt.type === "done") {
-            setActiveSessionId(evt.threadId);
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMsgId
-                  ? {
-                      ...msg,
-                      content: evt.fullReply || msg.content,
-                      status: "idle",
-                    }
-                  : msg,
-              ),
-            );
-            loadSessions();
-          } else if (evt.type === "error") {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === assistantMsgId
-                  ? {
-                      ...msg,
-                      status: "error",
-                      errorMessage: evt.message,
-                    }
-                  : msg,
-              ),
-            );
-          }
-        },
+        handleStreamEvent(assistantMsgId),
         abortController.signal,
       );
     } catch (err: unknown) {
@@ -584,29 +594,49 @@ export function AssistantDrawer() {
     confirmationId: string,
     approved: boolean,
   ) => {
-    setPendingConfirmations((prev) =>
-      prev.map((p) =>
-        p.confirmationId === confirmationId ? { ...p, loading: true } : p,
-      ),
+    const pending = pendingConfirmations.find(
+      (p) => p.confirmationId === confirmationId,
     );
+    if (!pending) return;
 
+    setPendingConfirmations((prev) =>
+      prev.filter((p) => p.confirmationId !== confirmationId),
+    );
+    if (approved) {
+      toast.success("Aksi disetujui");
+    } else {
+      toast("Aksi dibatalkan", { icon: "🚫" });
+    }
+
+    setIsLoading(true);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
     try {
-      await confirmAssistantTool(confirmationId, approved);
-      setPendingConfirmations((prev) =>
-        prev.filter((p) => p.confirmationId !== confirmationId),
+      await confirmAssistantToolStream(
+        {
+          confirmationId,
+          runId: pending.runId,
+          threadId: pending.threadId,
+          approved,
+          model: selectedModel,
+          context: currentContext,
+        },
+        handleStreamEvent(pending.assistantMsgId),
+        abortController.signal,
       );
-      if (approved) {
-        toast.success("Aksi disetujui");
-      } else {
-        toast("Aksi dibatalkan", { icon: "🚫" });
-      }
-    } catch {
-      toast.error("Gagal mengirim konfirmasi");
-      setPendingConfirmations((prev) =>
-        prev.map((p) =>
-          p.confirmationId === confirmationId ? { ...p, loading: false } : p,
+    } catch (err: unknown) {
+      const errMsg =
+        err instanceof Error ? err.message : "Gagal mengirim konfirmasi";
+      toast.error(errMsg);
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === pending.assistantMsgId
+            ? { ...msg, status: "error", errorMessage: errMsg }
+            : msg,
         ),
       );
+    } finally {
+      setIsLoading(false);
     }
   };
 

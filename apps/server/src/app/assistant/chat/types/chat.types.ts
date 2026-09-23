@@ -22,7 +22,11 @@ export type ChatRequest = z.infer<typeof ChatRequestSchema>
 
 export const ConfirmationResponseSchema = z.object({
   confirmationId: z.string().min(1),
+  runId: z.string().min(1),
+  threadId: z.string().min(1),
   approved: z.boolean(),
+  model: z.string().optional(),
+  context: AssistantContextSchema.optional(),
 })
 
 export type ConfirmationResponse = z.infer<typeof ConfirmationResponseSchema>
@@ -31,6 +35,22 @@ export type ChatResult = {
   reply: string
   threadId: string
   sessionTitle?: string
+}
+
+export type ChatSessionDto = {
+  id: string
+  title: string | null
+  created_by?: string | null
+  created_date: number
+  updated_date?: number | null
+}
+
+export type ChatMessageDto = {
+  id: string
+  session_id: string
+  role: 'user' | 'assistant'
+  content: string
+  created_date: number
 }
 
 export type AssistantUiEffectDto = {
@@ -51,6 +71,8 @@ export type AssistantStreamEvent =
   | {
       type: 'tool_confirmation_request'
       confirmationId: string
+      runId: string
+      threadId: string
       toolId: string
       toolName: string
       args: Record<string, unknown>
