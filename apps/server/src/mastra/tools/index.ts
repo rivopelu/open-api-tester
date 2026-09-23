@@ -1,5 +1,8 @@
 import { createTool } from '@mastra/core/tools'
-import { domainTools } from '../../app/assistant/tools/definitions/domain-tools'
+import type { LiveEditOutcome, LiveEditPlan } from '@modern-api-studio/types'
+import { randomUUID } from 'node:crypto'
+import { z } from 'zod'
+import { domainTools, persistLivePatch } from '../../app/assistant/tools/definitions/domain-tools'
 import type { AssistantUiEffect } from '../../app/assistant/tools/types/tool.types'
 import type { AssistantRequestContext } from '../request-context'
 
@@ -54,7 +57,18 @@ function resolveAccountId(requestContext: ContextReader): string | undefined {
   return typeof authInfo?.extra?.accountId === 'string' ? authInfo.extra.accountId : undefined
 }
 
-/** Built once; per-request data (accountId) comes from the request context. */
+const liveEditSuspendSchema = z.object({ plan: z.custom<LiveEditPlan>() })
+const liveEditResumeSchema = z.custom<LiveEditOutcome>(
+  (value) => typeof (value as { outcome?: unknown })?.outcome === 'string',
+)
+
+/**
+ * Built once; per-request data (accountId, liveEdit) comes from the request context.
+ *
+ * Live edit (chat only): instead of persisting, a tool with `planLiveEdit` suspends with its plan,
+ * which is streamed to the client. The client types it into the form, saves it, and resumes the run
+ * with a `LiveEditOutcome`. MCP and non-streaming chat never set `liveEdit`, so they persist directly.
+ */
 export const assistantTools = Object.fromEntries(
   domainTools.map((toolDef) => [
     toolDef.name,
@@ -63,16 +77,41 @@ export const assistantTools = Object.fromEntries(
       description: toolDef.description,
       inputSchema: toolDef.inputSchema,
       requireApproval: toolDef.requiresConfirmation ?? false,
+      ...(toolDef.planLiveEdit
+        ? { suspendSchema: liveEditSuspendSchema, resumeSchema: liveEditResumeSchema }
+        : {}),
       mcp: {
         annotations: { readOnlyHint: toolDef.readOnly, destructiveHint: toolDef.destructive },
       },
-      execute: async (input, { requestContext, writer }) => {
-        return toolDef.execute((input ?? {}) as Record<string, unknown>, {
+      execute: async (input, { requestContext, writer, agent }) => {
+        const args = (input ?? {}) as Record<string, unknown>
+        const ctx = {
           accountId: resolveAccountId(requestContext),
           onUiEffect: (effect: AssistantUiEffect) => {
             void writer?.custom({ type: UI_EFFECT_CHUNK, data: effect, transient: true })
           },
-        })
+        }
+
+        // Agent runs expose suspend/resume under `agent`; MCP calls have no agent context.
+        const live = requestContext?.get('liveEdit') === true && toolDef.planLiveEdit && agent
+        if (!live) return toolDef.execute(args, ctx)
+
+        const outcome = agent.resumeData as LiveEditOutcome | undefined
+        if (outcome) {
+          const plan = (agent.suspendPayload as { plan?: LiveEditPlan } | undefined)?.plan
+          if (outcome.outcome === 'saved') return { ...outcome.endpoint, liveEdit: 'saved' }
+          if (outcome.outcome === 'failed') throw new Error(outcome.error)
+          return plan ? persistLivePatch(plan.endpointId, plan.patch) : toolDef.execute(args, ctx)
+        }
+
+        const plan: LiveEditPlan = {
+          ...(await toolDef.planLiveEdit!(args, ctx)),
+          editId: randomUUID(),
+          tool: toolDef.name,
+        }
+        // Surfaces as a `tool-call-suspended` chunk carrying the plan (mapped to SSE `live_edit`).
+        await agent.suspend({ plan })
+        return undefined
       },
     }),
   ]),

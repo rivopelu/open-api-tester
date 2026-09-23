@@ -3,7 +3,7 @@ import type {
   Endpoint,
   EndpointParameter,
   HttpMethod,
-  RequestBodyDefinition,
+  LiveEditOp,
 } from "@modern-api-studio/types";
 import {
   AlertCircle,
@@ -24,11 +24,20 @@ import {
   Minimize2,
   Pencil,
   PanelTopOpen,
+  Sparkles,
   X,
 } from "lucide-react";
 import { Button, CodeEditor, Input, Popover, Tooltip } from "./ui";
 import { cn } from "../lib/utils";
 import { useAssistantEffectStore } from "../store/useAssistantEffectStore";
+import {
+  useLiveEditLocked,
+  useLiveEditStore,
+  type LiveEditField,
+  type LiveEditTab,
+} from "../store/useLiveEditStore";
+import { initialBody } from "../lib/live-edit/body";
+import { useFollowScroll } from "../lib/live-edit/use-follow-scroll";
 import {
   interpolateEnvironment,
   useEnvironmentStore,
@@ -111,21 +120,6 @@ function emptyRow(): KvRow {
   return { id: crypto.randomUUID(), key: "", value: "", enabled: true };
 }
 
-function initialBody(body?: RequestBodyDefinition): string {
-  if (body?.rawJson) return body.rawJson;
-  if (!body?.schema?.length) return "";
-  return JSON.stringify(
-    Object.fromEntries(
-      body.schema.map((field) => [
-        field.name,
-        field.example ?? (field.type === "string" ? "" : 0),
-      ]),
-    ),
-    null,
-    2,
-  );
-}
-
 function EnvironmentValue({
   value,
   variables,
@@ -199,12 +193,17 @@ function KeyValueEditor({
   onChange,
   emptyMessage,
   embedded = false,
+  followTyping = false,
 }: {
   rows: KvRow[];
   onChange: (rows: KvRow[]) => void;
   emptyMessage: string;
   embedded?: boolean;
+  /** Keep the newest row in view while the assistant types rows in. */
+  followTyping?: boolean;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useFollowScroll(scrollRef, followTyping, rows);
   const update = (index: number, patch: Partial<KvRow>) =>
     onChange(
       rows.map((row, rowIndex) =>
@@ -226,7 +225,7 @@ function KeyValueEditor({
         <span className="border-l border-border px-3 py-2">Value</span>
         <span />
       </div>
-      <div className="scroll-y min-h-0 flex-1">
+      <div ref={scrollRef} className="scroll-y min-h-0 flex-1">
         {rows.length === 0 && (
           <div className="flex min-h-24 items-center justify-center px-4 py-6 text-center text-xs text-text-muted">
             {emptyMessage}
@@ -321,6 +320,31 @@ function getInitialEndpointForm(endpoint: Endpoint) {
     basicUser: auth.basicUser ?? "",
     basicPass: auth.basicPass ?? "",
   };
+}
+
+function liveOpLabel(op?: LiveEditOp): string {
+  switch (op?.kind) {
+    case "method":
+      return "Mengubah method";
+    case "url":
+      return "Mengetik URL";
+    case "summary":
+      return "Mengetik nama endpoint";
+    case "rows":
+      return op.section === "header" ? "Mengisi headers" : `Mengisi ${op.section} params`;
+    case "body":
+      return "Mengetik request body";
+    case "auth":
+      return "Mengatur authorization";
+    case "docs":
+      return "Menulis docs";
+    case "responses":
+      return "Menyusun responses";
+    case "example":
+      return `Menulis example "${op.example.name}"`;
+    default:
+      return "Mengetik…";
+  }
 }
 
 export default function EndpointDetailView({
@@ -439,48 +463,21 @@ export default function EndpointDetailView({
   const [nameText, setNameText] = useState(initialForm.nameText);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [isAiTypingDocs, setIsAiTypingDocs] = useState(false);
+  // Method the assistant is typing during a live edit (saved with the rest of the plan).
+  const [liveMethod, setLiveMethod] = useState<HttpMethod | null>(null);
+  const liveLocked = useLiveEditLocked(endpoint.id);
+  const liveSession = useLiveEditStore((state) => state.session);
+  const registerLiveForm = useLiveEditStore((state) => state.registerForm);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const docsPreviewRef = useRef<HTMLDivElement>(null);
 
   // Assistant field highlight effects
   const activeHighlight = useAssistantEffectStore((state) => state.activeHighlight);
   const isHighlighted = (target: 'url' | 'summary' | 'method' | 'params' | 'headers' | 'body' | 'responses' | 'examples' | 'docs') =>
-    activeHighlight?.target === target && (!activeHighlight.endpointId || activeHighlight.endpointId === endpoint.id);
+    (activeHighlight?.target === target && (!activeHighlight.endpointId || activeHighlight.endpointId === endpoint.id)) ||
+    (liveLocked && liveSession?.activeField === (target as LiveEditField));
 
-  // Play a fast typewriter animation into the Docs tab when the assistant writes documentation
-  const docsTyping = useAssistantEffectStore((state) => state.docsTyping);
-  const consumeDocsTyping = useAssistantEffectStore((state) => state.consumeDocsTyping);
-  useEffect(() => {
-    if (!docsTyping || docsTyping.endpointId !== endpoint.id) return;
-    const target = endpoint.description ?? "";
-    if (target === docsText) return; // wait for the refetched endpoint to carry the new text
-
-    consumeDocsTyping();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDocsViewMode((mode) => (mode === "edit" ? "split" : mode));
-    setIsAiTypingDocs(true);
-    setDocsText("");
-
-    let i = 0;
-    const stepSize = Math.max(1, Math.ceil(target.length / 100));
-    const interval = window.setInterval(() => {
-      i += stepSize;
-      if (i >= target.length) {
-        setDocsText(target);
-        setIsAiTypingDocs(false);
-        window.clearInterval(interval);
-      } else {
-        setDocsText(target.slice(0, i));
-      }
-    }, 10);
-
-    return () => window.clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docsTyping, endpoint.id, endpoint.description]);
-
-  // Render-phase sync saat active endpoint berganti (tanpa useEffect setState)
-  if (prevEndpointId !== endpoint.id) {
-    const nextForm = getInitialEndpointForm(endpoint);
-    setPrevEndpointId(endpoint.id);
+  const applyForm = (nextForm: ReturnType<typeof getInitialEndpointForm>) => {
     setInitialForm(nextForm);
     setUrlText(nextForm.urlText);
     setPathRows(nextForm.pathRows);
@@ -494,6 +491,13 @@ export default function EndpointDetailView({
     setEditingBearerToken(false);
     setBasicUser(nextForm.basicUser);
     setBasicPass(nextForm.basicPass);
+  };
+
+  // Render-phase sync saat active endpoint berganti (tanpa useEffect setState)
+  if (prevEndpointId !== endpoint.id) {
+    setPrevEndpointId(endpoint.id);
+    applyForm(getInitialEndpointForm(endpoint));
+    setLiveMethod(null);
     setResponse(null);
     setError(null);
     setElapsedMs(null);
@@ -605,6 +609,101 @@ export default function EndpointDetailView({
     requestParameters,
     urlText,
   ]);
+
+  // Latest text values for the live-edit adapter (typing starts from what is on screen).
+  const liveTextRef = useRef({ url: urlText, summary: nameText, body: bodyText, docs: docsText });
+  useEffect(() => {
+    liveTextRef.current = { url: urlText, summary: nameText, body: bodyText, docs: docsText };
+  }, [urlText, nameText, bodyText, docsText]);
+
+  // Set after a live edit is saved: re-read the form once the saved endpoint arrives.
+  const liveResyncRef = useRef(false);
+  const [liveResyncTick, setLiveResyncTick] = useState(0);
+  const handledResyncTick = useRef(0);
+  useEffect(() => {
+    const forced = liveResyncTick !== handledResyncTick.current;
+    if (!liveResyncRef.current && !forced) return;
+    liveResyncRef.current = false;
+    handledResyncTick.current = liveResyncTick;
+    applyForm(getInitialEndpointForm(endpoint));
+    setLiveMethod(null);
+  }, [endpoint, liveResyncTick]);
+
+  // Expose the form to the assistant's live edit runner (see lib/live-edit/runner.ts).
+  useEffect(
+    () =>
+      registerLiveForm({
+        endpointId: endpoint.id,
+        focusTab: (tab: LiveEditTab) => {
+          setActiveTab(tab);
+          onStateChange?.(tab);
+        },
+        getText: (field) => liveTextRef.current[field],
+        setText: (field, value) => {
+          if (field === "url") {
+            setUrlText(value);
+            try {
+              localStorage.setItem(storageKey(endpoint.id), value);
+            } catch {
+              // Typing still shows even when persistence is unavailable.
+            }
+          } else if (field === "summary") setNameText(value);
+          else if (field === "body") setBodyText(value);
+          else {
+            setDocsViewMode((mode) => (mode === "preview" ? "split" : mode));
+            setDocsText(value);
+          }
+        },
+        setMethod: setLiveMethod,
+        setRows: (section, rows) => {
+          const next = rows.map((row, index) => ({
+            id: `live-${section}-${index}`,
+            key: row.key,
+            value: row.value,
+            enabled: true,
+          }));
+          if (section === "path") setPathRows(next);
+          else if (section === "query") setQueryRows(next);
+          else setHeaderRows(next);
+        },
+        setAuth: (auth) => {
+          if (auth.type) setAuthType(auth.type);
+          if (auth.bearerToken !== undefined) setBearerToken(auth.bearerToken);
+          if (auth.basicUser !== undefined) setBasicUser(auth.basicUser);
+          if (auth.basicPass !== undefined) setBasicPass(auth.basicPass);
+        },
+        resyncAfterSave: (saved) => {
+          if (saved) {
+            liveResyncRef.current = true;
+            // Also force a pass in case the saved endpoint already rendered before this call.
+            window.setTimeout(() => setLiveResyncTick((tick) => tick + 1), 400);
+          } else setLiveResyncTick((tick) => tick + 1);
+        },
+      }),
+    [endpoint.id, onStateChange, registerLiveForm],
+  );
+
+  // Follow the Markdown preview while the assistant writes docs.
+  useFollowScroll(
+    docsPreviewRef,
+    liveLocked && liveSession?.activeField === "docs",
+    docsText,
+  );
+
+  // While the assistant types, the user can only watch: swallow keys aimed at this view.
+  useEffect(() => {
+    if (!liveLocked) return;
+    const blockKeys = (event: KeyboardEvent) => {
+      const insideView = rootRef.current?.contains(event.target as Node);
+      const isSave = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s";
+      if (insideView || isSave) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener("keydown", blockKeys, true);
+    return () => window.removeEventListener("keydown", blockKeys, true);
+  }, [liveLocked]);
 
   useEffect(() => {
     const saveShortcut = (event: KeyboardEvent) => {
@@ -800,7 +899,8 @@ export default function EndpointDetailView({
     window.setTimeout(() => setCopied(false), 1200);
   };
 
-  const method = endpoint.method.toLowerCase();
+  const displayedMethod = liveMethod ?? endpoint.method;
+  const method = displayedMethod.toLowerCase();
   const requestCount: Partial<Record<RequestTab, number>> = {
     params: pathRows.length + queryRows.length,
     headers: headerRows.length,
@@ -816,12 +916,46 @@ export default function EndpointDetailView({
   const successful =
     response && response.status >= 200 && response.status < 300;
 
+  const liveOp = liveLocked ? liveSession?.plan.ops[liveSession.opIndex] : undefined;
+
   return (
-    <div className={cn("flex h-full min-w-0 flex-col bg-base", className)}>
+    <div
+      ref={rootRef}
+      className={cn("relative flex h-full min-w-0 flex-col bg-base", className)}
+      aria-busy={liveLocked || undefined}
+    >
+      {liveLocked && liveSession && (
+        <>
+          <div
+            className="flex h-8 shrink-0 items-center gap-2 border-b border-primary/40 bg-primary/10 px-5 text-xs text-primary"
+            role="status"
+          >
+            <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+            <span className="font-semibold">AI sedang mengedit</span>
+            <span className="text-text-muted">·</span>
+            <span className="truncate text-text-secondary">
+              {liveSession.phase === "saving"
+                ? "Menyimpan…"
+                : liveSession.phase === "opening"
+                  ? "Membuka endpoint…"
+                  : liveOpLabel(liveOp)}
+            </span>
+            <span className="ml-auto font-mono text-[10px] text-text-muted">
+              {Math.min(liveSession.opIndex + 1, liveSession.plan.ops.length)}/
+              {liveSession.plan.ops.length}
+            </span>
+          </div>
+          {/* Transparent shield: the form keeps rendering the typing, but takes no input. */}
+          <div
+            className="absolute inset-0 z-40 cursor-not-allowed"
+            title="AI sedang mengedit — tunggu sampai selesai"
+          />
+        </>
+      )}
       <header className="shrink-0 border-b border-border bg-surface px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className={cn("method-badge shrink-0", `badge-${method}`)}>
-            {endpoint.method}
+            {displayedMethod}
           </span>
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
@@ -857,7 +991,7 @@ export default function EndpointDetailView({
                   )}
                 >
                   <h2 className="truncate font-heading text-sm font-semibold text-text-primary">
-                    {endpoint.summary || "Untitled request"}
+                    {(liveLocked ? nameText : endpoint.summary) || "Untitled request"}
                   </h2>
                   <Pencil className="h-3 w-3 shrink-0 text-text-muted opacity-0 transition-opacity group-hover/name:opacity-100" />
                 </button>
@@ -912,7 +1046,7 @@ export default function EndpointDetailView({
                   isHighlighted("method") && "bg-primary/20",
                 )}
               >
-                {endpoint.method}
+                {displayedMethod}
                 <ChevronDown
                   className={cn(
                     "h-3.5 w-3.5 transition-transform",
@@ -1072,6 +1206,7 @@ export default function EndpointDetailView({
                   <div className="min-h-0 flex-1">
                     <KeyValueEditor
                       rows={pathRows}
+                      followTyping={liveLocked}
                       onChange={onPathRowsChange}
                       emptyMessage="No path variables in this URL."
                       embedded
@@ -1095,6 +1230,7 @@ export default function EndpointDetailView({
                   <div className="min-h-0 flex-1">
                     <KeyValueEditor
                       rows={queryRows}
+                      followTyping={liveLocked}
                       onChange={setQueryRows}
                       emptyMessage="No query parameters for this request."
                       embedded
@@ -1334,6 +1470,7 @@ export default function EndpointDetailView({
                 <div className="min-h-0 flex-1">
                   <KeyValueEditor
                     rows={headerRows}
+                    followTyping={liveLocked}
                     onChange={setHeaderRows}
                     emptyMessage="This request has no custom headers."
                     embedded
@@ -1346,6 +1483,8 @@ export default function EndpointDetailView({
               <CodeEditor
                 value={bodyText}
                 onChange={setBodyText}
+                readOnly={liveLocked}
+                followTyping={liveLocked && liveSession?.activeField === "body"}
                 label={endpoint.requestBody?.contentType || "application/json"}
                 className="h-full min-h-60"
               />
@@ -1364,7 +1503,7 @@ export default function EndpointDetailView({
                   <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-text-secondary">
                     Docs
                   </span>
-                  {isAiTypingDocs && (
+                  {liveLocked && liveSession?.activeField === "docs" && (
                     <span className="flex items-center gap-1.5 text-[10px] font-semibold text-primary">
                       <span className="flex gap-0.5">
                         <span className="h-1 w-1 animate-pulse rounded-full bg-primary [animation-delay:-0.3s]" />
@@ -1405,7 +1544,8 @@ export default function EndpointDetailView({
                       onChange={setDocsText}
                       language="markdown"
                       label="Markdown"
-                      readOnly={isAiTypingDocs}
+                      readOnly={liveLocked}
+                      followTyping={liveLocked && liveSession?.activeField === "docs"}
                       className={cn(
                         "min-h-0 border-0",
                         docsViewMode === "edit" && "xl:col-span-2",
@@ -1414,6 +1554,7 @@ export default function EndpointDetailView({
                   )}
                   {docsViewMode !== "edit" && (
                     <div
+                      ref={docsPreviewRef}
                       className={cn(
                         "scroll-y min-h-0 bg-base p-4",
                         docsViewMode === "preview" && "xl:col-span-2",

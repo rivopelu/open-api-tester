@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { LiveEditOutcome, LiveEditPlan } from '@modern-api-studio/types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 const TOKEN_KEY = 'api-studio:token';
@@ -161,6 +162,7 @@ export type AssistantStreamEventDto =
       summary: string;
     }
   | { type: 'ui_effect'; effect: AssistantUiEffectDto }
+  | { type: 'live_edit'; runId: string; threadId: string; toolCallId: string; plan: LiveEditPlan }
   | { type: 'session_info'; threadId: string; sessionTitle?: string }
   | { type: 'done'; fullReply: string; threadId: string }
   | { type: 'error'; message: string };
@@ -177,6 +179,21 @@ export async function confirmAssistantToolStream(
   signal?: AbortSignal
 ): Promise<void> {
   return postSse('/api/assistant/confirm/stream', payload, onEvent, signal);
+}
+
+/** Reports what the client did with a live edit and streams the rest of the assistant's answer. */
+export async function liveEditResultStream(
+  payload: {
+    runId: string;
+    threadId: string;
+    toolCallId: string;
+    result: LiveEditOutcome;
+    context?: AssistantContextDto;
+  },
+  onEvent: (event: AssistantStreamEventDto) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  return postSse('/api/assistant/live-edit/stream', payload, onEvent, signal);
 }
 
 export async function chatStream(

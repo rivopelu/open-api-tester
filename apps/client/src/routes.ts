@@ -37,6 +37,9 @@ export const router = {
    */
   project: {
     detail: (id: string) => `/projects/${id}`,
+    /** A project with one endpoint opened in the detail view. */
+    endpoint: (id: string, endpointId: string) =>
+      `/projects/${id}?endpoint=${encodeURIComponent(endpointId)}`,
     /** Project editor — opens the API spec designer for a project. */
     editor: (id: string) => `/projects/${id}/editor`,
   },

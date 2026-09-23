@@ -1,3 +1,4 @@
+import type { LiveEditPlan } from '@modern-api-studio/types'
 import type { z } from 'zod'
 
 export type AssistantToolEventListener = (event: {
@@ -48,6 +49,14 @@ export interface DomainToolDefinition<
   execute: (input: any, ctx: DomainToolContext) => Promise<TResult>
   formatSummary?: (result: any, input: any) => string
   formatConfirmation?: (input: any) => string
+  /**
+   * Chat (live) mode: describe the edit instead of persisting it. The client animates
+   * `ops` into the form and saves `patch` itself; `execute` stays the direct path (MCP).
+   */
+  planLiveEdit?: (
+    input: any,
+    ctx: DomainToolContext,
+  ) => Promise<Omit<LiveEditPlan, 'editId' | 'tool'>>
 }
 
 export type AnyDomainToolDefinition = DomainToolDefinition<z.ZodRawShape, unknown>

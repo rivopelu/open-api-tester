@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Endpoint } from "@modern-api-studio/types";
 import { useUiStore } from "../../store/useUiStore";
+import { useLiveEditStore } from "../../store/useLiveEditStore";
 import {
   Button,
   GridCell,
@@ -28,6 +29,7 @@ export default function ProjectDetailPage() {
   const navigate = useNavigate();
   const { toggleAssistant } = useUiStore();
   const [mockOpen, setMockOpen] = useState(false);
+  const liveEditing = useLiveEditStore((state) => state.session !== null);
 
   // Build tag groups for overview section
   const groups: { name: string; endpoints: Endpoint[] }[] = Object.entries(
@@ -35,7 +37,15 @@ export default function ProjectDetailPage() {
   ).map(([name, endpoints]) => ({ name, endpoints }));
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-base">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-base">
+      {liveEditing && (
+        // AI live edit in progress: the page is watch-only (sidebar, header, form).
+        <div
+          className="absolute inset-0 z-30 cursor-not-allowed"
+          title="AI sedang mengedit — tunggu sampai selesai"
+          aria-hidden="true"
+        />
+      )}
       {/* Topbar */}
       <div className="flex h-14 shrink-0 items-center border-b border-border bg-surface px-3">
         <Button

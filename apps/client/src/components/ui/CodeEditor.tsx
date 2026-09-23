@@ -1,4 +1,5 @@
-import MonacoEditor, { type BeforeMount } from '@monaco-editor/react'
+import MonacoEditor, { type BeforeMount, type OnMount } from '@monaco-editor/react'
+import { useEffect, useRef } from 'react'
 import { Braces } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { useThemeStore } from '../../store/useThemeStore'
@@ -94,6 +95,8 @@ interface CodeEditorProps {
   className?: string
   language?: 'json' | 'markdown'
   readOnly?: boolean
+  /** Keep the caret and viewport at the end while text is typed in programmatically (AI live edit). */
+  followTyping?: boolean
 }
 
 const languageMeta: Record<'json' | 'markdown', { hint: string; formatOnType: boolean }> = {
@@ -101,9 +104,25 @@ const languageMeta: Record<'json' | 'markdown', { hint: string; formatOnType: bo
   markdown: { hint: 'Markdown', formatOnType: false },
 }
 
-export function CodeEditor({ value, onChange, label = 'JSON', className, language = 'json', readOnly = false }: CodeEditorProps) {
+export function CodeEditor({ value, onChange, label = 'JSON', className, language = 'json', readOnly = false, followTyping = false }: CodeEditorProps) {
   const meta = languageMeta[language]
   const resolvedTheme = useThemeStore((state) => state.resolvedTheme)
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null)
+
+  useEffect(() => {
+    const editor = editorRef.current
+    const model = editor?.getModel()
+    if (!followTyping || !editor || !model) return
+    // Monaco applies the new `value` first; follow it on the next frame.
+    const frame = window.requestAnimationFrame(() => {
+      const lineNumber = model.getLineCount()
+      const position = { lineNumber, column: model.getLineMaxColumn(lineNumber) }
+      editor.setPosition(position)
+      editor.revealPositionInCenterIfOutsideViewport(position)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [value, followTyping])
+
   return (
     <div className={cn('flex min-h-0 flex-col overflow-hidden bg-base', className)}>
       <div className="flex h-9 shrink-0 items-center border-b border-border bg-overlay px-3">
@@ -118,6 +137,9 @@ export function CodeEditor({ value, onChange, label = 'JSON', className, languag
           theme={resolvedTheme === 'light' ? 'max-api-studio-light' : 'max-api-studio-dark'}
           value={value}
           beforeMount={configureThemes}
+          onMount={(editor) => {
+            editorRef.current = editor
+          }}
           onChange={(next) => onChange(next ?? '')}
           options={{
             readOnly,

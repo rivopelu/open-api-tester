@@ -261,3 +261,51 @@ export interface ValidationResult {
 export interface FormatResult {
   output: string;
 }
+
+// ============================================================
+// AI Live Edit (assistant types into the client form over SSE)
+// ============================================================
+
+export type LiveEditRowSection = 'path' | 'query' | 'header';
+
+/** One visual step the client animates into the endpoint form. */
+export type LiveEditOp =
+  | { kind: 'method'; value: HttpMethod }
+  | { kind: 'url'; value: string }
+  | { kind: 'summary'; value: string }
+  | { kind: 'rows'; section: LiveEditRowSection; rows: { key: string; value: string }[] }
+  | { kind: 'body'; requestBody: RequestBodyDefinition }
+  | { kind: 'auth'; value: EndpointAuthConfig }
+  | { kind: 'docs'; value: string }
+  | { kind: 'responses'; value: ResponseDefinition[] }
+  | {
+      kind: 'example';
+      scope: 'request' | 'response';
+      responseId?: string;
+      statusCode?: string;
+      example: EndpointExample;
+    };
+
+/** Final values the client persists after the animation (same shape as `PUT /endpoints/:id`). */
+export interface LiveEditPatch {
+  method?: HttpMethod;
+  path?: string;
+  summary?: string;
+  folderId?: string | null;
+  specData?: Record<string, unknown>;
+}
+
+export interface LiveEditPlan {
+  editId: string;
+  tool: string;
+  projectId: string;
+  endpointId: string;
+  ops: LiveEditOp[];
+  patch: LiveEditPatch;
+}
+
+export type LiveEditOutcome =
+  | { outcome: 'saved'; endpoint: { id: string; method: string; path: string; summary?: string } }
+  | { outcome: 'failed'; error: string }
+  /** The client could not show the edit (endpoint not on screen); the server persists `patch` itself. */
+  | { outcome: 'fallback' };

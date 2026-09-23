@@ -21,6 +21,7 @@ import {
 import { Button, CodeEditor, Popover, Typography } from "./ui";
 import { cn } from "../lib/utils";
 import { buildMockUrl } from "../repositories/mock.repository";
+import { useLiveEditLocked, useLiveEditStore } from "../store/useLiveEditStore";
 
 interface Props {
   endpoint: Endpoint;
@@ -351,6 +352,84 @@ export function EndpointContractExamples({
         window.clearTimeout(savedTimer.current);
     },
     [],
+  );
+
+  // Lets the assistant's live edit runner type examples/responses into this editor.
+  // Saving is done by the runner; the persisted-state effect above re-syncs afterwards.
+  const registerLiveExamples = useLiveEditStore((state) => state.registerExamples);
+  const liveLocked = useLiveEditLocked(endpoint.id);
+  useEffect(
+    () =>
+      registerLiveExamples({
+        endpointId: endpoint.id,
+        setResponses: (next) => {
+          const normalized = normalizeResponses(next);
+          setResponses(normalized);
+          const first = normalized.find((response) => response.examples?.length);
+          if (first?.examples?.[0]) {
+            setSelected({
+              scope: "response",
+              responseId: first.id,
+              id: first.examples[0].id,
+            });
+          }
+        },
+        openExample: (op) => {
+          const example = { ...op.example, value: "" };
+          if (op.scope === "request") {
+            setRequestExamples((items) => [
+              ...items.filter((item) => item.id !== example.id),
+              example,
+            ]);
+            setSelected({ scope: "request", id: example.id });
+            return;
+          }
+          const responseId = op.responseId ?? crypto.randomUUID();
+          setResponses((items) => {
+            const existing = items.find(
+              (item) =>
+                item.id === responseId || item.statusCode === op.statusCode,
+            );
+            if (existing) {
+              return items.map((item) =>
+                item.id === existing.id
+                  ? {
+                      ...item,
+                      examples: [
+                        ...(item.examples ?? []).filter(
+                          (entry) => entry.id !== example.id,
+                        ),
+                        example,
+                      ],
+                    }
+                  : item,
+              );
+            }
+            return [
+              ...items,
+              {
+                id: responseId,
+                statusCode: op.statusCode ?? "200",
+                description: "Generated response",
+                contentType: "application/json",
+                examples: [example],
+              },
+            ];
+          });
+          setSelected({ scope: "response", responseId, id: example.id });
+        },
+        setExampleValue: (exampleId, value) => {
+          const apply = (items: EndpointExample[]) =>
+            items.map((item) => (item.id === exampleId ? { ...item, value } : item));
+          setRequestExamples(apply);
+          setResponses((items) =>
+            items.map((item) =>
+              item.examples ? { ...item, examples: apply(item.examples) } : item,
+            ),
+          );
+        },
+      }),
+    [endpoint.id, registerLiveExamples],
   );
 
   const activeResponse =
@@ -1399,6 +1478,8 @@ export function EndpointContractExamples({
             <CodeEditor
               value={active.value}
               onChange={(value) => updateActive({ value })}
+              readOnly={liveLocked}
+              followTyping={liveLocked}
               label={
                 selected?.scope === "request"
                   ? "Request payload"
