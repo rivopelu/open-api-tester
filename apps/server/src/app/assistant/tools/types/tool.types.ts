@@ -32,9 +32,7 @@ export type UiEffectEventListener = (effect: AssistantUiEffect) => void
 
 export interface DomainToolContext {
   accountId?: string
-  onEvent?: AssistantToolEventListener
   onUiEffect?: UiEffectEventListener
-  requestConfirmation?: ConfirmationRequestHandler
 }
 
 export interface DomainToolDefinition<

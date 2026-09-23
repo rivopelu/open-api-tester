@@ -5,7 +5,6 @@ import { ResponseHelper } from '../../lib/response-helper'
 import { UnauthorizedError } from '../../configs/exception'
 import { getUser } from '../../lib/get-user'
 import { ChatService } from '../../app/assistant/chat/service/chat.service'
-import { confirmationManager } from '../../app/assistant/chat/service/confirmation.manager'
 import {
   ChatRequestSchema,
   ConfirmationResponseSchema,
@@ -40,7 +39,7 @@ export class AssistantController {
     if (!sessionId) {
       return c.json(ResponseHelper.data([]))
     }
-    const messages = await this.chatService.getSessionMessages(sessionId)
+    const messages = await this.chatService.getSessionMessages(user.sub, sessionId)
     return c.json(ResponseHelper.data(messages))
   }
 
@@ -53,18 +52,41 @@ export class AssistantController {
     if (!sessionId) {
       return c.json(ResponseHelper.data({ deleted: false }))
     }
-    const deleted = await this.chatService.deleteSession(sessionId)
+    const deleted = await this.chatService.deleteSession(user.sub, sessionId)
     return c.json(ResponseHelper.data({ deleted }))
   }
 
-  @Post('/assistant/confirm')
+  @Post('/assistant/confirm/stream')
   @AuthAccess()
-  async confirmTool(c: Context) {
+  async confirmToolStream(c: Context) {
     const user = getUser(c)
     if (!user) throw new UnauthorizedError()
-    const { confirmationId, approved } = ConfirmationResponseSchema.parse(await c.req.json())
-    const resolved = confirmationManager.resolveConfirmation(confirmationId, approved)
-    return c.json(ResponseHelper.data({ resolved }))
+    const body = ConfirmationResponseSchema.parse(await c.req.json())
+
+    return streamSSE(c, async (stream) => {
+      try {
+        await this.chatService.resolveConfirmationStream(
+          user.sub,
+          {
+            runId: body.runId,
+            threadId: body.threadId,
+            toolCallId: body.confirmationId,
+            approved: body.approved,
+            model: body.model,
+            context: body.context,
+          },
+          async (event) => {
+            await stream.writeSSE({ event: event.type, data: JSON.stringify(event) })
+          },
+        )
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : 'Confirmation stream failed'
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({ type: 'error', message: errorMsg }),
+        })
+      }
+    })
   }
 
   @Post('/assistant/chat')

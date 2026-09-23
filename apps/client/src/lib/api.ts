@@ -159,6 +159,8 @@ export type AssistantStreamEventDto =
   | {
       type: 'tool_confirmation_request';
       confirmationId: string;
+      runId: string;
+      threadId: string;
       toolId: string;
       toolName: string;
       args: Record<string, unknown>;
@@ -169,13 +171,19 @@ export type AssistantStreamEventDto =
   | { type: 'done'; fullReply: string; threadId: string }
   | { type: 'error'; message: string };
 
-export async function confirmAssistantTool(
-  confirmationId: string,
-  approved: boolean
-): Promise<{ resolved: boolean }> {
-  return unwrap<{ resolved: boolean }>(
-    api.post('/assistant/confirm', { confirmationId, approved })
-  );
+export async function confirmAssistantToolStream(
+  payload: {
+    confirmationId: string;
+    runId: string;
+    threadId: string;
+    approved: boolean;
+    model?: string;
+    context?: AssistantContextDto;
+  },
+  onEvent: (event: AssistantStreamEventDto) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  return postSse('/api/assistant/confirm/stream', payload, onEvent, signal);
 }
 
 export async function chatStream(
@@ -188,8 +196,17 @@ export async function chatStream(
   onEvent: (event: AssistantStreamEventDto) => void,
   signal?: AbortSignal
 ): Promise<void> {
+  return postSse('/api/assistant/chat/stream', payload, onEvent, signal);
+}
+
+async function postSse(
+  path: string,
+  payload: unknown,
+  onEvent: (event: AssistantStreamEventDto) => void,
+  signal?: AbortSignal
+): Promise<void> {
   const token = getToken();
-  const res = await fetch(`${BASE_URL}/api/assistant/chat/stream`, {
+  const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
