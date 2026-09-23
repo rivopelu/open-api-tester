@@ -1,7 +1,7 @@
 import type { MastraDBMessage } from '@mastra/core/agent'
 import { NotFoundError } from '../../../../configs/exception'
 import { getAssistantAgent, memory } from '../../../../mastra'
-import { resolveModelId } from '../../../../mastra/providers/gateway'
+import { ASSISTANT_MODEL } from '../../../../mastra/providers/gateway'
 import { createAssistantRequestContext } from '../../../../mastra/request-context'
 import {
   formatToolConfirmation,
@@ -29,7 +29,6 @@ type AgentStreamOutput = Awaited<ReturnType<ReturnType<typeof getAssistantAgent>
 type RunScope = {
   accountId: string
   threadId: string
-  modelId: string
   message: string
 }
 
@@ -61,7 +60,7 @@ export class ChatService {
     await llmService.recordUsage({
       accountId: scope.accountId,
       threadId: scope.threadId,
-      model: scope.modelId,
+      model: ASSISTANT_MODEL,
       message: scope.message,
       promptTokens: usage?.inputTokens,
       completionTokens: usage?.outputTokens,
@@ -179,10 +178,8 @@ export class ChatService {
     accountId: string,
     message: string,
     threadId?: string,
-    modelId?: string,
     context?: AssistantContext,
   ): Promise<ChatResult> {
-    const activeModel = resolveModelId(modelId)
     const { thread } = await this.resolveThread(accountId, threadId)
 
     const result = await getAssistantAgent().generate(message, {
@@ -190,15 +187,11 @@ export class ChatService {
       memory: { thread: thread.id, resource: accountId },
       requestContext: createAssistantRequestContext({
         accountId,
-        modelId: activeModel,
         pageContext: context,
       }),
     })
 
-    await this.recordUsage(
-      { accountId, threadId: thread.id, modelId: activeModel, message },
-      result.totalUsage,
-    )
+    await this.recordUsage({ accountId, threadId: thread.id, message }, result.totalUsage)
 
     const updated = await memory.getThreadById({ threadId: thread.id })
     return { reply: result.text, threadId: thread.id, sessionTitle: updated?.title }
@@ -208,11 +201,9 @@ export class ChatService {
     accountId: string,
     message: string,
     threadId: string | undefined,
-    modelId: string | undefined,
     onEvent: StreamEventHandler,
     context?: AssistantContext,
   ): Promise<void> {
-    const activeModel = resolveModelId(modelId)
     const { thread, isNew } = await this.resolveThread(accountId, threadId)
 
     if (isNew) {
@@ -232,16 +223,11 @@ export class ChatService {
       },
       requestContext: createAssistantRequestContext({
         accountId,
-        modelId: activeModel,
         pageContext: context,
       }),
     })
 
-    await this.pipeAgentStream(
-      output,
-      { accountId, threadId: thread.id, modelId: activeModel, message },
-      onEvent,
-    )
+    await this.pipeAgentStream(output, { accountId, threadId: thread.id, message }, onEvent)
   }
 
   /** Resumes a run suspended on a `requireApproval` tool and streams the continuation. */
@@ -252,13 +238,11 @@ export class ChatService {
       threadId: string
       toolCallId: string
       approved: boolean
-      model?: string
       context?: AssistantContext
     },
     onEvent: StreamEventHandler,
   ): Promise<void> {
     const { thread } = await this.resolveThread(accountId, input.threadId)
-    const activeModel = resolveModelId(input.model)
     const agent = getAssistantAgent()
     const options = {
       runId: input.runId,
@@ -267,7 +251,6 @@ export class ChatService {
       memory: { thread: thread.id, resource: accountId },
       requestContext: createAssistantRequestContext({
         accountId,
-        modelId: activeModel,
         pageContext: input.context,
       }),
     }
@@ -281,7 +264,6 @@ export class ChatService {
       {
         accountId,
         threadId: thread.id,
-        modelId: activeModel,
         message: `[confirmation] ${input.toolCallId}`,
       },
       onEvent,

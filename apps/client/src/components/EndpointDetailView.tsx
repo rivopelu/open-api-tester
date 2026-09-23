@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   Endpoint,
   EndpointParameter,
@@ -20,7 +20,10 @@ import {
   ShieldCheck,
   Trash2,
   ChevronDown,
+  Maximize2,
+  Minimize2,
   Pencil,
+  PanelTopOpen,
   X,
 } from "lucide-react";
 import { Button, CodeEditor, Input, Popover, Tooltip } from "./ui";
@@ -350,6 +353,29 @@ export default function EndpointDetailView({
   const [responseOpen, setResponseOpen] = useState(false);
   const [responseHeight, setResponseHeight] = useState(260);
   const [isResizing, setIsResizing] = useState(false);
+  const [responseFullscreen, setResponseFullscreen] = useState(false);
+  const responseRef = useRef<HTMLElement>(null);
+
+  // The response panel may grow up to the full height of the endpoint view.
+  const getMaxResponseHeight = useCallback(
+    () => responseRef.current?.parentElement?.clientHeight ?? 650,
+    [],
+  );
+
+  const toggleResponseMaximized = useCallback(() => {
+    setResponseOpen(true);
+    const max = getMaxResponseHeight();
+    setResponseHeight((h) => (h >= max - 4 ? 260 : max));
+  }, [getMaxResponseHeight]);
+
+  useEffect(() => {
+    if (!responseFullscreen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setResponseFullscreen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [responseFullscreen]);
 
   const startResize = useCallback(
     (e: React.MouseEvent) => {
@@ -358,10 +384,11 @@ export default function EndpointDetailView({
 
       const startY = e.clientY;
       const startHeight = responseHeight;
+      const maxHeight = getMaxResponseHeight();
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
         const delta = startY - moveEvent.clientY;
-        const nextHeight = Math.max(140, Math.min(650, startHeight + delta));
+        const nextHeight = Math.max(140, Math.min(maxHeight, startHeight + delta));
         setResponseHeight(nextHeight);
       };
 
@@ -374,7 +401,7 @@ export default function EndpointDetailView({
       window.addEventListener("mousemove", handleMouseMove);
       window.addEventListener("mouseup", handleMouseUp);
     },
-    [responseHeight],
+    [responseHeight, getMaxResponseHeight],
   );
 
   const [prevEndpointId, setPrevEndpointId] = useState(endpoint.id);
@@ -980,7 +1007,12 @@ export default function EndpointDetailView({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <section className="flex min-h-70 flex-[1.05] flex-col border-b border-border">
+        <section
+          className={cn(
+            "flex flex-[1.05] flex-col border-b border-border",
+            responseOpen ? "min-h-0 overflow-hidden" : "min-h-70",
+          )}
+        >
           <nav
             className="flex h-10 shrink-0 items-end border-b border-border bg-surface px-4"
             aria-label="Request options"
@@ -1415,18 +1447,26 @@ export default function EndpointDetailView({
         </section>
 
         <section
-          style={responseOpen ? { height: `${responseHeight}px` } : undefined}
+          ref={responseRef}
+          style={
+            responseOpen && !responseFullscreen
+              ? { height: `${responseHeight}px` }
+              : undefined
+          }
           className={cn(
-            "relative flex flex-col bg-overlay/30 transition-[height] duration-75",
-            responseOpen ? "shrink-0" : "shrink-0",
+            "relative flex flex-col",
+            responseFullscreen
+              ? "fixed inset-0 z-100 bg-base"
+              : "shrink-0 bg-overlay/30 transition-[height] duration-75",
             isResizing && "select-none",
           )}
         >
-          {responseOpen && (
+          {responseOpen && !responseFullscreen && (
             <div
               onMouseDown={startResize}
+              onDoubleClick={toggleResponseMaximized}
               className="absolute -top-1.5 inset-x-0 h-3 cursor-row-resize z-20 flex items-center justify-center group hover:bg-primary/20 transition-colors"
-              title="Drag to resize response panel"
+              title="Drag to resize, double-click to maximize"
             >
               <div className="h-1 w-12 rounded-full bg-border group-hover:bg-primary transition-colors" />
             </div>
@@ -1471,13 +1511,48 @@ export default function EndpointDetailView({
                 </span>
               </div>
             )}
+            {responseOpen && !responseFullscreen && (
+              <button
+                type="button"
+                onClick={toggleResponseMaximized}
+                className={cn(
+                  "ml-3 p-1.5 text-text-muted hover:text-text-primary",
+                  !response && "ml-auto",
+                )}
+                aria-label="Expand response panel to the top"
+                title="Expand to top"
+              >
+                <PanelTopOpen className="h-3.5 w-3.5" />
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => setResponseOpen((open) => !open)}
+              onClick={() => {
+                setResponseOpen(true);
+                setResponseFullscreen((full) => !full);
+              }}
               className={cn(
-                "ml-3 p-1.5 text-text-muted hover:text-text-primary",
-                !responseOpen && "ml-auto",
+                "p-1.5 text-text-muted hover:text-text-primary",
+                responseOpen ? "ml-1" : response ? "ml-3" : "ml-auto",
               )}
+              aria-label={
+                responseFullscreen ? "Exit full screen" : "Open response full screen"
+              }
+              title={responseFullscreen ? "Exit full screen (Esc)" : "Full screen"}
+            >
+              {responseFullscreen ? (
+                <Minimize2 className="h-3.5 w-3.5" />
+              ) : (
+                <Maximize2 className="h-3.5 w-3.5" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setResponseFullscreen(false);
+                setResponseOpen((open) => !open);
+              }}
+              className="ml-1 p-1.5 text-text-muted hover:text-text-primary"
               aria-label={
                 responseOpen ? "Close response panel" : "Open response panel"
               }

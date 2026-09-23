@@ -2,10 +2,12 @@ import { Mastra } from '@mastra/core/mastra'
 import { PinoLogger } from '@mastra/loggers'
 import { env } from '../configs/env'
 import { ASSISTANT_AGENT_ID, assistantAgent } from './agents/assistant.agent'
+import { mcpServer } from './mcp'
 import { storage } from './storage'
 
 export const mastra = new Mastra({
   agents: { [ASSISTANT_AGENT_ID]: assistantAgent },
+  mcpServers: { 'modern-api-studio': mcpServer },
   storage,
   logger: new PinoLogger({ name: 'mastra', level: env.APP_ENV === 'production' ? 'info' : 'warn' }),
 })

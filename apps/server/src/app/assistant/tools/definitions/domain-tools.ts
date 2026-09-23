@@ -396,6 +396,66 @@ export const domainTools: DomainToolDefinition[] = [
     },
   }),
 
+  // ── Endpoint Docs (Markdown) Tools ─────────────────────────────────────────
+  defineTool({
+    name: 'get_endpoint_docs',
+    description:
+      'Read the markdown documentation (Docs tab) of an endpoint. Returns an empty string when none is written yet.',
+    inputSchema: z.object({
+      endpointId: z.string().min(1).describe('The unique endpoint ID'),
+    }),
+    readOnly: true,
+    execute: async ({ endpointId }) => {
+      const endpoint = await endpointService.get(endpointId)
+      const markdown = (endpoint.specData?.description as string | undefined) ?? ''
+      return {
+        endpointId,
+        method: endpoint.method,
+        path: endpoint.path,
+        markdown,
+      }
+    },
+    formatSummary: (result) => {
+      const res = result as { markdown: string }
+      return res.markdown ? `Docs loaded (${res.markdown.length} chars)` : 'No docs written yet'
+    },
+  }),
+
+  defineTool({
+    name: 'update_endpoint_docs',
+    description:
+      'Write the markdown documentation (Docs tab) of an endpoint. mode "replace" overwrites the whole document (default), "append" adds the markdown to the end. Always read the current docs with get_endpoint_docs before editing part of an existing document.',
+    inputSchema: z.object({
+      endpointId: z.string().min(1).describe('The unique endpoint ID'),
+      markdown: z.string().describe('Markdown content to write'),
+      mode: z
+        .enum(['replace', 'append'])
+        .optional()
+        .describe('"replace" (default) overwrites the docs, "append" adds to the end'),
+    }),
+    requiresConfirmation: true,
+    formatConfirmation: ({ endpointId, mode }) =>
+      `${mode === 'append' ? 'Append to' : 'Replace'} markdown docs of endpoint (${endpointId})`,
+    execute: async ({ endpointId, markdown, mode }, ctx) => {
+      const current = await endpointService.get(endpointId)
+      const existing = (current.specData?.description as string | undefined) ?? ''
+      const description =
+        mode === 'append' && existing ? `${existing.trimEnd()}\n\n${markdown}` : markdown
+
+      const updated = await endpointService.update(endpointId, {
+        specData: { ...current.specData, description },
+      })
+
+      ctx.onUiEffect?.({ type: 'tab_change', endpointId, tab: 'docs', target: 'docs' })
+      ctx.onUiEffect?.({ type: 'highlight', endpointId, target: 'docs' })
+      return { endpointId, method: updated.method, path: updated.path, markdown: description }
+    },
+    formatSummary: (result) => {
+      const res = result as { method?: string; path?: string }
+      return `Docs of [${res.method}] ${res.path} updated`
+    },
+  }),
+
   defineTool({
     name: 'move_endpoint',
     description:

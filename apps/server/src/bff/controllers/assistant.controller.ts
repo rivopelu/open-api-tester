@@ -9,17 +9,10 @@ import {
   ChatRequestSchema,
   ConfirmationResponseSchema,
 } from '../../app/assistant/chat/types/chat.types'
-import { LLM_MODELS } from '../../app/llm/constants/data'
 
 @Controller()
 export class AssistantController {
   private chatService = new ChatService()
-
-  @Get('/assistant/models')
-  @AuthAccess()
-  async getModels(c: Context) {
-    return c.json(ResponseHelper.data(LLM_MODELS))
-  }
 
   @Get('/assistant/sessions')
   @AuthAccess()
@@ -72,7 +65,6 @@ export class AssistantController {
             threadId: body.threadId,
             toolCallId: body.confirmationId,
             approved: body.approved,
-            model: body.model,
             context: body.context,
           },
           async (event) => {
@@ -94,8 +86,8 @@ export class AssistantController {
   async chat(c: Context) {
     const user = getUser(c)
     if (!user) throw new UnauthorizedError()
-    const { message, threadId, model, context } = ChatRequestSchema.parse(await c.req.json())
-    const result = await this.chatService.chat(user.sub, message, threadId, model, context)
+    const { message, threadId, context } = ChatRequestSchema.parse(await c.req.json())
+    const result = await this.chatService.chat(user.sub, message, threadId, context)
     return c.json(ResponseHelper.data(result))
   }
 
@@ -104,7 +96,7 @@ export class AssistantController {
   async chatStream(c: Context) {
     const user = getUser(c)
     if (!user) throw new UnauthorizedError()
-    const { message, threadId, model, context } = ChatRequestSchema.parse(await c.req.json())
+    const { message, threadId, context } = ChatRequestSchema.parse(await c.req.json())
 
     return streamSSE(c, async (stream) => {
       try {
@@ -112,7 +104,6 @@ export class AssistantController {
           user.sub,
           message,
           threadId,
-          model,
           async (event) => {
             await stream.writeSSE({
               event: event.type,

@@ -75,8 +75,38 @@ jobs:
         run: |
           ssh "$SSH_USERNAME@$SSH_HOST" "
             set -e
-            export PATH=\"\$HOME/.bun/bin:\$PATH\"
             cd '$REMOTE_APP_DIR'
-            pm2 startOrReload ecosystem.config.cjs --update-env
+            echo \"node \$(node --version), pm2 \$(pm2 --version)\"
+            # delete + start (not reload) so changes in ecosystem.config.cjs (interpreter, args) apply.
+            pm2 delete open-api-tester-server >/dev/null 2>&1 || true
+            pm2 start ecosystem.config.cjs --update-env
             pm2 save
+          "
+
+      - name: Health check
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+        run: |
+          ssh "$SSH_USERNAME@$SSH_HOST" "
+            cd '$REMOTE_APP_DIR'
+            PORT=\$(grep -E '^PORT=' .env | tail -1 | cut -d= -f2 | tr -d '\"[:space:]')
+            PORT=\${PORT:-8888}
+            PREFIX=\$(grep -E '^API_PREFIX=' .env | tail -1 | cut -d= -f2 | tr -d '\"[:space:]')
+            PREFIX=\${PREFIX:-/api}
+            for i in \$(seq 1 20); do
+              sleep 3
+              if curl -fsS \"http://127.0.0.1:\$PORT\$PREFIX/ping\" >/dev/null; then
+                sleep 10
+                if curl -fsS \"http://127.0.0.1:\$PORT\$PREFIX/ping\" >/dev/null; then
+                  echo \"Healthy on port \$PORT\"
+                  pm2 describe open-api-tester-server | grep -E 'status|restarts|uptime|script path|interpreter'
+                  exit 0
+                fi
+              fi
+            done
+            echo 'App failed health check, recent logs:'
+            pm2 describe open-api-tester-server || true
+            pm2 logs open-api-tester-server --lines 80 --nostream || true
+            exit 1
           "
