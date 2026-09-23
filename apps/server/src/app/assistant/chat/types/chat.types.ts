@@ -1,3 +1,4 @@
+import type { LiveEditOutcome, LiveEditPlan } from '@modern-api-studio/types'
 import { z } from 'zod'
 
 export const AssistantContextSchema = z.object({
@@ -24,6 +25,19 @@ export const ConfirmationResponseSchema = z.object({
   runId: z.string().min(1),
   threadId: z.string().min(1),
   approved: z.boolean(),
+  context: AssistantContextSchema.optional(),
+})
+
+export const LiveEditResultSchema = z.object({
+  runId: z.string().min(1),
+  threadId: z.string().min(1),
+  toolCallId: z.string().min(1),
+  result: z.custom<LiveEditOutcome>(
+    (value) =>
+      typeof value === 'object' &&
+      value !== null &&
+      ['saved', 'failed', 'fallback'].includes((value as { outcome?: string }).outcome ?? ''),
+  ),
   context: AssistantContextSchema.optional(),
 })
 
@@ -77,6 +91,13 @@ export type AssistantStreamEvent =
       summary: string
     }
   | { type: 'ui_effect'; effect: AssistantUiEffectDto }
+  | {
+      type: 'live_edit'
+      runId: string
+      threadId: string
+      toolCallId: string
+      plan: LiveEditPlan
+    }
   | { type: 'session_info'; threadId: string; sessionTitle?: string }
   | { type: 'done'; fullReply: string; threadId: string }
   | { type: 'error'; message: string }

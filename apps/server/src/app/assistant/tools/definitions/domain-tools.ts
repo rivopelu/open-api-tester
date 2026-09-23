@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import type {
+  EndpointAuthConfig,
   EndpointExample,
+  EndpointParameter,
+  HttpMethod,
+  LiveEditOp,
+  LiveEditPatch,
   RequestBodyDefinition,
   ResponseDefinition,
 } from '@modern-api-studio/types'
@@ -11,6 +16,7 @@ import { EndpointService } from '../../../endpoints/service/endpoint.service'
 import { ProjectRepository } from '../../../projects/repository/project.repository'
 import { ProjectService } from '../../../projects/service/project.service'
 import { collectMockExamples, resolveMock } from '../../../mock/service/mock.service'
+import type { EndpointItem } from '../../../endpoints/service/endpoint.service'
 import type { DomainToolDefinition } from '../types/tool.types'
 
 const projectRepository = new ProjectRepository()
@@ -23,6 +29,236 @@ export function defineTool<TSchema extends z.ZodRawShape, TResult = unknown>(
   tool: DomainToolDefinition<TSchema, TResult>,
 ): DomainToolDefinition<TSchema, TResult> {
   return tool
+}
+
+// ── Live edit helpers (chat mode: the client types these ops into the form) ──
+const ROW_SECTIONS = ['path', 'query', 'header'] as const
+const PARAM_LOCATIONS = ['path', 'query', 'header', 'cookie'] as const
+
+type Json = Record<string, unknown>
+const isRecord = (value: unknown): value is Json =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+function toJsonText(value: unknown): string {
+  if (typeof value === 'string') {
+    try {
+      return JSON.stringify(JSON.parse(value), null, 2)
+    } catch {
+      return value
+    }
+  }
+  return value === undefined || value === null ? '' : JSON.stringify(value, null, 2)
+}
+
+function normalizeParameters(raw: unknown): EndpointParameter[] {
+  if (!Array.isArray(raw)) return []
+  return raw.filter(isRecord).flatMap((param): EndpointParameter[] => {
+    if (typeof param.name !== 'string' || !param.name) return []
+    const location = PARAM_LOCATIONS.find((loc) => loc === param.in) ?? 'query'
+    const schema = isRecord(param.schema) ? param.schema : {}
+    return [
+      {
+        id: typeof param.id === 'string' ? param.id : randomUUID(),
+        name: param.name,
+        in: location,
+        required: Boolean(param.required ?? location === 'path'),
+        description: typeof param.description === 'string' ? param.description : undefined,
+        schema: {
+          ...schema,
+          type: (typeof schema.type === 'string'
+            ? schema.type
+            : 'string') as EndpointParameter['schema']['type'],
+          example: schema.example ?? param.example,
+        },
+      },
+    ]
+  })
+}
+
+/** Sample JSON from an OpenAPI JSON schema object (`{ properties: {...} }`). */
+function sampleFromJsonSchema(schema: Json): unknown {
+  if (schema.example !== undefined) return schema.example
+  if (isRecord(schema.properties)) {
+    return Object.fromEntries(
+      Object.entries(schema.properties).map(([key, prop]) => [
+        key,
+        isRecord(prop) ? sampleFromJsonSchema(prop) : null,
+      ]),
+    )
+  }
+  if (schema.type === 'array') {
+    return [isRecord(schema.items) ? sampleFromJsonSchema(schema.items) : null]
+  }
+  if (schema.type === 'string') return ''
+  if (schema.type === 'number' || schema.type === 'integer') return 0
+  if (schema.type === 'boolean') return false
+  return null
+}
+
+/** Accepts the studio shape or an OpenAPI requestBody and always yields `rawJson` for the Body tab. */
+function normalizeRequestBody(
+  raw: unknown,
+  current?: RequestBodyDefinition,
+): RequestBodyDefinition {
+  const body = isRecord(raw) ? raw : {}
+  const content = isRecord(body.content) ? body.content : undefined
+  const json =
+    content && isRecord(content['application/json']) ? content['application/json'] : undefined
+  const jsonSchema = isRecord(body.schema)
+    ? body.schema
+    : json && isRecord(json.schema)
+      ? json.schema
+      : undefined
+  const example =
+    body.example ?? json?.example ?? (jsonSchema ? sampleFromJsonSchema(jsonSchema) : undefined)
+
+  const rest = Object.fromEntries(
+    Object.entries(body).filter(([key]) => key !== 'content' && key !== 'example'),
+  ) as Partial<RequestBodyDefinition>
+  return {
+    ...current,
+    ...rest,
+    required: Boolean(body.required ?? current?.required ?? false),
+    contentType: (typeof body.contentType === 'string'
+      ? body.contentType
+      : (current?.contentType ?? 'application/json')) as RequestBodyDefinition['contentType'],
+    schema: Array.isArray(body.schema) ? body.schema : (current?.schema ?? []),
+    rawJson:
+      typeof body.rawJson === 'string'
+        ? body.rawJson
+        : example !== undefined
+          ? toJsonText(example)
+          : current?.rawJson,
+  }
+}
+
+/** Merges an OpenAPI operation patch into the stored specData, normalizing what the form shows. */
+function mergeSpec(current: Json, patch: Json | undefined): Json {
+  if (!patch) return current
+  const next: Json = { ...current, ...patch }
+  if (patch.parameters !== undefined) next.parameters = normalizeParameters(patch.parameters)
+  if (patch.requestBody !== undefined) {
+    next.requestBody = normalizeRequestBody(
+      patch.requestBody,
+      current.requestBody as RequestBodyDefinition | undefined,
+    )
+  }
+  return next
+}
+
+function specOps(current: Json, patch: Json | undefined, next: Json): LiveEditOp[] {
+  if (!patch) return []
+  const ops: LiveEditOp[] = []
+  if (patch.parameters !== undefined) {
+    const nextParams = (next.parameters as EndpointParameter[]) ?? []
+    const currentParams = Array.isArray(current.parameters)
+      ? (current.parameters as EndpointParameter[])
+      : []
+    for (const section of ROW_SECTIONS) {
+      const rows = nextParams
+        .filter((param) => param.in === section)
+        .map((param) => ({ key: param.name, value: String(param.schema?.example ?? '') }))
+      if (rows.length || currentParams.some((param) => param.in === section)) {
+        ops.push({ kind: 'rows', section, rows })
+      }
+    }
+  }
+  if (patch.requestBody !== undefined) {
+    ops.push({ kind: 'body', requestBody: next.requestBody as RequestBodyDefinition })
+  }
+  if (isRecord(patch.auth) && typeof patch.auth.type === 'string') {
+    ops.push({ kind: 'auth', value: patch.auth as unknown as EndpointAuthConfig })
+  }
+  if (typeof patch.description === 'string') ops.push({ kind: 'docs', value: patch.description })
+  if (Array.isArray(patch.responses)) {
+    ops.push({ kind: 'responses', value: patch.responses as ResponseDefinition[] })
+  }
+  return ops
+}
+
+function headerOps(changes: {
+  method?: HttpMethod
+  path?: string
+  summary?: string
+}): LiveEditOp[] {
+  const ops: LiveEditOp[] = []
+  if (changes.method) ops.push({ kind: 'method', value: changes.method })
+  if (changes.path !== undefined) ops.push({ kind: 'url', value: changes.path })
+  if (changes.summary !== undefined) ops.push({ kind: 'summary', value: changes.summary })
+  return ops
+}
+
+function endpointPatch(changes: {
+  method?: HttpMethod
+  path?: string
+  summary?: string
+  folderId?: string | null
+  specData?: Json
+}): LiveEditPatch {
+  return Object.fromEntries(
+    Object.entries(changes).filter(([, value]) => value !== undefined),
+  ) as LiveEditPatch
+}
+
+/** Adds an example to the request body or a response status, creating the response when missing. */
+function buildExampleContract(
+  endpoint: EndpointItem,
+  input: {
+    scope: 'request' | 'response'
+    responseStatus?: string
+    name: string
+    summary?: string
+    value: unknown
+  },
+) {
+  const spec = endpoint.specData
+  const example: EndpointExample = {
+    id: randomUUID(),
+    name: input.name,
+    summary: input.summary,
+    value: toJsonText(input.value) || '{\n  \n}',
+  }
+  const requestBody = spec.requestBody as RequestBodyDefinition | undefined
+  const responses = Array.isArray(spec.responses) ? (spec.responses as ResponseDefinition[]) : []
+
+  if (input.scope === 'request') {
+    return {
+      example,
+      responseId: undefined,
+      requestBody: {
+        required: requestBody?.required ?? false,
+        contentType: requestBody?.contentType ?? 'application/json',
+        schema: requestBody?.schema ?? [],
+        ...requestBody,
+        examples: [...(requestBody?.examples ?? []), example],
+      } as RequestBodyDefinition,
+      responses,
+    }
+  }
+
+  if (!input.responseStatus) throw new Error('responseStatus is required for response examples')
+  const existing = responses.find((item) => item.statusCode === input.responseStatus)
+  const responseId = existing?.id ?? randomUUID()
+  const nextResponses: ResponseDefinition[] = existing
+    ? responses.map((item) =>
+        item.id === existing.id ? { ...item, examples: [...(item.examples ?? []), example] } : item,
+      )
+    : [
+        ...responses,
+        {
+          id: responseId,
+          statusCode: input.responseStatus,
+          description: 'Generated response',
+          contentType: 'application/json',
+          examples: [example],
+        },
+      ]
+  return { example, responseId, requestBody, responses: nextResponses }
+}
+
+/** Fallback when the client cannot show a live edit: persist its final values directly. */
+export async function persistLivePatch(endpointId: string, patch: LiveEditPatch) {
+  return endpointService.update(endpointId, patch)
 }
 
 export const domainTools: DomainToolDefinition[] = [
@@ -264,6 +500,27 @@ export const domainTools: DomainToolDefinition[] = [
     }),
     requiresConfirmation: true,
     formatConfirmation: (input) => `Create new endpoint [${input.method}] ${input.path} in project`,
+    planLiveEdit: async ({ projectId, folderId, method, path, summary, specData }) => {
+      // Only an empty shell is created server-side so the endpoint can be opened;
+      // everything else is typed into the form and saved by the client.
+      const shell = await endpointService.create({
+        projectId,
+        folderId,
+        method,
+        path: '/',
+        summary: '',
+      })
+      const nextSpec = mergeSpec(shell.specData, specData)
+      return {
+        projectId,
+        endpointId: shell.id,
+        ops: [
+          ...headerOps({ path, summary: summary ?? '' }),
+          ...specOps(shell.specData, specData, nextSpec),
+        ],
+        patch: endpointPatch({ method, path, summary: summary ?? '', specData: nextSpec }),
+      }
+    },
     execute: async (input, ctx) => {
       const created = await endpointService.create(input)
       ctx.onUiEffect?.({
@@ -315,6 +572,25 @@ export const domainTools: DomainToolDefinition[] = [
       if (input.specData?.responses) parts.push(`responses`)
       if (input.specData?.parameters) parts.push(`parameters`)
       return `Update endpoint: ${parts.length > 0 ? parts.join(', ') : input.endpointId}`
+    },
+    planLiveEdit: async ({ endpointId, specData, folderId, method, path, summary }) => {
+      const current = await endpointService.get(endpointId)
+      const nextSpec = mergeSpec(current.specData, specData)
+      return {
+        projectId: current.projectId,
+        endpointId,
+        ops: [
+          ...headerOps({ method, path, summary }),
+          ...specOps(current.specData, specData, nextSpec),
+        ],
+        patch: endpointPatch({
+          method,
+          path,
+          summary,
+          folderId,
+          specData: specData ? nextSpec : undefined,
+        }),
+      }
     },
     execute: async ({ endpointId, specData, ...changes }, ctx) => {
       const current = await endpointService.get(endpointId)
@@ -436,6 +712,18 @@ export const domainTools: DomainToolDefinition[] = [
     requiresConfirmation: true,
     formatConfirmation: ({ endpointId, mode }) =>
       `${mode === 'append' ? 'Append to' : 'Replace'} markdown docs of endpoint (${endpointId})`,
+    planLiveEdit: async ({ endpointId, markdown, mode }) => {
+      const current = await endpointService.get(endpointId)
+      const existing = (current.specData?.description as string | undefined) ?? ''
+      const description =
+        mode === 'append' && existing ? `${existing.trimEnd()}\n\n${markdown}` : markdown
+      return {
+        projectId: current.projectId,
+        endpointId,
+        ops: [{ kind: 'docs', value: description }],
+        patch: { specData: { ...current.specData, description } },
+      }
+    },
     execute: async ({ endpointId, markdown, mode }, ctx) => {
       const current = await endpointService.get(endpointId)
       const existing = (current.specData?.description as string | undefined) ?? ''
@@ -497,68 +785,50 @@ export const domainTools: DomainToolDefinition[] = [
     requiresConfirmation: true,
     formatConfirmation: ({ name, scope, responseStatus }) =>
       `Add ${scope} example "${name}"${responseStatus ? ` (Status ${responseStatus})` : ''} to endpoint`,
+    planLiveEdit: async ({ endpointId, scope, responseStatus, name, summary, value }) => {
+      const endpoint = await endpointService.get(endpointId)
+      const contract = buildExampleContract(endpoint, {
+        scope,
+        responseStatus,
+        name,
+        summary,
+        value,
+      })
+      return {
+        projectId: endpoint.projectId,
+        endpointId,
+        ops: [
+          {
+            kind: 'example',
+            scope,
+            responseId: contract.responseId,
+            statusCode: responseStatus,
+            example: contract.example,
+          },
+        ],
+        patch: {
+          specData: {
+            ...endpoint.specData,
+            requestBody: contract.requestBody,
+            responses: contract.responses,
+          },
+        },
+      }
+    },
     execute: async ({ endpointId, scope, responseStatus, name, summary, value }, ctx) => {
       const endpoint = await endpointService.get(endpointId)
-      const spec = endpoint.specData
-      const exampleId = randomUUID()
-
-      let formattedValue: string
-      if (typeof value === 'string') {
-        try {
-          const parsed = JSON.parse(value)
-          formattedValue = JSON.stringify(parsed, null, 2)
-        } catch {
-          formattedValue = value
-        }
-      } else if (value !== undefined && value !== null) {
-        formattedValue = JSON.stringify(value, null, 2)
-      } else {
-        formattedValue = '{\n  \n}'
-      }
-
-      const example: EndpointExample = { id: exampleId, name, summary, value: formattedValue }
-      const requestBody = spec.requestBody as RequestBodyDefinition | undefined
-      const responses = Array.isArray(spec.responses)
-        ? (spec.responses as ResponseDefinition[])
-        : []
-
-      let updatedResult
-      if (scope === 'request') {
-        updatedResult = await endpointService.updateExamples(endpointId, {
-          requestBody: {
-            required: requestBody?.required ?? false,
-            contentType: requestBody?.contentType ?? 'application/json',
-            schema: requestBody?.schema ?? [],
-            ...requestBody,
-            examples: [...(requestBody?.examples ?? []), example],
-          },
-          responses,
-        })
-      } else {
-        if (!responseStatus) throw new Error('responseStatus is required for response examples')
-        const response = responses.find((item) => item.statusCode === responseStatus)
-        const nextResponses = response
-          ? responses.map((item) =>
-              item.id === response.id
-                ? { ...item, examples: [...(item.examples ?? []), example] }
-                : item,
-            )
-          : [
-              ...responses,
-              {
-                id: randomUUID(),
-                statusCode: responseStatus,
-                description: 'Generated response',
-                contentType: 'application/json',
-                examples: [example],
-              },
-            ]
-
-        updatedResult = await endpointService.updateExamples(endpointId, {
-          requestBody,
-          responses: nextResponses,
-        })
-      }
+      const contract = buildExampleContract(endpoint, {
+        scope,
+        responseStatus,
+        name,
+        summary,
+        value,
+      })
+      const exampleId = contract.example.id
+      const updatedResult = await endpointService.updateExamples(endpointId, {
+        requestBody: contract.requestBody,
+        responses: contract.responses,
+      })
 
       ctx.onUiEffect?.({
         type: 'tab_change',

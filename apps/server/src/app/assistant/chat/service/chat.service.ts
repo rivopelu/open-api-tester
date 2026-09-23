@@ -1,4 +1,5 @@
 import type { MastraDBMessage } from '@mastra/core/agent'
+import type { LiveEditOutcome, LiveEditPlan } from '@modern-api-studio/types'
 import { NotFoundError } from '../../../../configs/exception'
 import { getAssistantAgent, memory } from '../../../../mastra'
 import { ASSISTANT_MODEL } from '../../../../mastra/providers/gateway'
@@ -135,6 +136,21 @@ export class ChatService {
             resultSummary: formatToolErrorMessage(chunk.payload.error),
           })
           break
+        case 'tool-call-suspended': {
+          // Live edit: the client types the plan into the form, then resumes via /live-edit/stream.
+          suspended = true
+          const plan = (chunk.payload.suspendPayload as { plan?: LiveEditPlan } | undefined)?.plan
+          if (plan) {
+            await onEvent({
+              type: 'live_edit',
+              runId: chunk.runId,
+              threadId: scope.threadId,
+              toolCallId: chunk.payload.toolCallId,
+              plan,
+            })
+          }
+          break
+        }
         case 'tool-output-denied':
           await onEvent({
             type: 'tool_call_error',
@@ -224,6 +240,7 @@ export class ChatService {
       requestContext: createAssistantRequestContext({
         accountId,
         pageContext: context,
+        liveEdit: true,
       }),
     })
 
@@ -252,6 +269,7 @@ export class ChatService {
       requestContext: createAssistantRequestContext({
         accountId,
         pageContext: input.context,
+        liveEdit: true,
       }),
     }
 
@@ -266,6 +284,38 @@ export class ChatService {
         threadId: thread.id,
         message: `[confirmation] ${input.toolCallId}`,
       },
+      onEvent,
+    )
+  }
+
+  /** Resumes a tool suspended on a live edit with what the client did (saved / failed / fallback). */
+  async resolveLiveEditStream(
+    accountId: string,
+    input: {
+      runId: string
+      threadId: string
+      toolCallId: string
+      result: LiveEditOutcome
+      context?: AssistantContext
+    },
+    onEvent: StreamEventHandler,
+  ): Promise<void> {
+    const { thread } = await this.resolveThread(accountId, input.threadId)
+    const output = await getAssistantAgent().resumeStream(input.result, {
+      runId: input.runId,
+      toolCallId: input.toolCallId,
+      maxSteps: MAX_STEPS,
+      memory: { thread: thread.id, resource: accountId },
+      requestContext: createAssistantRequestContext({
+        accountId,
+        pageContext: input.context,
+        liveEdit: true,
+      }),
+    })
+
+    await this.pipeAgentStream(
+      output,
+      { accountId, threadId: thread.id, message: `[live-edit] ${input.toolCallId}` },
       onEvent,
     )
   }

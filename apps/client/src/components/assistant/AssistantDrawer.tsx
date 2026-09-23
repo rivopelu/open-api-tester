@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Endpoint } from "@modern-api-studio/types";
 import {
   AlertTriangle,
@@ -20,6 +21,7 @@ import {
   api,
   chatStream,
   confirmAssistantToolStream,
+  liveEditResultStream,
   type AssistantStreamEventDto,
   unwrap,
   type AssistantContextDto,
@@ -28,6 +30,11 @@ import {
 } from "../../lib/api";
 import { useApiSpecStore } from "../../store/useApiSpecStore";
 import { useAssistantEffectStore } from "../../store/useAssistantEffectStore";
+import { useLiveEditStore } from "../../store/useLiveEditStore";
+import { runLiveEdit } from "../../lib/live-edit/runner";
+import { endpointRepository } from "../../repositories";
+import { endpointQueryKeys, projectQueryKeys } from "../../queries/project.queries";
+import { router } from "../../routes";
 import { useUiStore } from "../../store/useUiStore";
 import { formatToolLabel } from "../../lib/toolLabels";
 import { Button } from "../ui";
@@ -437,6 +444,15 @@ export function AssistantDrawer() {
             summary: evt.summary,
           },
         ]);
+      } else if (evt.type === "live_edit") {
+        // The run is suspended; the effect below types the plan into the form.
+        useLiveEditStore.getState().start({
+          plan: evt.plan,
+          runId: evt.runId,
+          toolCallId: evt.toolCallId,
+          threadId: evt.threadId,
+          assistantMsgId,
+        });
       } else if (evt.type === "ui_effect") {
         useAssistantEffectStore.getState().dispatchEffect(evt.effect);
       } else if (evt.type === "session_info") {
@@ -470,6 +486,65 @@ export function AssistantDrawer() {
         );
       }
     };
+
+  // ── AI live edit: type the suspended tool's plan into the form, save, then resume ──
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const liveSession = useLiveEditStore((state) => state.session);
+  const processedLiveEdits = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!liveSession) return;
+    const { plan, runId, toolCallId, threadId, assistantMsgId } = liveSession;
+    if (processedLiveEdits.current.has(plan.editId)) return;
+    processedLiveEdits.current.add(plan.editId);
+
+    const refresh = async () => {
+      await queryClient.invalidateQueries({ queryKey: endpointQueryKeys.detail(plan.endpointId) });
+      await queryClient.invalidateQueries({ queryKey: projectQueryKeys.detail(plan.projectId) });
+    };
+
+    void (async () => {
+      setIsLoading(true);
+      const result = await runLiveEdit({
+        open: (target) => {
+          // A just-created endpoint must show up in the sidebar before it can be opened.
+          void queryClient.invalidateQueries({ queryKey: projectQueryKeys.detail(target.projectId) });
+          const url = router.project.endpoint(target.projectId, target.endpointId);
+          if (`${window.location.pathname}${window.location.search}` !== url) navigate(url);
+        },
+        save: async (target) => {
+          const saved = await endpointRepository.update(target.endpointId, target.patch);
+          queryClient.setQueryData(endpointQueryKeys.detail(saved.id), saved);
+          void queryClient.invalidateQueries({ queryKey: projectQueryKeys.detail(target.projectId) });
+          return saved;
+        },
+      });
+      useLiveEditStore.getState().end();
+
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+      try {
+        await liveEditResultStream(
+          { runId, toolCallId, threadId, result, context: currentContext },
+          handleStreamEvent(assistantMsgId),
+          abortController.signal,
+        );
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : "Gagal melanjutkan respons AI";
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMsgId ? { ...msg, status: "error", errorMessage: errMsg } : msg,
+          ),
+        );
+      } finally {
+        // The server persisted it itself on fallback; make sure the form shows the result.
+        await refresh();
+        setIsLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSession]);
 
   const handleSendPrompt = async (textToSend: string) => {
     const text = textToSend.trim();

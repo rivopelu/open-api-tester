@@ -8,6 +8,7 @@ import { ChatService } from '../../app/assistant/chat/service/chat.service'
 import {
   ChatRequestSchema,
   ConfirmationResponseSchema,
+  LiveEditResultSchema,
 } from '../../app/assistant/chat/types/chat.types'
 
 @Controller()
@@ -73,6 +74,29 @@ export class AssistantController {
         )
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Confirmation stream failed'
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({ type: 'error', message: errorMsg }),
+        })
+      }
+    })
+  }
+
+  /** The client finished typing a live edit into the form; resume the suspended tool with the outcome. */
+  @Post('/assistant/live-edit/stream')
+  @AuthAccess()
+  async liveEditResultStream(c: Context) {
+    const user = getUser(c)
+    if (!user) throw new UnauthorizedError()
+    const body = LiveEditResultSchema.parse(await c.req.json())
+
+    return streamSSE(c, async (stream) => {
+      try {
+        await this.chatService.resolveLiveEditStream(user.sub, body, async (event) => {
+          await stream.writeSSE({ event: event.type, data: JSON.stringify(event) })
+        })
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : 'Live edit stream failed'
         await stream.writeSSE({
           event: 'error',
           data: JSON.stringify({ type: 'error', message: errorMsg }),
