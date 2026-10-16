@@ -9,3 +9,8 @@ export const endpointQueryKeys = {
   all: ['endpoints'] as const,
   detail: (id: string) => [...endpointQueryKeys.all, 'detail', id] as const,
 };
+
+export const jiraLinkQueryKeys = {
+  all: ['jira-links'] as const,
+  byEndpoint: (endpointId: string) => [...jiraLinkQueryKeys.all, endpointId] as const,
+};

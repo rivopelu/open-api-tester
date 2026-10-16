@@ -43,6 +43,7 @@ import {
   useEnvironmentStore,
 } from "../store/useEnvironmentStore";
 import { EndpointContractExamples } from "./EndpointContractExamples";
+import { EndpointJiraLinks } from "./EndpointJiraLinks";
 import { MarkdownRenderer } from "./assistant/MarkdownRenderer";
 
 interface KvRow {
@@ -52,7 +53,7 @@ interface KvRow {
   enabled: boolean;
 }
 
-type RequestTab = "params" | "authorization" | "headers" | "body" | "docs" | "examples";
+type RequestTab = "params" | "authorization" | "headers" | "body" | "docs" | "examples" | "jira";
 type ResponseTab = "body" | "headers";
 
 interface EndpointDetailViewProps {
@@ -92,6 +93,7 @@ const requestTabs: { id: RequestTab; label: string }[] = [
   { id: "body", label: "Body" },
   { id: "docs", label: "Docs" },
   { id: "examples", label: "Examples" },
+  { id: "jira", label: "Jira" },
 ];
 
 function rawUrl(path: string): string {
@@ -1584,6 +1586,8 @@ export default function EndpointDetailView({
                 onSave={onSaveContract ?? (async () => {})}
               />
             )}
+
+            {activeTab === "jira" && <EndpointJiraLinks endpointId={endpoint.id} />}
           </div>
         </section>
 
