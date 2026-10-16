@@ -27,6 +27,12 @@ export const envSchema = z.object({
   GOOGLE_REDIRECT_URI: z.string().optional(),
   LLM_BASE_URL: z.string().url().optional(),
   LLM_API_KEY: z.string().optional(),
+  JIRA_BASE_URL: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.string().url().optional(),
+  ),
+  JIRA_EMAIL: z.string().optional(),
+  JIRA_API_TOKEN: z.string().optional(),
 })
 
 export function validateEnv() {

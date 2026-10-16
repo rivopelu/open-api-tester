@@ -13,6 +13,8 @@ import type {
 import { EndpointFolderService } from '../../../endpoint-folders/service/endpoint-folder.service'
 import { EndpointRepository } from '../../../endpoints/repository/endpoint.repository'
 import { EndpointService } from '../../../endpoints/service/endpoint.service'
+import { EndpointJiraLinkService } from '../../../endpoints/service/endpoint-jira-link.service'
+import { JiraClient } from '../../../endpoints/service/jira-client'
 import { ProjectRepository } from '../../../projects/repository/project.repository'
 import { ProjectService } from '../../../projects/service/project.service'
 import { collectMockExamples, resolveMock } from '../../../mock/service/mock.service'
@@ -24,6 +26,8 @@ const projectService = new ProjectService()
 const endpointRepository = new EndpointRepository()
 const endpointService = new EndpointService()
 const folderService = new EndpointFolderService()
+const jiraClient = new JiraClient()
+const jiraLinkService = new EndpointJiraLinkService()
 
 export function defineTool<TSchema extends z.ZodRawShape, TResult = unknown>(
   tool: DomainToolDefinition<TSchema, TResult>,
@@ -931,5 +935,92 @@ export const domainTools: DomainToolDefinition[] = [
       if (res.error) return res.error
       return `Status: ${res.statusCode}, Content-Type: ${res.contentType}`
     },
+  }),
+
+  // ── Jira Tagging Tools ─────────────────────────────────────────────────────
+  defineTool({
+    name: 'search_jira_issues',
+    description:
+      'Search Jira issues by keyword (matches issue key or summary) to find candidates for tagging an endpoint. Use this before link_jira_issue_to_endpoint to find the right issue, then present the options to the user and only link the one they confirm.',
+    inputSchema: z.object({
+      query: z
+        .string()
+        .trim()
+        .min(1)
+        .describe('Search text, e.g. a feature name or the endpoint summary/path'),
+    }),
+    readOnly: true,
+    execute: async ({ query }) => {
+      if (!jiraClient.isConfigured()) return { configured: false, issues: [] }
+      const issues = await jiraClient.searchIssues(query)
+      return { configured: true, issues }
+    },
+    formatSummary: (result) => {
+      const res = result as { configured: boolean; issues: unknown[] }
+      if (!res.configured) return 'Jira is not configured on this server'
+      return `Found ${res.issues.length} matching Jira issues`
+    },
+  }),
+
+  defineTool({
+    name: 'list_endpoint_jira_links',
+    description:
+      'List the Jira cards already linked to an endpoint, including live status/summary/assignee when Jira is configured.',
+    inputSchema: z.object({
+      endpointId: z.string().min(1).describe('The endpoint ID'),
+    }),
+    readOnly: true,
+    execute: async ({ endpointId }) => {
+      return jiraLinkService.listByEndpoint(endpointId)
+    },
+    formatSummary: (result) => `Found ${(result as unknown[]).length} linked Jira cards`,
+  }),
+
+  defineTool({
+    name: 'link_jira_issue_to_endpoint',
+    description:
+      'Attach a Jira issue to an endpoint as a tagged card. Always find and confirm the exact issue with the user (e.g. via search_jira_issues) before calling this — never guess an issue key.',
+    inputSchema: z.object({
+      endpointId: z.string().min(1).describe('The endpoint ID'),
+      issueKey: z.string().trim().min(1).describe('The Jira issue key, e.g. BE-1234'),
+      category: z
+        .string()
+        .trim()
+        .optional()
+        .describe('Optional free-text label for the card, e.g. BE, FE, QA'),
+    }),
+    requiresConfirmation: true,
+    formatConfirmation: ({ issueKey, category }) =>
+      `Link Jira issue ${issueKey}${category ? ` (${category})` : ''} to this endpoint`,
+    execute: async ({ endpointId, issueKey, category }, ctx) => {
+      const link = await jiraLinkService.create({ endpointId, issueKey, category })
+      ctx.onUiEffect?.({ type: 'tab_change', endpointId, tab: 'jira' })
+      ctx.onUiEffect?.({ type: 'highlight', endpointId })
+      return link
+    },
+    formatSummary: (result) => {
+      const res = result as { issueKey?: string }
+      return `Jira issue ${res.issueKey} linked to the endpoint`
+    },
+  }),
+
+  defineTool({
+    name: 'unlink_jira_issue_from_endpoint',
+    description:
+      'Remove a previously linked Jira card from an endpoint. Use list_endpoint_jira_links first to find the correct link ID (not the Jira issue key).',
+    inputSchema: z.object({
+      linkId: z
+        .string()
+        .min(1)
+        .describe('The Jira link ID from list_endpoint_jira_links, not the Jira issue key'),
+    }),
+    destructive: true,
+    requiresConfirmation: true,
+    formatConfirmation: ({ linkId }) => `Remove Jira link (ID: ${linkId}) from this endpoint`,
+    execute: async ({ linkId }, ctx) => {
+      await jiraLinkService.delete(linkId, ctx.accountId)
+      return { success: true }
+    },
+    formatSummary: () => 'Jira link removed',
   }),
 ]

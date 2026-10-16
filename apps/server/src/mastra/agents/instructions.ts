@@ -12,7 +12,8 @@ export function buildSystemInstructions(context?: AssistantContext): string {
     '- When creating or updating examples, pass JSON payloads as valid structured JSON objects (or arrays), never double-quoted raw stringified escaped JSON.\n' +
     '- For the markdown documentation of an endpoint (Docs tab) use get_endpoint_docs / update_endpoint_docs instead of update_endpoint_contract.\n' +
     '- Provide clear, concise, and well-structured markdown responses.\n' +
-    '- NEVER invent or guess a project/endpoint/folder ID. If you do not already know the exact ID from this conversation or the page context below, call list_projects (and get_endpoints_by_project / list_folders as needed) first to discover real IDs before calling any other tool.\n\n'
+    '- NEVER invent or guess a project/endpoint/folder ID. If you do not already know the exact ID from this conversation or the page context below, call list_projects (and get_endpoints_by_project / list_folders as needed) first to discover real IDs before calling any other tool.\n' +
+    '- Jira card tagging: when the user asks for a Jira card recommendation for an endpoint, call search_jira_issues with keywords from the endpoint summary/path to find candidates (check list_endpoint_jira_links first to avoid re-suggesting already-linked issues), then present the candidates and let the user pick one. Only call link_jira_issue_to_endpoint for the exact issue key the user confirmed — never guess or auto-pick an issue key. Use unlink_jira_issue_from_endpoint with the link ID (not the issue key) to remove one.\n\n'
 
   if (context && (context.projectId || context.endpointId || context.pathname)) {
     instructions += '### CURRENT USER VIEWPORT & PAGE CONTEXT:\n'

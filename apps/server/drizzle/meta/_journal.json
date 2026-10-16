@@ -36,6 +36,13 @@
       "when": 1788347132157,
       "tag": "0004_furry_nekra",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792126990168,
+      "tag": "0005_sturdy_mathemanic",
+      "breakpoints": true
     }
   ]
 }

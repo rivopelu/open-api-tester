@@ -101,6 +101,33 @@ export interface EndpointDto {
 
 export type EndpointSummaryDto = Omit<EndpointDto, 'specData'>;
 
+export type JiraStatusCategory = 'new' | 'indeterminate' | 'done';
+
+export interface JiraIssueInfo {
+  key: string;
+  summary: string;
+  status: string;
+  statusCategory: JiraStatusCategory;
+  issueType: string;
+  assignee: string | null;
+  url: string;
+}
+
+export interface JiraLinkDto {
+  id: string;
+  endpointId: string;
+  category: string;
+  issueKey: string;
+  issueUrl: string;
+  jira: JiraIssueInfo | null;
+  jiraError?: string;
+}
+
+export interface JiraIssueMatchDto {
+  key: string;
+  summary: string;
+}
+
 export function getErrorMessage(err: unknown, fallback = 'Request failed'): string {
   const data = err as { response?: { data?: { message?: string } }; message?: string };
   return data?.response?.data?.message ?? data?.message ?? fallback;

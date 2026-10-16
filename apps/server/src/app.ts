@@ -7,6 +7,8 @@ import { authController } from './bff/controllers/auth.controller'
 import { endpointsController } from './bff/controllers/endpoints.controller'
 import { createMockApp } from './bff/controllers/mock.controller'
 import { endpointFoldersController } from './bff/controllers/endpoint-folders.controller'
+import { endpointJiraLinksController } from './bff/controllers/endpoint-jira-links.controller'
+import { jiraController } from './bff/controllers/jira.controller'
 import { projectsController } from './bff/controllers/projects.controller'
 import { systemController } from './bff/controllers/system.controller'
 import { corsConfig } from './configs/cors'
@@ -36,6 +38,8 @@ registerControllers(
     projectsController,
     endpointFoldersController,
     endpointsController,
+    endpointJiraLinksController,
+    jiraController,
     assistantController,
   ],
   env.API_PREFIX,
